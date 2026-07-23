@@ -1,0 +1,527 @@
+{
+  "meta": {
+    "brand": "First Commit",
+    "tagline": "Learn Git from zero — right in your browser.",
+    "version": "1.0.0",
+    "youtubeVideoId": ""
+  },
+  "modules": [
+    {
+      "id": "m1",
+      "number": 1,
+      "title": "Why Git Exists",
+      "summary": "What version control is, the problem it solves, and how Git thinks about your files.",
+      "status": "ready",
+      "lessons": [
+        {
+          "id": "m1l1",
+          "title": "The problem Git solves",
+          "type": "concept",
+          "body": [
+            { "p": "Imagine you're writing an essay. You save it as `essay.docx`. Then you make big changes, get nervous, and save a copy: `essay_v2.docx`. Then `essay_v2_final.docx`. Then `essay_v2_final_REALLY_FINAL.docx`. Two weeks later you have eleven files, you don't remember which one has the good introduction, and you just overwrote the only copy that had it." },
+            { "p": "Every programmer, writer, and designer has lived this. The problem isn't you — it's that files only remember their **latest** state. The moment you save, the past is gone." },
+            { "h": "Version control: a time machine for your project" },
+            { "p": "A *version control system* (VCS) fixes this by recording **snapshots** of your whole project over time. Think of it like save points in a video game: at any moment you can say \"save my progress here,\" and later you can go back to any save point, compare them, or branch off in a new direction — without losing anything." },
+            { "analogy": "A Git repository is like a photo album of your project. Each snapshot (called a **commit**) is a photo of every file at one moment, with a caption saying what changed and why. The album never forgets a photo." },
+            { "h": "What is Git, specifically?" },
+            { "p": "Git is the world's most widely used version control system. It was created in 2005 by Linus Torvalds (the creator of Linux) and today it runs almost every software project you've heard of — and plenty of non-software ones too: books, research papers, legal documents, game assets." },
+            { "p": "Three ideas to hold onto — we'll return to them constantly:" },
+            { "list": [
+              "A **repository** (\"repo\") is your project folder plus its entire recorded history.",
+              "A **commit** is one snapshot of the project, with a message describing it.",
+              "The **history** is the chain of commits — you can walk back through it any time."
+            ] },
+            { "tip": "You don't need to be a programmer to use Git. If you can make files and type a few commands, you can use Git. This course assumes zero prior knowledge." }
+          ]
+        },
+        {
+          "id": "m1l2",
+          "title": "How Git thinks: snapshots, not saves",
+          "type": "concept",
+          "body": [
+            { "p": "Before you type a single command, it helps to see the mental model. Git splits your project into **three areas**:" },
+            { "list": [
+              "The **working directory** — your actual files, the ones you edit. Just a normal folder.",
+              "The **staging area** — a waiting room where you gather the changes you want in your next snapshot.",
+              "The **repository** — the album of permanent snapshots (commits)."
+            ] },
+            { "analogy": "Picture a photographer's studio. The **working directory** is the messy room where things happen. The **staging area** is the spot in front of the camera — you deliberately arrange what should be in the photo. The **commit** is pressing the shutter: click, that arrangement is recorded forever." },
+            { "h": "Commits form a chain" },
+            { "p": "Every commit remembers which commit came before it. That link is what turns individual snapshots into a **history** you can travel along. Here's what a young project's history looks like — three commits, oldest on the left:" },
+            { "graph": { "caption": "Three commits on the main branch. The label 'main' points at the newest commit; HEAD means 'you are here'.", "ops": [
+              { "op": "init" },
+              { "op": "write", "path": "story.txt", "content": "chapter one" },
+              { "op": "add" }, { "op": "commit", "message": "Start the story" },
+              { "op": "write", "path": "story.txt", "content": "chapter one\nchapter two" },
+              { "op": "add" }, { "op": "commit", "message": "Add chapter two" },
+              { "op": "write", "path": "cover.txt", "content": "artwork" },
+              { "op": "add" }, { "op": "commit", "message": "Add cover art" }
+            ] } },
+            { "p": "In this course, that diagram is live: it redraws itself after every command you run, so you can *watch* your history grow. That picture — dots connected by lines — is the single most important thing to understand about Git. Everything else (branches, merges, undoing mistakes) is just moving around on it." },
+            { "tip": "Reassurance up front: once something is committed in Git, it is very hard to lose. Most \"disasters\" beginners fear are recoverable. We'll even practice recovering from them in Module 9." }
+          ]
+        },
+        {
+          "id": "m1l3",
+          "title": "Guided: meet your sandbox",
+          "type": "guided",
+          "body": [
+            { "p": "Below is a **terminal** — the text-based way to talk to a computer. You type a command, press Enter, and the computer answers. All of this runs safely in your browser; you cannot break anything. Let's learn the three commands you'll use constantly, and see *why* we need Git at all." }
+          ],
+          "exercise": {
+            "setup": [
+              { "op": "write", "path": "story.txt", "content": "It was a dark and stormy night." },
+              { "op": "write", "path": "notes.txt", "content": "TODO: think of a better opening line" }
+            ],
+            "steps": [
+              {
+                "say": "First, look around. `ls` lists the files in the current folder. Type it and press Enter.",
+                "cmd": "ls",
+                "hint": "Type exactly: ls — then press Enter.",
+                "expect": [ { "kind": "commandRan", "command": "ls", "label": "List the folder contents" } ]
+              },
+              {
+                "say": "Two files. Let's read one: `cat` prints a file's contents.",
+                "cmd": "cat story.txt",
+                "hint": "Type: cat story.txt",
+                "expect": [ { "kind": "commandRan", "command": "cat", "label": "Print story.txt" } ]
+              },
+              {
+                "say": "Now edit the file. `echo \"text\" > file` replaces a file's contents with new text. Rewrite the opening line:",
+                "cmd": "echo \"The morning was suspiciously quiet.\" > story.txt",
+                "hint": "Copy the command exactly, or write your own line — anything that changes story.txt counts.",
+                "expect": [ { "kind": "fileChanged", "path": "story.txt", "label": "story.txt has new contents" } ]
+              },
+              {
+                "say": "Read it back with `cat story.txt`. Notice something? The dark and stormy night is **gone**. Not in a trash can, not in an 'undo' buffer — gone. That's life without version control, and that's exactly what Git fixes.",
+                "cmd": "cat story.txt",
+                "hint": "Type: cat story.txt",
+                "expect": [ { "kind": "commandRan", "command": "cat", "label": "Confirm the old text is gone" } ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "m1l4",
+          "title": "Challenge: set up a project folder",
+          "type": "challenge",
+          "body": [
+            { "p": "Time to prove you can drive the terminal on your own. In the next module you'll put a folder under Git's protection — first, build one." }
+          ],
+          "exercise": {
+            "setup": [],
+            "goal": "Create two files: `ideas.txt` containing any text you like, and `plan.txt` containing the word `git` somewhere. Use `ls` and `cat` to check your work.",
+            "hints": [
+              "echo \"some text\" > ideas.txt creates a file with that text.",
+              "For plan.txt, the text just needs to include the word 'git' — e.g. echo \"learn git properly\" > plan.txt",
+              "Use cat plan.txt to double-check what's inside."
+            ],
+            "expect": [
+              { "kind": "fileExists", "path": "ideas.txt", "nonEmpty": true, "label": "ideas.txt exists and has content" },
+              { "kind": "fileExists", "path": "plan.txt", "contains": "git", "ci": true, "label": "plan.txt exists and mentions git" }
+            ]
+          }
+        }
+      ],
+      "recap": {
+        "body": [
+          { "h": "Module 1 recap" },
+          { "list": [
+            "Files only remember their latest state — version control records **snapshots** over time.",
+            "A **repository** = your folder + its full history. A **commit** = one snapshot with a message.",
+            "Git sees three areas: **working directory** → **staging area** → **repository**.",
+            "Terminal survival kit: `ls` (list files), `cat` (read a file), `echo \"text\" > file` (write a file)."
+          ] },
+          { "graph": { "caption": "The shape of things to come: commits chained into a history.", "ops": [
+            { "op": "init" },
+            { "op": "write", "path": "a.txt", "content": "1" }, { "op": "add" }, { "op": "commit", "message": "First snapshot" },
+            { "op": "write", "path": "a.txt", "content": "2" }, { "op": "add" }, { "op": "commit", "message": "Second snapshot" },
+            { "op": "write", "path": "a.txt", "content": "3" }, { "op": "add" }, { "op": "commit", "message": "Third snapshot" }
+          ] } },
+          { "p": "Next: you'll create your first repository and press the shutter yourself." }
+        ]
+      }
+    },
+    {
+      "id": "m2",
+      "number": 2,
+      "title": "Your First Repository",
+      "summary": "git init, git status, git add, git commit — from an ordinary folder to a protected project with history.",
+      "status": "ready",
+      "lessons": [
+        {
+          "id": "m2l1",
+          "title": "init: putting a folder under Git's protection",
+          "type": "concept",
+          "body": [
+            { "p": "A Git repository starts life as a completely ordinary folder. The command `git init` (short for *initialize*) turns it into a repository. What actually happens is delightfully simple: Git creates one hidden subfolder called `.git`, and that's where it will keep every snapshot, forever." },
+            { "analogy": "`git init` is like installing a filing cabinet in the corner of your office. Your desk (the working directory) looks exactly the same afterward — but now there's a place where copies of your work can be stored safely and organized by date." },
+            { "code": "git init\n# → Initialized empty Git repository in /home/learner/project/.git/" },
+            { "h": "Nothing is tracked automatically" },
+            { "p": "Here's the part that surprises everyone: after `git init`, Git is **not** watching your files yet. It knows the folder exists, but every file in it is *untracked* — Git sees it, shrugs, and does nothing until you explicitly say \"this file matters, include it in snapshots.\"" },
+            { "p": "This is deliberate. Real projects contain junk that should never be in history (temporary files, passwords, huge downloads). Git makes you opt files **in**, never the other way around." },
+            { "h": "git status: your compass" },
+            { "p": "`git status` answers the question you'll ask a hundred times a day: *\"Git, what do you see right now?\"* It lists which files are untracked, which have changes, and which are staged for the next snapshot. It never changes anything — it's completely safe to run at any moment. When in doubt, `git status`." },
+            { "tip": "Get in the habit now: run `git status` before and after every other Git command until reading it feels boring. Boring is the goal." }
+          ]
+        },
+        {
+          "id": "m2l2",
+          "title": "Guided: your first commit",
+          "type": "guided",
+          "body": [
+            { "p": "You have a folder with a recipe file in it. Let's put it under version control and take the first snapshot. Watch the panels on the right as you go — you'll see files move between areas, and the graph gain its first dot." }
+          ],
+          "exercise": {
+            "setup": [
+              { "op": "write", "path": "recipe.txt", "content": "Pancakes\n- 2 eggs\n- 1 cup flour\n- 1 cup milk" }
+            ],
+            "steps": [
+              {
+                "say": "Turn this folder into a repository.",
+                "cmd": "git init",
+                "hint": "Type: git init",
+                "expect": [ { "kind": "repoInitialized", "label": "Repository initialized" } ]
+              },
+              {
+                "say": "Ask Git what it sees. Note the sections: 'No commits yet', and recipe.txt listed under **Untracked files** — Git sees it but isn't protecting it.",
+                "cmd": "git status",
+                "hint": "Type: git status",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "status", "label": "Check the status" } ]
+              },
+              {
+                "say": "Tell Git to include recipe.txt in the next snapshot. This moves it to the **staging area** — watch the file panel on the right.",
+                "cmd": "git add recipe.txt",
+                "hint": "Type: git add recipe.txt",
+                "expect": [ { "kind": "fileStaged", "path": "recipe.txt", "label": "recipe.txt is staged" } ]
+              },
+              {
+                "say": "Run status again. recipe.txt is now under **Changes to be committed** — it's in front of the camera, ready for the photo.",
+                "cmd": "git status",
+                "hint": "Type: git status",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "status", "label": "See the staged file" } ]
+              },
+              {
+                "say": "Press the shutter. `git commit` records the snapshot; `-m` attaches a message explaining it. A dot appears in the graph — that's your history beginning.",
+                "cmd": "git commit -m \"Add pancake recipe\"",
+                "hint": "Type: git commit -m \"Add pancake recipe\" — the quotes matter.",
+                "expect": [
+                  { "kind": "commitCount", "min": 1, "label": "A commit exists" },
+                  { "kind": "cleanWorkingTree", "label": "Working tree is clean" }
+                ]
+              },
+              {
+                "say": "Look at your history. `git log` shows every commit: a unique ID, the author, the date, and your message. There's exactly one entry — your first commit. Welcome to version control.",
+                "cmd": "git log",
+                "hint": "Type: git log",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "log", "label": "Read the history" } ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "m2l3",
+          "title": "Challenge: from folder to first commit",
+          "type": "challenge",
+          "body": [
+            { "p": "No training wheels this time. You have a fresh folder containing `journal.txt`. Get it safely into a repository's history. The checklist below updates live as your repo state changes — it's checking the *state*, not the commands you type, so any correct route works." }
+          ],
+          "exercise": {
+            "setup": [
+              { "op": "write", "path": "journal.txt", "content": "Day 1: started learning Git." }
+            ],
+            "goal": "Initialize a repository and make a commit that contains `journal.txt`, with any commit message. End with a clean working tree.",
+            "hints": [
+              "The full sequence is: git init → git add journal.txt → git commit -m \"some message\"",
+              "Not sure where you are? git status will tell you exactly what's left to do.",
+              "If commit complains about a missing message, you forgot -m \"...\""
+            ],
+            "expect": [
+              { "kind": "repoInitialized", "label": "Repository initialized" },
+              { "kind": "fileCommitted", "path": "journal.txt", "label": "journal.txt is committed" },
+              { "kind": "commitCount", "min": 1, "label": "At least one commit exists" },
+              { "kind": "lastCommitMessage", "minLength": 2, "label": "Commit has a message" },
+              { "kind": "cleanWorkingTree", "label": "Working tree is clean" },
+              { "kind": "headOnBranch", "name": "main", "label": "You're on the main branch" }
+            ]
+          }
+        }
+      ],
+      "recap": {
+        "body": [
+          { "h": "Module 2 recap" },
+          { "list": [
+            "`git init` creates the hidden `.git` folder — the filing cabinet. Run it once per project.",
+            "New files start **untracked**. Git never watches anything without permission.",
+            "`git add <file>` stages a file: \"include this in the next snapshot.\"",
+            "`git commit -m \"message\"` records the snapshot permanently.",
+            "`git status` is your compass; `git log` is your history book."
+          ] },
+          { "graph": { "caption": "One commit: the first photo in the album. main and HEAD both point at it.", "ops": [
+            { "op": "init" },
+            { "op": "write", "path": "journal.txt", "content": "day 1" },
+            { "op": "add" }, { "op": "commit", "message": "First journal entry" }
+          ] } },
+          { "p": "Next: why the staging area exists at all — and how it makes your history tell clean, readable stories." }
+        ]
+      }
+    },
+    {
+      "id": "m3",
+      "number": 3,
+      "title": "Staging vs Committing",
+      "summary": "Why the two-step save exists, how to craft precise commits, and how to un-stage when you change your mind.",
+      "status": "ready",
+      "lessons": [
+        {
+          "id": "m3l1",
+          "title": "The staging area: arrange, then shoot",
+          "type": "concept",
+          "body": [
+            { "p": "Beginners often ask: why the two-step dance? Why `add` *and then* `commit` — why doesn't commit just save everything?" },
+            { "p": "Because **a commit should tell one story**. Real work is messy: in one sitting you might fix a bug, rename a heading, and start a new feature. If commits were automatic \"save everything\" snapshots, each one would be a junk drawer of unrelated changes — and the history would be useless for answering \"when did we fix that bug?\" or \"can we undo just the heading change?\"" },
+            { "analogy": "Back to the photographer's studio. Your working directory is the whole messy room. The **staging area** is the space in front of the camera. Before pressing the shutter you *choose* what's in frame: this change yes, that change not yet. `git add` places a change in frame. `git commit` clicks the shutter. The photo shows only what you staged." },
+            { "h": "The three areas, one more time" },
+            { "code": "working directory  --git add-->  staging area  --git commit-->  repository\n   (your edits)                (next snapshot)               (permanent history)" },
+            { "p": "Two crucial details beginners miss:" },
+            { "list": [
+              "`git add` stages the file's contents **as they are right now**. If you edit the file again afterward, the *new* edits are not staged — the file shows up as both 'staged' and 'modified' at once. Not a bug: the frame holds the version you placed there.",
+              "Changed your mind? `git restore --staged <file>` takes a file back **out** of the frame without touching your actual edits. Nothing is lost — it just won't be in the next photo."
+            ] },
+            { "h": "Seeing what's about to be committed" },
+            { "p": "`git diff` shows edits you have **not** staged yet (working directory vs staging area). `git diff --staged` shows exactly what **will** go into the next commit (staging area vs last commit). Reading `git diff --staged` before committing is the closest thing Git has to a preview button." },
+            { "tip": "A good commit is like a good sentence: one idea. \"Fix login typo\" and \"Add dark mode\" should be two commits, even if you did them in the same hour. Your future self, hunting a bug at midnight, will thank you." }
+          ]
+        },
+        {
+          "id": "m3l2",
+          "title": "Guided: two changes, two commits",
+          "type": "guided",
+          "body": [
+            { "p": "You're working on a tiny website that's already under version control. You've just edited **both** files — two unrelated changes. A lazy person would commit them together. You're going to split them like a pro, and practice un-staging along the way." }
+          ],
+          "exercise": {
+            "setup": [
+              { "op": "init" },
+              { "op": "write", "path": "index.html", "content": "<h1>Welcome to my site</h1>" },
+              { "op": "write", "path": "style.css", "content": "h1 { color: black; }" },
+              { "op": "add" },
+              { "op": "commit", "message": "Publish the site" },
+              { "op": "write", "path": "index.html", "content": "<h1>Welcome, friends!</h1>" },
+              { "op": "write", "path": "style.css", "content": "h1 { color: hotpink; }" }
+            ],
+            "steps": [
+              {
+                "say": "Start with the compass. Both files show as **modified** — changed since the last commit, but nothing staged yet.",
+                "cmd": "git status",
+                "hint": "Type: git status",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "status", "label": "Survey the situation" } ]
+              },
+              {
+                "say": "Stage **only** the headline change. The CSS change stays out of frame.",
+                "cmd": "git add index.html",
+                "hint": "Type: git add index.html — just that one file, not a dot.",
+                "expect": [
+                  { "kind": "fileStaged", "path": "index.html", "label": "index.html is staged" },
+                  { "kind": "fileNotStaged", "path": "style.css", "label": "style.css is NOT staged" }
+                ]
+              },
+              {
+                "say": "Status now shows the split brain: index.html under 'Changes to be committed', style.css under 'Changes not staged'. Same folder, two different areas.",
+                "cmd": "git status",
+                "hint": "Type: git status",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "status", "label": "See the split" } ]
+              },
+              {
+                "say": "Preview exactly what the next commit will contain:",
+                "cmd": "git diff --staged",
+                "hint": "Type: git diff --staged — lines starting with - are removed, + are added.",
+                "expect": [ { "kind": "commandRan", "command": "git", "sub": "diff", "label": "Preview the staged change" } ]
+              },
+              {
+                "say": "Commit it. Note the stat line: **1 file changed** — the CSS edit is untouched, still waiting in your working directory.",
+                "cmd": "git commit -m \"Friendlier welcome headline\"",
+                "hint": "git commit -m \"Friendlier welcome headline\"",
+                "expect": [
+                  { "kind": "commitCount", "min": 2, "label": "Second commit exists" },
+                  { "kind": "commitTouched", "ref": "HEAD", "paths": ["index.html"], "exact": true, "label": "That commit touched only index.html" }
+                ]
+              },
+              {
+                "say": "Now practice changing your mind. Stage the CSS file...",
+                "cmd": "git add style.css",
+                "hint": "Type: git add style.css",
+                "expect": [ { "kind": "fileStaged", "path": "style.css", "label": "style.css is staged" } ]
+              },
+              {
+                "say": "...and immediately un-stage it. Your edit is still in the file — check the panels — it's just out of the frame again. This is the safety valve you'll reach for constantly.",
+                "cmd": "git restore --staged style.css",
+                "hint": "Type: git restore --staged style.css",
+                "expect": [ { "kind": "fileNotStaged", "path": "style.css", "label": "style.css is un-staged again" } ]
+              },
+              {
+                "say": "Finish the job: stage the CSS change again and commit it with its own message. Two changes, two commits, each telling one story.",
+                "cmd": "git add style.css",
+                "hint": "git add style.css, then git commit -m \"Hot pink headline\"",
+                "expect": [
+                  { "kind": "commitCount", "min": 3, "label": "Third commit exists" },
+                  { "kind": "commitTouched", "ref": "HEAD", "paths": ["style.css"], "exact": true, "label": "Last commit touched only style.css" },
+                  { "kind": "cleanWorkingTree", "label": "Working tree is clean" }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "m3l3",
+          "title": "Challenge: untangle the junk drawer",
+          "type": "challenge",
+          "body": [
+            { "p": "A realistic mess: you've modified two tracked files **and** created a brand-new one. Your job is to turn the mess into a tidy history. The checklist validates the final *shape of your history* — how you get there is up to you." }
+          ],
+          "exercise": {
+            "setup": [
+              { "op": "init" },
+              { "op": "write", "path": "app.js", "content": "function greet() {\n  return 'hello';\n}" },
+              { "op": "write", "path": "README.md", "content": "# My App\nA tiny greeting app." },
+              { "op": "add" },
+              { "op": "commit", "message": "Initial commit" },
+              { "op": "write", "path": "app.js", "content": "function greet(name) {\n  return 'hello ' + name;\n}" },
+              { "op": "write", "path": "README.md", "content": "# My App\nA tiny greeting app.\nNow with personalized greetings!" },
+              { "op": "write", "path": "notes.txt", "content": "ideas: add goodbye() next" }
+            ],
+            "goal": "Make exactly two new commits: FIRST a commit containing only the `app.js` change, THEN a commit containing both the `README.md` change and the new `notes.txt` file. End clean.",
+            "hints": [
+              "git status first. Always. Identify what's modified and what's untracked.",
+              "Commit #1: git add app.js → git commit -m \"...\". Don't use 'git add .' — it would grab everything.",
+              "Commit #2: git add README.md notes.txt (you can list several files) → git commit -m \"...\"",
+              "Staged the wrong thing? git restore --staged <file> takes it back out."
+            ],
+            "expect": [
+              { "kind": "commitCount", "min": 3, "label": "Two new commits on top of the initial one" },
+              { "kind": "commitTouched", "ref": "HEAD~1", "paths": ["app.js"], "exact": true, "label": "First new commit: only app.js" },
+              { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md", "notes.txt"], "exact": true, "label": "Second new commit: README.md + notes.txt" },
+              { "kind": "cleanWorkingTree", "label": "Working tree is clean" },
+              { "kind": "headOnBranch", "name": "main", "label": "Still on main" }
+            ]
+          }
+        }
+      ],
+      "recap": {
+        "body": [
+          { "h": "Module 3 recap" },
+          { "list": [
+            "The two-step save exists so each commit can tell **one story** — stage deliberately, commit precisely.",
+            "`git add <file>` puts a change in the frame; `git restore --staged <file>` takes it back out, losing nothing.",
+            "`git add` captures the file **as it is at that moment** — later edits need another add.",
+            "`git diff` = unstaged edits. `git diff --staged` = the preview of your next commit.",
+            "You can name several files at once: `git add a.txt b.txt`."
+          ] },
+          { "graph": { "caption": "A tidy history: each commit one focused change.", "ops": [
+            { "op": "init" },
+            { "op": "write", "path": "app.js", "content": "v1" }, { "op": "add" }, { "op": "commit", "message": "Initial commit" },
+            { "op": "write", "path": "app.js", "content": "v2" }, { "op": "add" }, { "op": "commit", "message": "Personalized greeting" },
+            { "op": "write", "path": "README.md", "content": "docs" }, { "op": "add" }, { "op": "commit", "message": "Update docs" }
+          ] } },
+          { "p": "Next: branches — how to try ideas in parallel universes without touching the main timeline." }
+        ]
+      }
+    },
+    {
+      "id": "m4",
+      "number": 4,
+      "title": "Status & Diff: Reading What Changed",
+      "summary": "Deep-reading git status, comparing any two points in history, and understanding the diff format you'll see everywhere.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m4l1", "title": "Anatomy of git status", "type": "concept", "comingSoon": true },
+        { "id": "m4l2", "title": "Guided: diff detective", "type": "guided", "comingSoon": true },
+        { "id": "m4l3", "title": "Challenge: find the change", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m5",
+      "number": 5,
+      "title": "Branching",
+      "summary": "Branches as movable pointers, switching between parallel lines of work, and why branches are Git's superpower.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m5l1", "title": "A branch is just a sticky note", "type": "concept", "comingSoon": true },
+        { "id": "m5l2", "title": "Guided: your first branch", "type": "guided", "comingSoon": true },
+        { "id": "m5l3", "title": "Challenge: parallel worlds", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m6",
+      "number": 6,
+      "title": "Merging & Conflicts",
+      "summary": "Fast-forwards, merge commits, and calmly resolving the dreaded merge conflict (it's just text).",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m6l1", "title": "Two kinds of merge", "type": "concept", "comingSoon": true },
+        { "id": "m6l2", "title": "Guided: your first conflict", "type": "guided", "comingSoon": true },
+        { "id": "m6l3", "title": "Challenge: the peacemaker", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m7",
+      "number": 7,
+      "title": "Remotes & Push/Pull",
+      "summary": "Working with a copy of your repo that lives elsewhere: clone, push, pull, fetch, and what origin/main really means.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m7l1", "title": "Your repo's twin in the cloud", "type": "concept", "comingSoon": true },
+        { "id": "m7l2", "title": "Guided: push, teammate, pull", "type": "guided", "comingSoon": true },
+        { "id": "m7l3", "title": "Challenge: rejected!", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m8",
+      "number": 8,
+      "title": "Collaboration Basics",
+      "summary": "How teams actually use Git: feature branches, pull requests conceptually, and code review etiquette.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m8l1", "title": "The pull request, conceptually", "type": "concept", "comingSoon": true },
+        { "id": "m8l2", "title": "Guided: the feature-branch workflow", "type": "guided", "comingSoon": true },
+        { "id": "m8l3", "title": "Challenge: ship a feature", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m9",
+      "number": 9,
+      "title": "Undoing Mistakes",
+      "summary": "reset vs revert, the reflog safety net, and why almost nothing in Git is truly lost.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m9l1", "title": "Three flavors of undo", "type": "concept", "comingSoon": true },
+        { "id": "m9l2", "title": "Guided: time travel practice", "type": "guided", "comingSoon": true },
+        { "id": "m9l3", "title": "Challenge: disaster recovery", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m10",
+      "number": 10,
+      "title": ".gitignore",
+      "summary": "Keeping junk out of history: ignore patterns, what belongs in a repo, and fixing 'I committed my passwords'.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m10l1", "title": "What Git should never see", "type": "concept", "comingSoon": true },
+        { "id": "m10l2", "title": "Guided: writing ignore rules", "type": "guided", "comingSoon": true },
+        { "id": "m10l3", "title": "Challenge: clean house", "type": "challenge", "comingSoon": true }
+      ]
+    },
+    {
+      "id": "m11",
+      "number": 11,
+      "title": "Commit Hygiene",
+      "summary": "Writing commit messages people thank you for, sizing commits well, and keeping history readable.",
+      "status": "coming-soon",
+      "lessons": [
+        { "id": "m11l1", "title": "Messages your future self will love", "type": "concept", "comingSoon": true },
+        { "id": "m11l2", "title": "Guided: message makeover", "type": "guided", "comingSoon": true },
+        { "id": "m11l3", "title": "Challenge: the perfect series", "type": "challenge", "comingSoon": true }
+      ]
+    }
+  ]
+}
