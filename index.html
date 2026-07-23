@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="First Commit — a free interactive Git course for complete beginners. Practice real git commands in a safe in-browser sandbox with a live commit graph.">
+  <meta property="og:title" content="First Commit — learn Git from zero, right in your browser">
+  <meta property="og:description" content="A free interactive Git course with a simulated terminal and a live commit-graph visualization. No installs, no risk, no prior knowledge needed.">
+  <title>First Commit — learn Git from zero, right in your browser</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233ddc84'/%3E%3Crect x='14.75' y='2' width='2.5' height='8' rx='1.25' fill='%233ddc84'/%3E%3Crect x='14.75' y='22' width='2.5' height='8' rx='1.25' fill='%233ddc84'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./css/landing.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./index.html"><span class="brand-dot"></span>First Commit</a>
+    <nav class="site-nav">
+      <a href="#curriculum">Curriculum</a>
+      <a href="#how">How it works</a>
+      <a href="#video">Video</a>
+      <a class="nav-cta" href="./app.html">Open the course →</a>
+    </nav>
+  </header>
+
+  <!-- ================================ HERO ================================ -->
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="hero-kicker">free · interactive · zero installs</p>
+      <h1>Learn Git from zero,<br><span class="grad">right in your browser.</span></h1>
+      <p class="hero-sub">
+        Git is the tool behind almost every software project on Earth — and it's famously confusing to start.
+        <strong>First Commit</strong> teaches it by doing: type real git commands in a safe simulated terminal
+        and <em>watch</em> your commit history grow on a live graph. No account, no downloads, nothing to break.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="./app.html">Start learning — it's free</a>
+        <a class="btn-secondary" href="./app.html#/playground">Try the playground</a>
+      </div>
+      <p class="hero-note">Made for complete beginners · works on phones · your progress is saved in your browser</p>
+    </div>
+
+    <div class="hero-demo">
+      <div class="demo-terminal">
+        <div class="demo-bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="demo-title">~/project</span></div>
+        <pre class="demo-body"><span class="p">~/project $</span> git init
+<span class="o">Initialized empty Git repository in ~/project/.git/</span>
+<span class="p">~/project (main) $</span> git add story.txt
+<span class="p">~/project (main) $</span> git commit -m "Begin the story"
+<span class="o">[main (root-commit) <span class="sha">a3f9e21</span>] Begin the story</span>
+<span class="o"> 1 file changed, 1 insertion(+)</span>
+<span class="p">~/project (main) $</span> <span class="cursor">▊</span></pre>
+      </div>
+      <svg class="demo-graph" viewBox="0 0 340 120" aria-hidden="true">
+        <path class="dg-edge" d="M 40 80 L 110 80" />
+        <path class="dg-edge" d="M 110 80 L 180 80" />
+        <path class="dg-edge2" d="M 110 80 C 145 80 145 36 180 36" />
+        <path class="dg-edge2" d="M 180 36 L 250 36" />
+        <path class="dg-edge" d="M 180 80 C 215 80 215 80 250 80" />
+        <circle class="dg-node" cx="40" cy="80" r="8"/>
+        <circle class="dg-node" cx="110" cy="80" r="8"/>
+        <circle class="dg-node" cx="180" cy="80" r="8"/>
+        <circle class="dg-node2" cx="180" cy="36" r="8"/>
+        <circle class="dg-node2" cx="250" cy="36" r="8"/>
+        <circle class="dg-node dg-head" cx="250" cy="80" r="8"/>
+        <rect class="dg-pill" x="216" y="95" width="68" height="20" rx="10"/>
+        <text class="dg-pill-text" x="250" y="109">main</text>
+        <rect class="dg-pill2" x="219" y="4" width="62" height="20" rx="10"/>
+        <text class="dg-pill-text2" x="250" y="18">feature</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============================ HOW IT WORKS ============================ -->
+  <section class="features" id="how">
+    <h2 class="section-title">Why this course clicks when others don't</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="f-icon">⌨️</div>
+        <h3>A terminal you can't break</h3>
+        <p>Practice in a fully simulated sandbox that behaves exactly like real git — same commands, same output, same error messages — with zero risk to your computer. Merge conflicts, detached HEAD, rejected pushes: meet them all safely.</p>
+      </div>
+      <div class="feature">
+        <div class="f-icon">🌳</div>
+        <h3>See your history, live</h3>
+        <p>Branches and commits are invisible in real git — that's why they're confusing. Here, a commit graph redraws itself after <em>every command you run</em>, so the mental model builds itself while you type.</p>
+      </div>
+      <div class="feature">
+        <div class="f-icon">🎯</div>
+        <h3>Real understanding, verified</h3>
+        <p>Challenges check the actual <em>state of your repository</em> — not the commands you typed. Solve it your own way; if the history is right, you pass. Guided steps, progressive hints, and instant feedback keep you moving.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= CURRICULUM ============================= -->
+  <section class="curriculum" id="curriculum">
+    <h2 class="section-title">The curriculum</h2>
+    <p class="section-sub">From "what even is version control" to collaborating like a professional. Each module: concepts explained with analogies → a guided walkthrough → a challenge that proves you've got it.</p>
+    <ol class="module-grid">
+      <li class="mod ready"><span class="mod-num">01</span><h3>Why Git Exists</h3><p>Version control from first principles — snapshots, repositories, and the mental model everything else builds on.</p><span class="mod-tag">available</span></li>
+      <li class="mod ready"><span class="mod-num">02</span><h3>Your First Repository</h3><p>init, status, add, commit — from ordinary folder to protected history.</p><span class="mod-tag">available</span></li>
+      <li class="mod ready"><span class="mod-num">03</span><h3>Staging vs Committing</h3><p>Why the two-step save exists and how to craft commits that tell one story.</p><span class="mod-tag">available</span></li>
+      <li class="mod"><span class="mod-num">04</span><h3>Status &amp; Diff</h3><p>Reading exactly what changed, anywhere in history.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">05</span><h3>Branching</h3><p>Parallel universes for your ideas — branches as movable pointers.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">06</span><h3>Merging &amp; Conflicts</h3><p>Fast-forwards, merge commits, and staying calm in a conflict.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">07</span><h3>Remotes &amp; Push/Pull</h3><p>Sync with a copy of your repo that lives elsewhere.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">08</span><h3>Collaboration Basics</h3><p>Feature branches and pull requests, conceptually.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">09</span><h3>Undoing Mistakes</h3><p>reset, revert, reflog — why almost nothing is ever truly lost.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">10</span><h3>.gitignore</h3><p>Keeping junk (and secrets) out of history forever.</p><span class="mod-tag soon">coming soon</span></li>
+      <li class="mod"><span class="mod-num">11</span><h3>Commit Hygiene</h3><p>Messages and history your teammates will thank you for.</p><span class="mod-tag soon">coming soon</span></li>
+    </ol>
+  </section>
+
+  <!-- =============================== VIDEO ================================ -->
+  <section class="video-section" id="video">
+    <h2 class="section-title">Prefer to watch first?</h2>
+    <p class="section-sub">This course pairs with a video series — watch the concepts, then practice them here.</p>
+    <div class="video-frame">
+      <!--
+        YOUTUBE EMBED SLOT
+        Replace VIDEO_ID below with your YouTube video id (also update
+        meta.youtubeVideoId in content/course.json if you surface it in-app).
+      -->
+      <div class="video-placeholder" id="video-placeholder">
+        <span class="vp-play">▶</span>
+        <p>Video coming soon — subscribe to catch the launch.</p>
+      </div>
+      <!-- When ready, replace the placeholder above with:
+      <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID"
+              title="First Commit — Git course" frameborder="0" allowfullscreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+      -->
+    </div>
+  </section>
+
+  <!-- ================================ CTA ================================= -->
+  <section class="final-cta">
+    <h2>Your first commit is five minutes away.</h2>
+    <a class="btn-primary btn-big" href="./app.html">Start the course</a>
+  </section>
+
+  <footer class="site-footer">
+    <span><span class="brand-dot small"></span> First Commit</span>
+    <span class="foot-sep">·</span>
+    <span>An interactive Git course for everyone</span>
+    <span class="foot-sep">·</span>
+    <span>Runs entirely in your browser — no data leaves your device</span>
+  </footer>
+</body>
+</html>
