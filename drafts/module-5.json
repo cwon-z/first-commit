@@ -1,0 +1,712 @@
+{
+  "module": {
+    "id": "m5",
+    "number": 5,
+    "title": "Branching",
+    "summary": "A branch is a sticky note pointing at one commit. How to make one, move between them, and keep two versions of your project alive at the same time.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m5l1",
+        "title": "A branch is a sticky note",
+        "type": "concept",
+        "body": [
+          {
+            "p": "Here is a situation every beginner meets. Your project works. You want to try something that might *not* work — a redesign, a rewrite, a wild idea you're only half sure about. The instinct is to duplicate the folder: `project` and `project-experiment`. And you are right back in `essay_v2_final_REALLY_FINAL` territory, except now you have two folders to keep in step with each other."
+          },
+          {
+            "p": "Git's answer is the **branch**. It is the most important idea in this course, and also the one most beginners get wrong — because the word sounds like it means \"a copy of everything\". It doesn't. Not even slightly."
+          },
+          {
+            "h": "What a branch actually is"
+          },
+          {
+            "p": "Every commit has a unique ID: a 40-character string like `a4fd5c7e9b3f...`. A branch is **a name written next to one of those IDs**. That is the entire thing. It is a scrap of text on disk. `main` is not your project — `main` is a name pointing at one commit."
+          },
+          {
+            "p": "You'll rarely see all forty characters. Git prints the first seven — `b9e46c0` — because that is already enough to pick one commit out of thousands. That short form is what appears under the dots in the graph panel and at the start of every log line. Same ID, abbreviated."
+          },
+          {
+            "analogy": "Remember the photo album from Module 1. A branch is a **sticky note** stuck to one photo with a name written on it. `main` is a sticky note reading \"main\". Creating a new branch is writing a second sticky note and putting it on the *same photo*. You have not copied a single photograph. You have spent one sticky note."
+          },
+          {
+            "p": "That's why branching is instant, even in a project with a hundred thousand files. Nothing is duplicated. One short line of text gets written, and it takes the same time whether your project is a shopping list or an operating system."
+          },
+          {
+            "h": "HEAD: the note that says \"you are here\""
+          },
+          {
+            "p": "There is one more sticky note, and it's a special one. **HEAD** marks which branch you are currently standing on. When `git log` shows you `(HEAD -> main)`, Git is telling you two facts at once: the branch `main` points at this commit, *and* you are currently on `main`."
+          },
+          {
+            "graph": {
+              "caption": "Two branch names, one commit. Someone ran `git branch neon-theme` a moment ago — the commands are collected at the end of this lesson, so for now watch what happens to the picture rather than the typing. Look closely: both labels sit on the same dot. Nothing was copied, and HEAD says you are still standing on main.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: black; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Publish the cafe site"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>\n<p>Coffee and cake.</p>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a tagline"
+                },
+                {
+                  "op": "branch",
+                  "name": "neon-theme"
+                }
+              ]
+            }
+          },
+          {
+            "h": "The branch you're standing on moves"
+          },
+          {
+            "p": "Here is the part that makes branches useful rather than merely cheap. **When you make a commit, Git slides the sticky note you are standing on forward onto the new commit.** Automatically, every single time. You have been doing this since Module 2 without noticing — it is how `main` kept up with your history."
+          },
+          {
+            "p": "So if you step onto `neon-theme` and commit there, `neon-theme` moves forward — and `main` stays exactly where it was, because nobody moved it."
+          },
+          {
+            "graph": {
+              "caption": "One commit later, made while standing on neon-theme. That label moved forward by itself. main did not budge — it is now one commit behind.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: black; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Publish the cafe site"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>\n<p>Coffee and cake.</p>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a tagline"
+                },
+                {
+                  "op": "switchCreate",
+                  "name": "neon-theme"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: hotpink; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Neon pink headline"
+                }
+              ]
+            }
+          },
+          {
+            "p": "And `main` can move too. Step back onto `main`, make a *different* commit there, and the history genuinely forks: two chains of commits that share a past and disagree about the present."
+          },
+          {
+            "graph": {
+              "caption": "Diverged. One shared history, two futures. Neither is more real than the other, and nothing has been lost — every commit is still there, each with a name pointing at it.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: black; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Publish the cafe site"
+                },
+                {
+                  "op": "write",
+                  "path": "index.html",
+                  "content": "<h1>Cafe Nona</h1>\n<p>Coffee and cake.</p>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a tagline"
+                },
+                {
+                  "op": "switchCreate",
+                  "name": "neon-theme"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: hotpink; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Neon pink headline"
+                },
+                {
+                  "op": "switch",
+                  "name": "main"
+                },
+                {
+                  "op": "write",
+                  "path": "style.css",
+                  "content": "h1 { color: navy; }"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Navy blue headline"
+                }
+              ]
+            }
+          },
+          {
+            "h": "What switching does to the files in your folder"
+          },
+          {
+            "p": "`git switch <name>` does two things. It moves HEAD onto that branch — and it updates the files that *differ* between the commit you were standing on and the commit you're going to."
+          },
+          {
+            "p": "That word **differ** is doing a lot of work. Git is not repainting your whole folder. Files that are identical on both sides are left completely alone — including any uncommitted edits you happen to have in them. Those come with you."
+          },
+          {
+            "warn": "There is a catch in that convenience. An edit that follows you to another branch is still uncommitted when it arrives — and a `git commit` over there will happily record it on the wrong branch. If you are carrying work that belongs somewhere specific, commit it before you switch. Module 9 introduces `git stash`, which exists for exactly this moment."
+          },
+          {
+            "p": "This is the moment beginners panic. You switch from `neon-theme` back to `main`, open your stylesheet, and the pink is gone. Worse, a file you created over on the other branch has disappeared from the folder entirely."
+          },
+          {
+            "tip": "Nothing was destroyed. Those contents are sitting inside a commit, and the branch name is your bookmark back to them. Switch to that branch and the files reappear exactly as you left them. Your folder is a **window onto one commit at a time**, not the whole album."
+          },
+          {
+            "p": "Two details worth knowing before they surprise you:"
+          },
+          {
+            "list": [
+              "Files Git isn't tracking — the ones `git status` calls **untracked** — are not touched by switching. They sit in the folder wherever you go, like a coffee cup you carry from room to room. The one exception: if the branch you're moving to has a *committed* file with the same name, Git stops and asks you to move or remove yours first. It will not overwrite a file it never recorded.",
+              "Anything you have **committed** is reachable through its branch name. Anything you have **not** committed lives only in the folder — which is exactly what the next section is about."
+            ]
+          },
+          {
+            "h": "When Git refuses to switch"
+          },
+          {
+            "p": "Git stops you in exactly one situation: when the file you have been editing is one of the files it would have to overwrite. Suppose you're on `main` with an uncommitted edit to `style.css`, and `neon-theme` holds a *different* version of that same file. Switching would mean writing neon's version over the top of yours. Git won't do it:"
+          },
+          {
+            "code": "git switch neon-theme\nerror: Your local changes to the following files would be overwritten by switch:\n\tstyle.css\nPlease commit your changes or stash them before you switch branches.\nAborting"
+          },
+          {
+            "tip": "Real Git prints that same message but says *overwritten by checkout*, even when you typed `switch`. `switch` and `checkout` share the same machinery underneath and that one word never got updated. Don't let it throw you — it is the same refusal."
+          },
+          {
+            "p": "Read it as a favour rather than an obstacle: Git is refusing to throw away work you never recorded. Note how narrow the refusal is — edit a file that both branches agree on and the switch goes ahead, carrying your edit with you. It is only the collision that stops you, and you have two ways out."
+          },
+          {
+            "list": [
+              "**Commit the change** on the branch you're currently standing on. It is then safely inside a commit, and the switch costs nothing.",
+              "**Stash it** — put the edit on a shelf and take it back down later. `git stash` is Module 9's business. Until then, commit."
+            ]
+          },
+          {
+            "tip": "Creating a branch is different: `git switch -c <name>` never disturbs uncommitted work, because the new branch starts at the very commit you are already standing on — there is nothing for Git to rewrite. So the classic \"oh no, I started this on main\" moment has a one-command fix: `git switch -c good-idea` takes you *and* your half-finished edit somewhere it belongs."
+          },
+          {
+            "h": "Retiring a branch"
+          },
+          {
+            "p": "When a branch has done its job, `git branch -d <name>` peels the sticky note off. It does not delete the commits — you are throwing away a *label*, not the photographs."
+          },
+          {
+            "warn": "`git branch -d` refuses when the branch holds commits that exist nowhere else, saying the branch \"is not fully merged\". That is a guard rail, not a wall: removing the only name pointing at your work would make it genuinely hard to find again. A capital `-D` overrides the guard. Reach for `-D` only when you have decided, on purpose, to abandon that work."
+          },
+          {
+            "h": "The whole toolkit"
+          },
+          {
+            "list": [
+              "`git branch` — list every branch. The `*` marks where you are standing.",
+              "`git branch <name>` — write a new sticky note here, but stay where you are.",
+              "`git switch -c <name>` — write a new sticky note here **and** step onto it. The one you'll use most.",
+              "`git switch <name>` — step onto an existing branch, updating the files that differ between here and there.",
+              "`git branch -d <name>` — retire a branch name you're finished with. You can't delete the one you're standing on."
+            ]
+          },
+          {
+            "tip": "Older tutorials write `git checkout -b <name>` where this course writes `git switch -c <name>`, and `git checkout <name>` where this course writes `git switch <name>`. Same effect. `switch` was added to Git because `checkout` had been given too many unrelated jobs and confused everyone. Both spellings work in this sandbox — prefer `switch`."
+          }
+        ]
+      },
+      {
+        "id": "m5l2",
+        "title": "Guided: your first branch",
+        "type": "guided",
+        "body": [
+          {
+            "p": "The Cafe Nona site is in front of you, two commits deep and perfectly fine. You want to try a loud neon restyle that you are honestly not sure about, and you'd rather not do it on `main`, where the live site lives."
+          },
+          {
+            "p": "Keep an eye on the graph panel as you work. This is the module where it earns its keep — you are about to watch a label move on its own, and then watch a history fork in two."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "index.html",
+              "content": "<h1>Cafe Nona</h1>"
+            },
+            {
+              "op": "write",
+              "path": "style.css",
+              "content": "h1 { color: black; }"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Publish the cafe site"
+            },
+            {
+              "op": "write",
+              "path": "index.html",
+              "content": "<h1>Cafe Nona</h1>\n<p>Coffee and cake.</p>"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add a tagline"
+            }
+          ],
+          "steps": [
+            {
+              "say": "Start by asking what already exists. `git branch` lists every branch in the repository, and the `*` marks the one you're standing on. Expect a very short answer.",
+              "cmd": "git branch",
+              "hint": "Type: git branch",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "branch",
+                  "label": "List the branches"
+                }
+              ]
+            },
+            {
+              "say": "One branch, `main`, and you're on it. Now make somewhere safe to experiment. `-c` means **create**, and `switch` then steps you onto it — two jobs in one command.",
+              "cmd": "git switch -c neon-theme",
+              "hint": "Type: git switch -c neon-theme",
+              "expect": [
+                {
+                  "kind": "branchExists",
+                  "name": "neon-theme",
+                  "label": "The neon-theme branch exists"
+                },
+                {
+                  "kind": "headOnBranch",
+                  "name": "neon-theme",
+                  "label": "You are standing on neon-theme"
+                }
+              ]
+            },
+            {
+              "say": "That was instant, and — check the file panel — not one file changed. Here's the proof. `--oneline` squeezes each commit onto a single line (short ID, labels in brackets, message) and `--all` shows every branch's history, not only the one you're standing on. Read the labels in brackets carefully.",
+              "cmd": "git log --oneline --all",
+              "hint": "Type: git log --oneline --all",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "See both labels on one commit"
+                }
+              ]
+            },
+            {
+              "say": "`(HEAD -> neon-theme, main)` — two names, one commit, exactly as promised. Now do the risky thing. Rewrite the stylesheet with your loud idea.",
+              "cmd": "echo \"h1 { color: hotpink; }\" > style.css",
+              "hint": "Type: echo \"h1 { color: hotpink; }\" > style.css",
+              "expect": [
+                {
+                  "kind": "fileChanged",
+                  "path": "style.css",
+                  "label": "style.css has been rewritten"
+                }
+              ]
+            },
+            {
+              "say": "Stage it and commit it — the same two-step from Module 3. Watch the graph as the commit lands: the `neon-theme` label slides forward onto the new dot all by itself, and `main` gets left behind.",
+              "cmd": "git add style.css\ngit commit -m \"Neon pink headline\"",
+              "hint": "git add style.css — then git commit -m \"Neon pink headline\"",
+              "expect": [
+                {
+                  "kind": "commitCount",
+                  "branch": "neon-theme",
+                  "min": 3,
+                  "label": "neon-theme now has three commits"
+                },
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "style.css"
+                  ],
+                  "exact": true,
+                  "label": "The new commit changed only style.css"
+                }
+              ]
+            },
+            {
+              "say": "Time to go home. Stepping back onto `main` moves HEAD and updates every file that differs between the two commits — here, that is `style.css` and nothing else.",
+              "cmd": "git switch main",
+              "hint": "Type: git switch main",
+              "expect": [
+                {
+                  "kind": "headOnBranch",
+                  "name": "main",
+                  "label": "You are back on main"
+                }
+              ]
+            },
+            {
+              "say": "Now the moment that makes people nervous. Read the stylesheet.",
+              "cmd": "cat style.css",
+              "hint": "Type: cat style.css",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "cat",
+                  "label": "Look at style.css from main's point of view"
+                }
+              ]
+            },
+            {
+              "say": "Black again. The pink isn't lost — it's sitting inside a commit over on `neon-theme`, and your folder is only showing you the commit you're standing on. Now let's meet Git's safety catch on purpose. Make a *different* edit to that same file, then try to hop over to the neon branch **without committing it**. Type both lines; the second one is meant to fail.",
+              "cmd": "echo \"h1 { color: navy; }\" > style.css\ngit switch neon-theme",
+              "hint": "First echo \"h1 { color: navy; }\" > style.css, then git switch neon-theme — the switch is supposed to fail.",
+              "expect": [
+                {
+                  "kind": "fileChanged",
+                  "path": "style.css",
+                  "label": "style.css has an uncommitted edit"
+                },
+                {
+                  "kind": "headOnBranch",
+                  "name": "main",
+                  "label": "Git refused the switch — you're still standing on main"
+                }
+              ]
+            },
+            {
+              "say": "Git stopped you: both branches have an opinion about `style.css`, and switching would have quietly erased yours. Do what the error suggested — commit it, here on `main`, where it belongs. This is also `main` moving forward for the first time since you branched.",
+              "cmd": "git add style.css\ngit commit -m \"Navy blue headline\"",
+              "hint": "git add style.css — then git commit -m \"Navy blue headline\"",
+              "expect": [
+                {
+                  "kind": "commitCount",
+                  "branch": "main",
+                  "min": 3,
+                  "label": "main now has three commits too"
+                },
+                {
+                  "kind": "branchExists",
+                  "name": "neon-theme",
+                  "label": "neon-theme is still there, untouched"
+                },
+                {
+                  "kind": "cleanWorkingTree",
+                  "label": "Nothing left uncommitted"
+                }
+              ]
+            },
+            {
+              "say": "Read the brackets: `(HEAD -> main)` and `(neon-theme)` now sit on two *different* commits. The terminal can only print commits one per line, newest first, so it can't show you the shape — look at the **graph panel** for that. Two lines, splitting apart at `Add a tagline`. You built a fork in your project's history: a navy site and a pink one, both saved, each a single `git switch` away. Leave them forked — introducing them is Module 6's job.",
+              "cmd": "git log --oneline --all",
+              "hint": "Type: git log --oneline --all",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "Read the two branch labels"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m5l3",
+        "title": "Challenge: parallel worlds",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "A very ordinary Monday. You're writing a bread book, and you started a new file called `croissants.md` while standing on `main` — everybody does it — before realising, a few lines in, that this experiment deserves a branch of its own. There is also a stray branch called `old-idea` that nobody is ever going back to."
+          },
+          {
+            "p": "Nothing here needs merging; that's the next module. Nothing needs undoing either. Run `git branch` and `git status` first, look at what you've been handed, and think about **where the commit is going to land** before you make it."
+          },
+          {
+            "warn": "The trap: if you commit onto `main`, the checklist can never go green — `main` has to finish exactly where it started. Think first, commit second. If you do slip, the reset button on the terminal panel puts the exercise back to the beginning."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# The Bread Book\nRecipes that have earned their place."
+            },
+            {
+              "op": "write",
+              "path": "recipes.txt",
+              "content": "Sourdough\nFocaccia"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Start the bread book"
+            },
+            {
+              "op": "write",
+              "path": "recipes.txt",
+              "content": "Sourdough\nFocaccia\nBagels"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add bagels"
+            },
+            {
+              "op": "branch",
+              "name": "old-idea"
+            },
+            {
+              "op": "write",
+              "path": "croissants.md",
+              "content": "# Croissants\n72 hour laminated dough. Butter block at 18C."
+            }
+          ],
+          "goal": "Get the unfinished `croissants.md` draft off `main` and onto a new branch called `croissants`, committed there with any message. `main` must finish exactly as it started: still two commits, with no sign of `croissants.md` in its snapshot. Retire the abandoned `old-idea` branch. Finish standing on `main` with a clean working tree.",
+          "hints": [
+            "Start with git branch and git status, so you can see both of the things you've been handed: the extra branch, and the untracked croissants.md sitting in your folder.",
+            "Creating a branch doesn't disturb work in progress — a new branch begins at the commit you are already standing on, so there is nothing for Git to rewrite and anything unfinished comes along with you. There is one switch flag that creates a branch and steps onto it in a single move.",
+            "That flag is -c: git switch -c croissants. Stage and commit croissants.md there, and your working tree is clean — the commit is what did that. git switch main then takes you home, and croissants.md drops out of the folder, because it isn't part of main's snapshot.",
+            "Last piece: git branch -d old-idea. It points at the same commit as main, so Git lets it go without complaint. Remember you can't delete the branch you're standing on."
+          ],
+          "expect": [
+            {
+              "kind": "branchExists",
+              "name": "croissants",
+              "label": "A branch called croissants exists"
+            },
+            {
+              "kind": "fileCommitted",
+              "branch": "croissants",
+              "path": "croissants.md",
+              "contains": "laminated",
+              "label": "The croissant recipe is committed on croissants"
+            },
+            {
+              "kind": "commitCount",
+              "branch": "main",
+              "exact": 2,
+              "label": "main is still exactly two commits — nothing was committed there"
+            },
+            {
+              "kind": "branchAbsent",
+              "name": "old-idea",
+              "label": "The abandoned old-idea branch is retired"
+            },
+            {
+              "kind": "headOnBranch",
+              "name": "main",
+              "label": "You finish standing on main"
+            },
+            {
+              "kind": "fileAbsent",
+              "path": "croissants.md",
+              "label": "croissants.md has vanished from your folder — it lives on the other branch now"
+            },
+            {
+              "kind": "cleanWorkingTree",
+              "label": "Working tree is clean"
+            }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        {
+          "h": "Module 5 recap"
+        },
+        {
+          "list": [
+            "A branch is **a name pointing at one commit** — a sticky note, not a copy of your files. That's why creating one is instant however big the project.",
+            "**HEAD** is the note that says \"you are here\". `(HEAD -> main)` means: main points at this commit, and you're standing on main.",
+            "When you commit, the branch you're standing on **moves forward with you**. Branches you aren't on stay put — that is precisely how a history forks.",
+            "`git switch <name>` updates the files that **differ** between where you were and where you're going. Files change, appear and vanish; files both commits agree on are left alone. Nothing committed is ever lost — the branch name is your way back.",
+            "Git refuses to switch only when the move would overwrite an uncommitted edit of yours. Commit it first (or, from Module 9, stash it). `git switch -c` always carries unfinished work along, because the new branch starts where you already are — nothing has to be rewritten.",
+            "`git branch` list · `git branch <name>` create · `git switch -c <name>` create and step on · `git switch <name>` step on · `git branch -d <name>` retire"
+          ]
+        },
+        {
+          "graph": {
+            "caption": "Where this module leaves you: one shared past, two live futures, a sticky note on each. Both are one git switch away.",
+            "ops": [
+              {
+                "op": "init"
+              },
+              {
+                "op": "write",
+                "path": "index.html",
+                "content": "<h1>Cafe Nona</h1>"
+              },
+              {
+                "op": "write",
+                "path": "style.css",
+                "content": "h1 { color: black; }"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Publish the cafe site"
+              },
+              {
+                "op": "write",
+                "path": "index.html",
+                "content": "<h1>Cafe Nona</h1>\n<p>Coffee and cake.</p>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add a tagline"
+              },
+              {
+                "op": "switchCreate",
+                "name": "neon-theme"
+              },
+              {
+                "op": "write",
+                "path": "style.css",
+                "content": "h1 { color: hotpink; }"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Neon pink headline"
+              },
+              {
+                "op": "switch",
+                "name": "main"
+              },
+              {
+                "op": "write",
+                "path": "style.css",
+                "content": "h1 { color: navy; }"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Navy blue headline"
+              }
+            ]
+          }
+        },
+        {
+          "p": "Next: those two branches are still strangers to each other. Module 6 introduces them — `git merge`, what a merge commit really is, and what to do when both sides have edited the same line."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m5l3": [
+      "git switch -c croissants",
+      "git add croissants.md",
+      "git commit -m \"Draft the croissant recipe\"",
+      "git switch main",
+      "git branch -d old-idea"
+    ]
+  }
+}

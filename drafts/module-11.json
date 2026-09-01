@@ -1,0 +1,432 @@
+{
+  "module": {
+    "id": "m11",
+    "number": 11,
+    "title": "Commit Hygiene",
+    "summary": "The finale: writing messages a stranger could follow, sizing each commit so it says one thing, and fixing the last commit when you get it wrong.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m11l1",
+        "title": "Messages your future self will love",
+        "type": "concept",
+        "body": [
+          {
+            "p": "It's eleven at night. Something about pricing is broken, and you've narrowed it down to one of the last few commits. You open the log to find the one that touched the cart. Here is what you find:"
+          },
+          {
+            "code": "a1c9f0e  fix\n7b2d114  more stuff\n0e91a22  asdf\nc4471be  final FINAL v2\n9d0aa31  fix again"
+          },
+          {
+            "p": "Not one of these tells you anything. The person who wrote them knew exactly what each one meant — for about four hours. That person was you."
+          },
+          {
+            "p": "Every command in this course has been about *recording* your work. This last module is about the other half of the job: making the record **readable**. A history nobody can read is only slightly better than no history at all."
+          },
+          {
+            "h": "A commit message is a letter to a stranger"
+          },
+          {
+            "analogy": "Think about labelling boxes when you move house. You are not labelling them for the person packing — that person can see what's going in. You are labelling them for the person unpacking: tired, in an unfamiliar room, at midnight, holding a box that says **stuff**. A commit message is that label. The person unpacking is almost always you."
+          },
+          {
+            "p": "So here's the test to hold every message against: *would this make sense to someone who wasn't there, reading it two years from now, with no memory of the afternoon I wrote it?* If yes, it's a good message. If it only makes sense because you remember the context, it isn't — because the context is exactly the thing that evaporates."
+          },
+          {
+            "h": "The anatomy of a message"
+          },
+          {
+            "p": "A full Git commit message has three parts, and the shape is the same everywhere in the Git world. Don't worry if the subject matter of the example is unfamiliar — you're looking at the shape, not the security. Notice where the line breaks fall, and what each part is for:"
+          },
+          {
+            "code": "Add rate limiting to the login endpoint\n\nRepeated failed logins let an attacker try passwords all night.\nFive attempts per minute per IP stops that without getting in\nthe way of a real person who fumbled their password twice.\n\nWe rate-limit per IP rather than per account on purpose: locking\naccounts by name is itself an attack, because anyone who knows\nyour username could lock you out."
+          },
+          {
+            "list": [
+              "The **subject line** — one short line, around 50 characters, no full stop at the end. This is the part everyone actually reads, and often the only part they see.",
+              "A **blank line** — not decoration. It is how Git tells the subject from the body; every tool that shows you \"just the summary\" cuts exactly there.",
+              "The **body** — as many lines as you need, explaining **why**. Break the lines yourself at around 72 characters; Git won't wrap them for you, and an unwrapped paragraph turns into one enormous line in half the tools that display it."
+            ]
+          },
+          {
+            "tip": "How do you actually *type* a blank line? Not with `-m` — that flag takes one line and stops. In real Git you write a full message by running `git commit` with **no** `-m` at all: Git opens a text editor, you type the subject, press Enter twice, and write the body underneath. Save the file, close it, done. This playground's terminal takes one line at a time and has no editor, so here you'll practise subject lines — which is the half that matters most, and the half you'll write ten times more often."
+          },
+          {
+            "tip": "Small, obvious changes don't need a body at all. `Fix typo in README` is a complete and excellent commit message. Save your words for the changes that will confuse somebody."
+          },
+          {
+            "h": "Write the subject as a command"
+          },
+          {
+            "p": "Git's own convention is the **imperative mood** — write the subject as an instruction to the codebase. \"Add rate limiting,\" not \"Added rate limiting,\" not \"Adding rate limiting,\" and definitely not \"rate limiting stuff.\""
+          },
+          {
+            "tip": "The sentence trick: a good subject finishes the sentence *\"If applied, this commit will ______.\"* — \"If applied, this commit will **add rate limiting to the login endpoint**.\" That reads right. \"If applied, this commit will **fixed the thing**\" does not. If the sentence sounds wrong, the subject is wrong."
+          },
+          {
+            "p": "Why bother with the mood? Because Git writes messages too, and it writes them that way: `Merge branch 'feature'`, `Revert \"Add rate limiting\"`. Yours will sit in the same list. When every line is phrased the same way, you can read a hundred of them without changing gears."
+          },
+          {
+            "h": "Before and after"
+          },
+          {
+            "code": "✗  fix\n✗  update stuff\n✗  asdf\n✗  final FINAL v2\n✗  changes as discussed\n✗  Fixed the bug where the cart total came out wrong for items on\n   sale because the discount was applied after tax instead of before\n\n✓  Fix cart total for discounted items\n✓  Remove the legacy CSV importer\n✓  Add rate limiting to the login endpoint\n✓  Rename getUsr to getUser throughout"
+          },
+          {
+            "p": "The first five say nothing. The sixth is the opposite problem, and it's worth looking at closely: it isn't wrong, it's **misfiled**. \"Fix cart total for discounted items\" is the subject; everything after \"because\" is body material. Splitting it across a blank line costs nothing and makes both halves readable."
+          },
+          {
+            "h": "The body explains WHY. The diff already shows what."
+          },
+          {
+            "p": "The single most common mistake in a commit body is narrating the diff: \"changed line 40 of cart.js, added an if statement.\" Git can already show you that, perfectly, forever — `git show` prints the exact change. Spending your body on it is like captioning a photo with a list of the objects in the photo."
+          },
+          {
+            "p": "The body is for the things the diff can never tell anyone:"
+          },
+          {
+            "list": [
+              "Why the change was needed at all — the bug report, the complaint, the thing that broke.",
+              "What you tried first that didn't work, so nobody re-tries it in a year.",
+              "The constraint that forced an odd-looking choice.",
+              "What you deliberately left out, and why.",
+              "Anything that will look like a mistake to a future reader and isn't."
+            ]
+          },
+          {
+            "h": "Half of a good message is choosing what goes in the commit"
+          },
+          {
+            "p": "You cannot write a one-line summary of a commit that does five unrelated things. If your subject line needs the word **and**, that is usually not a writing problem — it is a commit problem. \"Fix the cart total and rename the button and update the readme\" is three commits wearing one coat."
+          },
+          {
+            "p": "An **atomic commit** is one logical change: about one thing, and complete on its own."
+          },
+          {
+            "analogy": "A commit is a **paragraph**. Not a word — a commit that adjusts one space in a comment is noise in the log. Not a chapter — a commit that rewrites half the app can't be read, can't be reviewed, and can't be undone without collateral damage. One idea, stated completely, then a break."
+          },
+          {
+            "p": "Note that \"one thing\" is not the same as \"one file.\" Adding a login page might touch `login.html`, `login.css` and a line of routing code — that's still one logical change, and it belongs in one commit. Meanwhile a single file can easily contain two unrelated edits that belong in two."
+          },
+          {
+            "p": "Here is why the size matters, concretely. Suppose three weeks of work went in like this:"
+          },
+          {
+            "graph": {
+              "caption": "Three weeks of work in a single commit — the one on the right. One commit is one handle: if any part of that work turns out to be wrong, your only undo button removes all of it.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "README.md", "content": "# Corner Shop" },
+                { "op": "add" },
+                { "op": "commit", "message": "Initial commit" },
+                { "op": "write", "path": "shop.js", "content": "the shop" },
+                { "op": "write", "path": "cart.js", "content": "the cart" },
+                { "op": "write", "path": "checkout.js", "content": "checkout" },
+                { "op": "write", "path": "styles.css", "content": "styling" },
+                { "op": "write", "path": "README.md", "content": "# Corner Shop\ndocs" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add everything" }
+              ]
+            }
+          },
+          {
+            "p": "Now the same three weeks, committed as the work actually happened:"
+          },
+          {
+            "graph": {
+              "caption": "The same work, committed one piece at a time. Six handles instead of one: revert the commit that broke checkout and every other change survives. Hover a dot to read its message — this log is a changelog you never had to write.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "README.md", "content": "# Corner Shop" },
+                { "op": "add" },
+                { "op": "commit", "message": "Initial commit" },
+                { "op": "write", "path": "shop.js", "content": "the shop" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the product listing page" },
+                { "op": "write", "path": "cart.js", "content": "the cart" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add a cart that remembers its items" },
+                { "op": "write", "path": "cart.js", "content": "the cart\nwith a total" },
+                { "op": "add" },
+                { "op": "commit", "message": "Show a running total in the cart" },
+                { "op": "write", "path": "checkout.js", "content": "checkout" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the checkout page" },
+                { "op": "write", "path": "styles.css", "content": "styling" },
+                { "op": "add" },
+                { "op": "commit", "message": "Style the shop for narrow screens" },
+                { "op": "write", "path": "README.md", "content": "# Corner Shop\ndocs" },
+                { "op": "add" },
+                { "op": "commit", "message": "Document how to run the shop locally" }
+              ]
+            }
+          },
+          {
+            "p": "Same code, same three weeks, wildly different repository. The second one gives you a surgical `git revert`, a history you can skim, and changes small enough that a reviewer actually reads them. A forty-line commit gets read. A four-thousand-line commit gets \"looks good to me.\""
+          },
+          {
+            "h": "git commit --amend: the eraser for the last thing you said"
+          },
+          {
+            "p": "You already met `git commit --amend` in Module 9, where it was an undo tool — the thing you reach for when the last commit is wrong. It is the same command here, doing a different job: it is the eraser for the message you just wrote. You press Enter, and half a second later you spot the typo in your own subject line. Or you notice the commit is missing a file that plainly belongs with it."
+          },
+          {
+            "code": "# with nothing staged, this changes only the message:\ngit commit --amend -m \"Fix cart total for discounted items\"\n\n# fold in a file you forgot, keeping the message untouched:\ngit add login.css\ngit commit --amend --no-edit"
+          },
+          {
+            "tip": "`--no-edit` means \"keep the old message, don't ask me about it\". Leave it off and real Git opens your text editor with the old message already filled in — you'd save and close to keep it unchanged. That editor is the same one from the tip further up, and it's where you'd type the blank line and body. The terminal here has no editor, so it keeps the message either way; get into the habit of writing `--no-edit`, because that is the form that behaves identically everywhere."
+          },
+          {
+            "p": "One trap worth naming: `--amend` always rebuilds the newest commit out of **whatever is staged at that moment**, `-m` or no `-m`. Anything sitting in the staging area gets swept in, even when you thought you were only relabelling. Run `git status` before you amend, the same way you would before any commit."
+          },
+          {
+            "p": "The rest is Module 9's lesson, unchanged: \"amend\" is a polite word for **replace**. Git builds a brand-new commit with the same parent and the corrected contents, then moves your branch onto it — which is why the ID changes, why the old commit is still sitting in `git reflog`, and why this rule still stands:"
+          },
+          {
+            "warn": "Amend only commits you have **not** pushed. Once a commit is on a remote, other people's history contains it, and replacing it means your history and theirs now disagree about what happened. You find out the hard way: your next `git push` is rejected as non-fast-forward, and Git's hint suggests `git pull` — the one time in this course that advice is wrong, because pulling merges the old commit straight back in and you end up with **both** copies of it in your history. There is an escape hatch (`git push --force-with-lease`), and needing it under pressure is precisely the bad afternoon this rule exists to save you from. Rewrite freely before you push, never after."
+          },
+          {
+            "tip": "`--amend` reaches exactly one commit — the tip of your current branch. It cannot fix the message three commits back. Which is one more reason to write it properly the first time."
+          },
+          {
+            "p": "Notice that this lesson introduced no new commands at all. Hygiene isn't a feature you switch on; it's the judgement of when to press the shutter and what to write underneath. You already have every tool you need."
+          }
+        ]
+      },
+      {
+        "id": "m11l2",
+        "title": "Guided: message makeover",
+        "type": "guided",
+        "body": [
+          {
+            "p": "You're back on Corner Shop, a tiny online shop you worked on last week. Past-you left a commit called `stuff`, and present-you has two unrelated edits sitting in the working directory. Let's clean up behind past-you and then do it properly going forward — and before you worry: this repo has never been pushed anywhere. Nobody else has these commits, so rewriting them is completely safe. That's the condition the warning in the last lesson was about, and here it's satisfied."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "cart.js", "content": "function total(items) {\n  return items.length;\n}" },
+            { "op": "write", "path": "prices.js", "content": "function price(item) {\n  return item.cents / 100;\n}" },
+            { "op": "write", "path": "README.md", "content": "# Corner Shop\nA very small online shop." },
+            { "op": "add" },
+            { "op": "commit", "message": "Initial commit" },
+            { "op": "write", "path": "cart.js", "content": "function total(items) {\n  return items.reduce((sum, i) => sum + price(i), 0);\n}" },
+            { "op": "add" },
+            { "op": "commit", "message": "stuff" },
+            { "op": "write", "path": "prices.js", "content": "function price(item) {\n  return Math.round(item.cents) / 100;\n}" },
+            { "op": "write", "path": "README.md", "content": "# Corner Shop\nA very small online shop.\n\n## Checkout\nItems go in the cart, the cart shows a running total,\nand checkout charges that total." },
+            { "op": "write", "path": "CHANGELOG.md", "content": "## Unreleased\n- The cart now shows a running total." }
+          ],
+          "steps": [
+            {
+              "say": "Start where every clean-up starts: read the history you actually have. Two commits. One of them is called `stuff`.",
+              "cmd": "git log --oneline",
+              "hint": "Type: git log --oneline",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "log", "label": "Read the history" }
+              ]
+            },
+            {
+              "say": "So what *was* `stuff`? The message won't tell you, so you have to go read the code. `git show` prints a commit's message and its full diff. Notice how much work it took to learn something a good subject line would have told you instantly.",
+              "cmd": "git show HEAD",
+              "hint": "Type: git show HEAD",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "show", "label": "Read what the commit actually did" }
+              ]
+            },
+            {
+              "say": "The cart now adds up prices instead of counting items. That's a sentence — so write it. `git commit --amend -m \"...\"` replaces the message on the most recent commit. Imperative mood, and short. Here's mine; yours is fine too, as long as it says what that commit did.",
+              "cmd": "git commit --amend -m \"Show a running total in the cart\"",
+              "hint": "git commit --amend -m \"Show a running total in the cart\"",
+              "expect": [
+                { "kind": "lastCommitMessage", "minLength": 12, "label": "The last commit says what it did" },
+                { "kind": "commitCount", "exact": 2, "label": "Still two commits — nothing new was added" }
+              ]
+            },
+            {
+              "say": "Look closely at what just happened. `git reflog` lists everywhere HEAD has been — newest at the top, as always. The top line, `HEAD@{0}`, is your `commit (amend)`. Directly **under** it, `HEAD@{1}` is the old `stuff` commit, with a different short id: Git didn't edit that commit, it built a replacement and moved `main` onto it. The old one is still sitting right there, which is how you'd get back if you regretted the amend — and why amending is only safe before you push.",
+              "cmd": "git reflog",
+              "hint": "Type: git reflog",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "reflog", "label": "See that amend replaced the commit" }
+              ]
+            },
+            {
+              "say": "History tidied. Now today's work — check what's waiting. Two modified files that have nothing to do with each other (a rounding fix, and some documentation), plus an untracked `CHANGELOG.md` you wrote and forgot about.",
+              "cmd": "git status",
+              "hint": "Type: git status",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "status", "label": "Survey today's mess" }
+              ]
+            },
+            {
+              "say": "Two unrelated changes means two commits. Take the rounding fix on its own — stage only `prices.js`, and give it a subject that finishes \"If applied, this commit will...\"",
+              "cmd": "git add prices.js\ngit commit -m \"Round prices to the nearest cent\"",
+              "hint": "git add prices.js — then git commit -m \"Round prices to the nearest cent\"",
+              "expect": [
+                { "kind": "commitCount", "exact": 3, "label": "A third commit exists" },
+                { "kind": "commitTouched", "ref": "HEAD", "paths": ["prices.js"], "exact": true, "label": "It contains only the rounding fix" }
+              ]
+            },
+            {
+              "say": "Now the documentation, in a commit of its own. Same rule: one idea, one sentence to describe it. Use this exact message — we come back to it in a moment.",
+              "cmd": "git add README.md\ngit commit -m \"Document how checkout works\"",
+              "hint": "git add README.md — then git commit -m \"Document how checkout works\"",
+              "expect": [
+                { "kind": "commitCount", "exact": 4, "label": "A fourth commit exists" },
+                { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md"], "exact": true, "label": "It contains only the docs change" }
+              ]
+            },
+            {
+              "say": "One loose end: `CHANGELOG.md` is part of that same documentation change — you just forgot to stage it. A separate \"oops, forgot a file\" commit would be noise forever. Fold it into the commit you just made instead: stage it, then amend with `--no-edit`, which rebuilds that commit around both files and keeps its message exactly as it was.",
+              "cmd": "git add CHANGELOG.md\ngit commit --amend --no-edit",
+              "hint": "git add CHANGELOG.md — then git commit --amend --no-edit",
+              "expect": [
+                { "kind": "commitCount", "exact": 4, "label": "Still four commits — no junk commit added" },
+                { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md", "CHANGELOG.md"], "exact": true, "label": "The docs commit now carries both files" },
+                { "kind": "lastCommitMessage", "contains": "checkout", "ci": true, "label": "The message survived untouched" },
+                { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Nothing left behind" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m11l3",
+        "title": "Challenge: the perfect series",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "The last challenge of the course. You've come back to a small project called Bookclub after a few days away, and there's a mess to turn into a history you'd be happy for someone else to read. Three jobs:"
+          },
+          {
+            "list": [
+              "The newest commit, `Add a login form`, is incomplete: `login.css` belongs in it but was never staged. Fold that file into **that** commit and leave its message alone — no separate \"forgot a file\" commit.",
+              "The edit in `app.js` (an empty password is now rejected) is a bug fix. Give it a commit of its own.",
+              "The edits in `README.md` and `docs/setup.md` are one documentation change spread across two files. They go together, in a single final commit."
+            ]
+          },
+          {
+            "p": "There's a trap in here, and it's a fair one: one of those three jobs can only be done first. Work out which one before you type anything."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "app.js", "content": "const users = [];\n\nfunction login(name, password) {\n  return users.find((u) => u.name === name);\n}" },
+            { "op": "write", "path": "README.md", "content": "# Bookclub\nA place to argue about books." },
+            { "op": "write", "path": "docs/setup.md", "content": "# Setup\n1. Download the code.\n2. Open index.html." },
+            { "op": "add" },
+            { "op": "commit", "message": "Initial commit" },
+            { "op": "write", "path": "login.html", "content": "<form>\n  <input name=\"name\">\n  <input name=\"password\" type=\"password\">\n</form>" },
+            { "op": "add", "paths": ["login.html"] },
+            { "op": "commit", "message": "Add a login form" },
+            { "op": "write", "path": "login.css", "content": "form { max-width: 20rem; margin: 4rem auto; }" },
+            { "op": "write", "path": "app.js", "content": "const users = [];\n\nfunction login(name, password) {\n  if (!password) return null;\n  return users.find((u) => u.name === name);\n}" },
+            { "op": "write", "path": "README.md", "content": "# Bookclub\nA place to argue about books.\n\nMembers sign in on the login page." },
+            { "op": "write", "path": "docs/setup.md", "content": "# Setup\n1. Download the code.\n2. Open index.html.\n3. Create an account on login.html." }
+          ],
+          "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, the bug fix in a commit of its own, and both documentation files together in one final commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
+          "hints": [
+            "Think about order first. `git commit --amend` only ever reaches the commit at the very tip of your branch — so which of the three jobs is impossible once you've committed anything on top?",
+            "To complete an existing commit: stage the missing file with `git add login.css`, then run `git commit --amend --no-edit`. That rebuilds the tip commit with the extra file and leaves its message alone.",
+            "\"One logical change\" is not \"one file.\" You can stage several at once: `git add README.md docs/setup.md`, then make a single commit. Check yourself before you call it done, with `git log --oneline` and `git status`: four commits, nothing modified, nothing untracked. If a subject line needs the word \"and\", you've merged two commits that should have stayed apart.",
+            "Committed too soon and buried the login commit? You are not stuck. `git reset HEAD~1` from Module 9 lifts the newest commit off the branch and leaves its changes in your working directory, **unstaged** — so your next `git add` picks up only the file you name, and nothing can sneak into the amend. Run it once for each commit you need to lift, then start again from the amend."
+          ],
+          "expect": [
+            { "kind": "commitCount", "exact": 4, "label": "Exactly four commits — no stray \"forgot a file\" commit" },
+            { "kind": "commitTouched", "ref": "HEAD~2", "paths": ["login.html", "login.css"], "exact": true, "label": "The login commit now carries both of its files" },
+            { "kind": "commitTouched", "ref": "HEAD~1", "paths": ["app.js"], "exact": true, "label": "The bug fix has a commit to itself" },
+            { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md", "docs/setup.md"], "exact": true, "label": "One documentation commit covering both docs files" },
+            { "kind": "lastCommitMessage", "minLength": 10, "label": "The last commit's message is a real subject line, not \"docs\" or \"wip\"" },
+            { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Nothing modified, nothing untracked" }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        { "h": "Module 11 recap" },
+        {
+          "list": [
+            "A commit message is a letter to a stranger who has forgotten everything — and that stranger is usually **you**, two years from now.",
+            "Shape: a **subject line** of about 50 characters, a **blank line**, then a body. The blank line is what separates them for every tool that reads Git.",
+            "Write the subject in the **imperative**, so it finishes *\"If applied, this commit will ______.\"*",
+            "The body explains **why**. Never narrate the diff — `git show` already does that better than you can.",
+            "An **atomic commit** is one logical change, complete on its own. One thing, not one file.",
+            "The \"and\" smell: if your subject needs the word *and*, you probably need two commits.",
+            "`git commit --amend` fixes the newest commit — `-m \"...\"` for a new message, or stage a file first and `--amend --no-edit` to fold it in without touching the message.",
+            "Amending **replaces** a commit rather than editing it. Rewrite freely before you push; never after."
+          ]
+        },
+        {
+          "graph": {
+            "caption": "What a well-kept history looks like: small commits on a branch, merged back into main, each dot one decision you could point at, explain, or undo on its own. Hover any dot to read its message.",
+            "ops": [
+              { "op": "init" },
+              { "op": "write", "path": "README.md", "content": "# Bookclub" },
+              { "op": "add" },
+              { "op": "commit", "message": "Initial commit" },
+              { "op": "write", "path": "app.js", "content": "the app" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add the book list page" },
+              { "op": "switchCreate", "name": "login" },
+              { "op": "write", "path": "login.html", "content": "form" },
+              { "op": "write", "path": "login.css", "content": "styles" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add a login form" },
+              { "op": "write", "path": "app.js", "content": "the app\nwith sessions" },
+              { "op": "add" },
+              { "op": "commit", "message": "Remember who is signed in" },
+              { "op": "switch", "name": "main" },
+              { "op": "write", "path": "README.md", "content": "# Bookclub\nHow to run it locally." },
+              { "op": "add" },
+              { "op": "commit", "message": "Document how to run it locally" },
+              { "op": "merge", "name": "login" }
+            ]
+          }
+        },
+        { "h": "And that's the course" },
+        {
+          "p": "Eleven modules ago, a folder was just a folder and the only way to keep an old version of anything was to name a file `final_FINAL_v2`. Look at what you can do now."
+        },
+        {
+          "list": [
+            "**Record work**: `init`, `status`, `add`, `commit`, and the staging area that lets you choose what goes in each snapshot.",
+            "**Read a repository**: `log`, `diff`, `diff --staged`, `show` — you can walk into any project and find out what happened and when.",
+            "**Work in parallel**: branches as movable pointers, `switch -c`, `merge`, and the confidence to sit down and resolve a conflict instead of panicking.",
+            "**Work with other people**: remotes, `push`, `fetch`, `pull`, and the feature-branch workflow that nearly every software team on earth runs on.",
+            "**Undo almost anything**: `restore`, `reset`, `revert`, `stash`, `reflog` — and the knowledge of which of those are safe to use on shared history.",
+            "**Keep it clean**: `.gitignore`, atomic commits, and messages people thank you for."
+          ]
+        },
+        {
+          "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. A pull request is a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
+        },
+        { "h": "Where to go next" },
+        {
+          "list": [
+            "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons.",
+            "**Push something to a remote.** Make an account on a hosting service, create an empty repository, and connect it with the `git remote add` and `git push -u` you learned in Module 7. Seeing your own history appear on a web page makes it click.",
+            "**Read someone else's log.** Clone a project you admire and run `git log --oneline`. You'll spot the good messages and the bad ones immediately now, which is proof you learned something.",
+            "**Let Git teach you the rest.** `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
+            "**Come back to the playground** any time you want to try something frightening before you try it for real. Nothing here can break."
+          ]
+        },
+        {
+          "p": "The habit that matters most is the smallest one: commit often, and say what you did. Everything else in Git exists to reward you for that. Go make something worth keeping a history of."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m11l3": [
+      "git add login.css",
+      "git commit --amend --no-edit",
+      "git add app.js",
+      "git commit -m \"Reject a login with an empty password\"",
+      "git add README.md docs/setup.md",
+      "git commit -m \"Document the login page for new members\""
+    ]
+  }
+}

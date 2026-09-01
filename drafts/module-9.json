@@ -1,0 +1,442 @@
+{
+  "module": {
+    "id": "m9",
+    "number": 9,
+    "title": "Undoing Mistakes",
+    "summary": "Pick the right undo by asking two questions: has it been committed, and has it been shared? amend, reset, revert, stash — and the reflog that makes almost everything recoverable.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m9l1",
+        "title": "Three flavors of undo",
+        "type": "concept",
+        "body": [
+          {
+            "p": "Sooner or later you will type a Git command, read the output, and feel your stomach drop. The commit you meant to fix has vanished. The file you spent an hour on is suddenly three lines long. Everyone who uses Git has had that moment."
+          },
+          {
+            "p": "So let's start with the reassuring part: **Git is remarkably reluctant to lose your work.** Once something has been committed it is written into the repository and it stays there — even after you think you've deleted it. Nearly every disaster in this module is a few keystrokes away from being fixed. By the end of this lesson you'll know which keystrokes."
+          },
+          {
+            "h": "Two questions decide everything"
+          },
+          {
+            "p": "There are about six commands people reach for when undoing things, and beginners try to memorise all six at once. You don't have to. You only ever need to answer two questions about the thing you regret:"
+          },
+          {
+            "list": [
+              "**Has it been committed yet?** If the change is still sitting in your working directory or staging area, no history is involved at all and undoing it is cheap.",
+              "**Has it been shared?** Once you have pushed a commit — or a teammate has pulled it — other people's copies of the history contain it. Rewriting it now means their story of the past and yours no longer agree."
+            ]
+          },
+          {
+            "analogy": "Picture your work moving through three stages. A change you haven't committed is **a note on your desk**: crumple it, nobody ever saw it. A commit you haven't pushed is **a page in your private notebook**: you can tear it out and rewrite it, and no one will ever know. A commit you have pushed is **a story printed in the newspaper**: you cannot un-print it. What you do instead is print a correction in tomorrow's edition."
+          },
+          {
+            "p": "Desk, notebook, newspaper. Those are the three flavors of undo, and each one has its own tools."
+          },
+          {
+            "h": "Flavor 1 — nothing has been committed"
+          },
+          {
+            "p": "You edited a file, or staged something, and you want to walk it back. You met the first of these in Module 3:"
+          },
+          {
+            "code": "git restore --staged notes.txt   # take it back out of the staging area, keep the edit\ngit restore notes.txt            # throw the edit away, back to the staged version\n                                 # (or the committed one, if nothing is staged)"
+          },
+          {
+            "warn": "`git restore --staged` is completely safe — your edits stay in the file, they're just no longer in frame for the next photo. `git restore` **without** `--staged` is a different animal: it overwrites your file with whatever is in the staging area — which, if you haven't staged anything, is the last committed version. That's why undoing a mistake you had already staged takes both commands: `git restore --staged <file>` first, then `git restore <file>`. And those thrown-away edits were never recorded anywhere, so nothing can bring them back — not even the reflog you'll meet at the end of this lesson. It is the one command here with no safety net."
+          },
+          {
+            "p": "There's a gentler option when you don't want to lose the work at all — you just want it *out of the way*. Perhaps you're halfway through a change and something urgent needs the file clean first."
+          },
+          {
+            "analogy": "`git stash` is the drawer you sweep your desk into when a visitor knocks. The desk is instantly tidy; the work isn't gone, it's in the drawer. `git stash pop` tips the drawer back out onto the desk."
+          },
+          {
+            "code": "git stash        # shelve every uncommitted change to a file Git already tracks\ngit stash list   # what's currently in the drawer\ngit stash pop    # put it back, and empty the drawer"
+          },
+          {
+            "p": "One catch worth knowing now: a brand-new file Git has never seen stays exactly where it is. Untracked files — ones you've never `git add`ed — aren't swept into the drawer, because the stash only knows about files Git is already tracking."
+          },
+          {
+            "tip": "A stash isn't part of your project's history — it sits off to one side, attached to no branch, and it's easy to forget it's there. Git labels it for you (`WIP on main: ...`), and you can give it your own label with `git stash push -m \"half-done nav bar\"` — but a label is not a home. Treat the drawer as short-term storage: hours, not weeks. If a piece of work matters for longer than an afternoon, give it a commit on a branch instead, where it has a name and a place in the graph."
+          },
+          {
+            "h": "Flavor 2 — committed, but not shared"
+          },
+          {
+            "p": "This is the private-notebook zone, and it's the only place where Git lets you genuinely rewrite the past. Two commands live here."
+          },
+          {
+            "p": "**`git commit --amend`** fixes the most recent commit — its message, its contents, or both. Stage whatever you forgot, then amend:"
+          },
+          {
+            "code": "git commit --amend -m \"Add the contact page\"    # fix a typo in the message\n\ngit add forgotten.txt\ngit commit --amend                              # fold a forgotten file into the last commit"
+          },
+          {
+            "tip": "One difference between this sandbox and your own machine, worth knowing before it startles you. Real Git opens a text editor when you run `git commit --amend` without `-m` — and it does the same for `git revert`, which you'll meet in a few paragraphs — so that you can confirm the message it has written for you. Save and close the editor to let the command finish, or add `--no-edit` to accept the suggested message without opening anything. This sandbox skips the editor and goes straight through."
+          },
+          {
+            "p": "One detail matters more than it looks. **Amend does not edit a commit — it builds a brand-new one and points your branch at it instead.** You can watch this happen: the commit ID changes. The original commit is still sitting in storage, orphaned; your branch has stopped mentioning it."
+          },
+          {
+            "p": "That is exactly why amending something you've already pushed is trouble. Your teammate has the old commit; you now have a different one claiming to be the same piece of work."
+          },
+          {
+            "p": "**`git reset`** points your current branch at whatever commit you name. Usually that's an earlier one — which is why it feels like undoing, and why every commit after that point falls off the branch. But it can be any commit at all, including one your branch has already abandoned, and that's what makes the rescue at the end of this lesson possible. What happens to the *changes* those commits contained is decided by one of three flags — and this is the part worth learning properly, because the three do very different things:"
+          },
+          {
+            "list": [
+              "`git reset --soft HEAD~1` — move the branch back one commit and leave everything **staged**. It feels as though you never pressed commit. This is the one for \"I committed too early.\"",
+              "`git reset --mixed HEAD~1` — the default, so plain `git reset HEAD~1` means this. Move the branch back **and** unstage. Your files still hold every edit; you get to re-choose what goes into the next commit.",
+              "`git reset --hard HEAD~1` — move the branch back and **overwrite your files** with that older commit's version. Any uncommitted work in those files is destroyed."
+            ]
+          },
+          {
+            "p": "A useful way to hold it: `--soft` touches only the branch pointer, `--mixed` touches the pointer and the staging area, `--hard` touches the pointer, the staging area, *and* your actual files."
+          },
+          {
+            "warn": "`--hard` is the only genuinely dangerous option in this module. Committed work it removes can nearly always be rescued with `git reflog` (below). Uncommitted work it removes cannot — that was never recorded anywhere. Make `git status` your reflex before typing `--hard`, so you know exactly what you're standing on."
+          },
+          {
+            "h": "What reset does to the picture"
+          },
+          {
+            "p": "Here is a four-commit history. The newest commit added a contact page you now regret:"
+          },
+          {
+            "graph": {
+              "caption": "Before. main and HEAD both point at the newest commit, 'Add the contact page'.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "index.html", "content": "home" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the homepage" },
+                { "op": "write", "path": "about.html", "content": "about" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the about page" },
+                { "op": "write", "path": "pricing.html", "content": "pricing" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the pricing page" },
+                { "op": "write", "path": "contact.html", "content": "contact" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the contact page" }
+              ]
+            }
+          },
+          {
+            "p": "Run `git reset --hard HEAD~1` and the history looks like this:"
+          },
+          {
+            "graph": {
+              "caption": "After git reset --hard HEAD~1. main and HEAD have stepped back one commit, and 'Add the contact page' is no longer drawn — nothing points at it any more. It still exists in Git's storage, which is what lets the reflog find it, but as far as your branch is concerned it never happened.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "index.html", "content": "home" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the homepage" },
+                { "op": "write", "path": "about.html", "content": "about" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the about page" },
+                { "op": "write", "path": "pricing.html", "content": "pricing" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the pricing page" }
+              ]
+            }
+          },
+          {
+            "p": "The commit wasn't so much deleted as *abandoned*. That's the shape to remember: **reset makes history shorter.**"
+          },
+          {
+            "h": "Flavor 3 — it's already out there"
+          },
+          {
+            "p": "Once you've pushed, `amend` and `reset` turn antisocial. Your teammate's clone still contains the commit you erased, so the next time either of you pushes or pulls, Git has to reconcile two histories that disagree about what happened. That is the classic way to ruin a Friday afternoon."
+          },
+          {
+            "p": "Concretely, your next `git push` comes back with the `! [rejected]` message from Module 7 — the remote is refusing to let you overwrite the version everyone else already has. If that happens to you, the way back is `git reset --hard origin/main`: it puts your branch exactly where the world thinks it is. Then undo the commit the public-safe way instead — which is what the rest of this lesson is about."
+          },
+          {
+            "p": "**`git revert <commit>`** is the public-safe undo. It looks at what that commit did and writes a **new commit that does the exact opposite** — deleting the file it added, putting back the line it removed. Nothing is rewritten. The mistake stays in the record, and so does the correction. Newspaper, then correction."
+          },
+          {
+            "code": "git revert HEAD       # undo the most recent commit, with a new commit\ngit revert 0a53e15    # undo any commit at all, by its ID"
+          },
+          {
+            "p": "Same starting history, same regret — but reverted instead of reset:"
+          },
+          {
+            "graph": {
+              "caption": "After git revert HEAD. Nothing was removed: 'Add the contact page' is still there, with a fifth commit sitting on top of it that undoes exactly what it did. Anyone who already pulled your history sees an addition, not a contradiction.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "index.html", "content": "home" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the homepage" },
+                { "op": "write", "path": "about.html", "content": "about" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the about page" },
+                { "op": "write", "path": "pricing.html", "content": "pricing" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the pricing page" },
+                { "op": "write", "path": "contact.html", "content": "contact" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add the contact page" },
+                { "op": "write", "path": "contact.html", "content": "" },
+                { "op": "add" },
+                { "op": "commit", "message": "Revert \"Add the contact page\"" }
+              ]
+            }
+          },
+          {
+            "p": "Reset makes history shorter; revert makes it **longer**. That single difference is the whole reason one is private-only and the other is safe to push."
+          },
+          {
+            "tip": "The decision, in one line: **if the commit has left your computer, revert it. If it hasn't, you're free to amend or reset it.**"
+          },
+          {
+            "h": "The safety net: git reflog"
+          },
+          {
+            "p": "Now the genuinely reassuring part. Git quietly records **every position `HEAD` has ever held** in your repository — every commit, every amend, every branch switch, every reset. This record is called the *reflog* (reference log). It lives only on your own machine, which is why most people never hear about it until the day it saves them. It isn't infinite, either — entries age out after a few months. The reflog is a rescue for this week's accident, not an archive."
+          },
+          {
+            "analogy": "`git log` is the official history — the story your project chooses to tell. `git reflog` is the security-camera footage: every move you actually made, in order, including the ones you'd rather nobody saw."
+          },
+          {
+            "p": "Suppose you amended a commit — changing its message from *Add the contact page* to *Add the contact form* — and then ran `git reset HEAD~2` to walk your branch two commits back. `git log` now shows a short, tidy history that's missing your work. `git reflog` shows this:"
+          },
+          {
+            "code": "$ git reflog\ne442b84 HEAD@{0}: reset: moving to HEAD~2\nf0fc65f HEAD@{1}: commit (amend): Add the contact form\ncaf962d HEAD@{2}: commit: Add the contact page\n685ecb5 HEAD@{3}: commit: Add the pricing page\ne442b84 HEAD@{4}: commit: Add the about page\n2b437a4 HEAD@{5}: commit (initial): Add the homepage"
+          },
+          {
+            "p": "Read it as a list of places HEAD has stood, newest at the top. Every line begins with a commit ID, and the `HEAD@{n}` handle beside it is how you name a position: `HEAD@{0}` is where you're standing now, `HEAD@{1}` is where you stood before that. You can see the whole story here: the amend at `HEAD@{1}` built `f0fc65f` to replace `caf962d` — which is why that line says *form* while `HEAD@{2}` still says *page* — and then the reset walked the branch back to `e442b84`."
+          },
+          {
+            "p": "`HEAD@{1}` is the commit you thought you'd destroyed — and now you have its ID. Point your branch back at it:"
+          },
+          {
+            "code": "git reset --hard f0fc65f"
+          },
+          {
+            "p": "...and it's back, commits and files and all. That's the whole trick, and some version of it rescues almost any accident that involved a commit."
+          },
+          {
+            "tip": "Two habits cover nearly everything that can go wrong: run `git status` before you do anything destructive, and remember that `git reflog` exists **before** you panic, not after."
+          }
+        ]
+      },
+      {
+        "id": "m9l2",
+        "title": "Guided: time travel practice",
+        "type": "guided",
+        "body": [
+          {
+            "p": "Reading about undo is one thing; doing it while nothing is at stake is what actually removes the fear. You're two chapters into a short story, and the second commit has a typo in its message. Over the next few commands you'll fix it, shelve some half-written work, take it back out, commit too early, un-commit, destroy the work on purpose — and then get it back."
+          },
+          {
+            "p": "Keep an eye on the commit graph and the commit IDs as you go. Watching an ID change is how you *see* that Git rewrites rather than edits."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "chapter1.txt", "content": "Chapter one\n\nThe letter arrived on a Tuesday." },
+            { "op": "add" },
+            { "op": "commit", "message": "Add chapter one" },
+            { "op": "write", "path": "chapter2.txt", "content": "Chapter two\n\nShe read it twice." },
+            { "op": "add" },
+            { "op": "commit", "message": "Add chapter twoo" }
+          ],
+          "steps": [
+            {
+              "say": "Two commits, and the newest one carries a typo: **\"Add chapter twoo\"**. It hasn't been pushed anywhere, so it's still a page in your private notebook — you may rewrite it. Run both lines: the first shows you the history, the second replaces that last commit with a corrected one. Then compare the ID beside **Add chapter twoo** in the log with the one the amend prints back at you — `[main ee9a4ed]`. It is a **different commit**. Git didn't edit anything; it built a new commit and moved the branch onto it.",
+              "cmd": "git log --oneline\ngit commit --amend -m \"Add chapter two\"",
+              "hint": "First git log --oneline, then git commit --amend -m \"Add chapter two\" — quotes included.",
+              "expect": [
+                { "kind": "lastCommitMessage", "equals": "Add chapter two", "label": "The last commit now reads \"Add chapter two\"" },
+                { "kind": "commitCount", "exact": 2, "label": "Still exactly two commits — amend replaced one, it didn't add one" }
+              ]
+            },
+            {
+              "say": "Now start writing chapter two properly. Add a line to the file — this is ordinary, uncommitted work in progress. Type it exactly as shown, so the commit IDs quoted later in this walkthrough match the ones on your own screen.",
+              "cmd": "echo \"Then she folded it into her pocket and\" >> chapter2.txt",
+              "hint": "Type: echo \"Then she folded it into her pocket and\" >> chapter2.txt — two arrows means append.",
+              "expect": [
+                { "kind": "fileChanged", "path": "chapter2.txt", "label": "chapter2.txt has an unfinished new line" }
+              ]
+            },
+            {
+              "say": "Imagine someone now asks you to look at the file exactly as it was published, without your half-sentence in it. You don't want to commit an unfinished line, and you certainly don't want to delete it. Sweep it into the drawer instead.",
+              "cmd": "git stash",
+              "hint": "Type: git stash",
+              "expect": [
+                { "kind": "cleanWorkingTree", "label": "Working tree is clean — the edit is shelved, not lost" }
+              ]
+            },
+            {
+              "say": "Look at the file panel: chapter2.txt is back to its committed state, and `git status` would report nothing to commit. Nothing was lost. Tip the drawer back out.",
+              "cmd": "git stash pop",
+              "hint": "Type: git stash pop",
+              "expect": [
+                { "kind": "fileChanged", "path": "chapter2.txt", "label": "Your unfinished line is back" }
+              ]
+            },
+            {
+              "say": "Now commit it — deliberately a bit too early, so you have something to un-commit. Two commands: stage the file, then take the snapshot.",
+              "cmd": "git add chapter2.txt\ngit commit -m \"Finish chapter two\"",
+              "hint": "git add chapter2.txt, then git commit -m \"Finish chapter two\"",
+              "expect": [
+                { "kind": "commitCount", "exact": 3, "label": "Three commits now" },
+                { "kind": "lastCommitMessage", "equals": "Finish chapter two", "label": "The new commit is called \"Finish chapter two\"" },
+                { "kind": "commitTouched", "ref": "HEAD", "paths": ["chapter2.txt"], "exact": true, "label": "The new commit touched only chapter2.txt" }
+              ]
+            },
+            {
+              "say": "Except the sentence still isn't finished — that commit was premature. `--soft` moves the branch back one commit and leaves every change **staged**, exactly as it was a second before you pressed commit. Check the file panel: your work is untouched, it's just no longer part of the history.",
+              "cmd": "git reset --soft HEAD~1",
+              "hint": "Type: git reset --soft HEAD~1 — HEAD~1 means \"one commit before where I am\".",
+              "expect": [
+                { "kind": "commitCount", "exact": 2, "label": "Back to two commits" },
+                { "kind": "fileStaged", "path": "chapter2.txt", "label": "Your work is still staged, ready to re-commit" }
+              ]
+            },
+            {
+              "say": "Now do something reckless on purpose, in a sandbox where it costs you nothing: throw that work away. Two commands — take the change back out of the staging area, then overwrite the file with the committed version. (`git reset --hard HEAD` would have done both in one stroke; this is the same demolition in slow motion.) Read chapter2.txt afterwards — the sentence is gone.",
+              "cmd": "git restore --staged chapter2.txt\ngit restore chapter2.txt",
+              "hint": "git restore --staged chapter2.txt, then git restore chapter2.txt",
+              "expect": [
+                { "kind": "cleanWorkingTree", "label": "Everything uncommitted has been wiped" },
+                { "kind": "commitCount", "exact": 2, "label": "Still two commits" }
+              ]
+            },
+            {
+              "say": "That looks final. The commit is off the branch, the file has been overwritten, and `git log` shows no trace of either. But you *did* commit that work once, and Git quietly records every place HEAD has stood. Ask for the footage.",
+              "cmd": "git reflog",
+              "hint": "Type: git reflog",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "reflog", "label": "Look at the security-camera footage" }
+              ]
+            },
+            {
+              "say": "Find the line in your own reflog that reads `commit: Finish chapter two` and copy the code at the start of it — that's the commit you thought you'd destroyed. (If you typed everything exactly as shown, it will be `f17162e`.) Now point your branch straight back at it, and watch the commit — and the sentence in the file — come back together.",
+              "cmd": "git reset --hard f17162e",
+              "hint": "git reset --hard followed by the ID on the \"commit: Finish chapter two\" line of your reflog — `git reset --hard f17162e` if you followed along exactly.",
+              "expect": [
+                { "kind": "commitCount", "exact": 3, "label": "The commit is back" },
+                { "kind": "fileChanged", "path": "chapter2.txt", "label": "And your sentence came back with it" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m9l3",
+        "title": "Challenge: disaster recovery",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "A trip-planning repo, and a genuinely bad afternoon. Two junk commits are sitting on the end of your history, and — much worse — a booking token was committed and **pushed** three commits ago. Two problems, on opposite sides of the shared line, so they need two different tools."
+          },
+          {
+            "p": "Run `git log --oneline` first. The `origin/main` label marks the last commit the world has seen: everything at or below it is newspaper, everything above it is private notebook."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "itinerary.txt", "content": "Day 1: land in Lisbon." },
+            { "op": "add" },
+            { "op": "commit", "message": "Start the itinerary" },
+            { "op": "write", "path": "packing.txt", "content": "passport\ncharger\nsunscreen" },
+            { "op": "add" },
+            { "op": "commit", "message": "Add packing list" },
+            { "op": "write", "path": "booking.txt", "content": "hotel: Casa Azul\nBOOKING_TOKEN=live_8f2b1c9d" },
+            { "op": "add" },
+            { "op": "commit", "message": "Add booking details" },
+            { "op": "remote", "url": "https://github.com/you/trip-planner.git" },
+            { "op": "write", "path": "itinerary.txt", "content": "Day 1: land in Lisbon.\nDay 2: day trip to Sintra." },
+            { "op": "add" },
+            { "op": "commit", "message": "Add day two" },
+            { "op": "write", "path": "scratch.txt", "content": "asdf asdf ignore me" },
+            { "op": "add" },
+            { "op": "commit", "message": "wip" },
+            { "op": "write", "path": "scratch.txt", "content": "asdf asdf ignore me\nqwerty" },
+            { "op": "add" },
+            { "op": "commit", "message": "more wip" }
+          ],
+          "goal": "Clean up both problems and leave a tidy, clean repository. (1) The two junk commits at the top — `wip` and `more wip` — were never pushed, so erase them from your history completely, taking `scratch.txt` with them. (2) The `Add booking details` commit **was** pushed, so its commit must stay in the history untouched — but `booking.txt` must no longer exist in your project. (3) `Add day two` is good work: `itinerary.txt` must still mention Sintra when you're done. Finish with a clean working tree, exactly five commits, and your cleaned-up history pushed — if you picked the right tool for the booking commit, `git push` will be accepted.",
+          "hints": [
+            "Two problems, two tools. One of them lives above the origin/main line and one lives below it — re-read the two questions from the concept lesson and decide which tool each needs.",
+            "Deal with the junk commits first. They're the two newest, so one reset that moves the branch back two commits erases both — and if you pick the flavour that also rewrites your files, scratch.txt goes with them. Any other flavour leaves it sitting on disk for you to delete yourself.",
+            "With those gone, the booking commit is one step behind you. `git revert <commit>` writes a new commit that deletes what that one added — the original commit stays right where it is. Refs like HEAD~1 work here, and so does the ID from git log --oneline.",
+            "Overshot the reset and lost Sintra? That's exactly what git reflog is for: find the line for the 'Add day two' commit, copy its ID, and git reset --hard back onto it."
+          ],
+          "expect": [
+            { "kind": "fileAbsent", "path": "scratch.txt", "label": "scratch.txt is gone from your project" },
+            { "kind": "commitCount", "exact": 5, "label": "Exactly five commits: the two junk ones erased, one new one added" },
+            { "kind": "fileAbsent", "path": "booking.txt", "label": "booking.txt is gone from your project" },
+            { "kind": "remoteUpToDate", "branch": "main", "label": "Your cleaned-up history is pushed — origin accepted it, so nothing it already had was rewritten" },
+            { "kind": "fileExists", "path": "itinerary.txt", "contains": "Sintra", "label": "Day two survived" },
+            { "kind": "cleanWorkingTree", "label": "Working tree is clean" }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        { "h": "Module 9 recap" },
+        {
+          "p": "You never have to remember all of these at once. Answer the two questions — *has it been committed?* and *has it been shared?* — and only two or three of them are ever candidates."
+        },
+        {
+          "list": [
+            "**Not committed** — `git restore --staged <file>` un-stages and keeps your edit. `git restore <file>` discards the edit for good. `git stash` / `git stash pop` shelve work and bring it back.",
+            "**Committed, not shared** — `git commit --amend` replaces the last commit (new ID, so never amend something pushed). `git reset --soft` moves the branch and keeps everything staged; `--mixed` (the default) also unstages; `--hard` also overwrites your files.",
+            "**Shared** — `git revert <commit>` writes a new commit that undoes an old one. History gets longer, never rewritten, and everyone else stays in sync.",
+            "**When it all goes wrong** — `git reflog` lists every position HEAD has held. Find the ID of the commit you lost, then `git reset --hard <id>` to land back on it."
+          ]
+        },
+        {
+          "p": "Reset makes history shorter, revert makes it longer. Here's the revert shape one more time — the mistake and its correction both on the record, which is exactly what you want when other people already have a copy:"
+        },
+        {
+          "graph": {
+            "caption": "A reverted mistake: the original commit stays, and a new commit on top undoes it.",
+            "ops": [
+              { "op": "init" },
+              { "op": "write", "path": "app.js", "content": "v1" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add the app" },
+              { "op": "write", "path": "secrets.txt", "content": "TOKEN=oops" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add config" },
+              { "op": "write", "path": "app.js", "content": "v2" },
+              { "op": "add" },
+              { "op": "commit", "message": "Improve the app" },
+              { "op": "write", "path": "secrets.txt", "content": "" },
+              { "op": "add" },
+              { "op": "commit", "message": "Revert \"Add config\"" }
+            ]
+          }
+        },
+        {
+          "p": "One honest caveat: reverting a commit removes the file from your project going forward, but the old commit still contains it — which is fine for a bad idea and *not* fine for a leaked password. A secret that reaches a shared repository must be treated as compromised and rotated, no matter what you do to the history."
+        },
+        {
+          "p": "Next: `.gitignore` — how to keep the junk, the secrets and the giant generated files out of your history in the first place, so you need this module less often."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m9l3": [
+      "git log --oneline",
+      "git reset --hard HEAD~2",
+      "git revert HEAD~1",
+      "git push",
+      "git status"
+    ]
+  }
+}

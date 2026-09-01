@@ -1,0 +1,89 @@
+{
+  "_comment": "Reference solutions for every challenge, used by tests/content.test.js to prove each one is actually solvable. Not shipped to learners - the app never reads this file.",
+  "solutions": {
+    "m1l4": [
+      "echo \"a website for my band\" > ideas.txt",
+      "echo \"learn git properly\" > plan.txt",
+      "ls",
+      "cat plan.txt"
+    ],
+    "m2l3": [
+      "git init",
+      "git add journal.txt",
+      "git commit -m \"Start my learning journal\"",
+      "git status"
+    ],
+    "m3l3": [
+      "git add app.js",
+      "git commit -m \"Personalize the greeting\"",
+      "git add README.md notes.txt",
+      "git commit -m \"Document it and note next steps\""
+    ],
+    "m4l3": [
+      "echo \"- 1 tsp baking powder\" >> recipe.txt",
+      "git add recipe.txt",
+      "git commit -m \"Restore the baking powder dropped in the sugar commit\""
+    ],
+    "m5l3": [
+      "git switch -c croissants",
+      "git add croissants.md",
+      "git commit -m \"Draft the croissant recipe\"",
+      "git switch main",
+      "git branch -d old-idea"
+    ],
+    "m6l3": [
+      "git merge route-change",
+      "git merge sams-edits",
+      "echo \"Budget: 500 each\" > budget.txt",
+      "git add budget.txt",
+      "git commit -m \"Merge sams-edits and settle the budget at 500\""
+    ],
+    "m7l3": [
+      "git status",
+      "git fetch",
+      "git add .",
+      "git commit -m \"Add swimsuit and a gear list\"",
+      "git push",
+      "git pull",
+      "git push"
+    ],
+    "m8l3": [
+      "git switch -c trip-reports",
+      "git add site/trips.html",
+      "git commit -m \"Add a trip reports page\"",
+      "git switch main",
+      "git pull",
+      "git switch trip-reports",
+      "git merge main",
+      "git push -u origin trip-reports",
+      "git switch main",
+      "git merge trip-reports",
+      "git push",
+      "git branch -d trip-reports"
+    ],
+    "m9l3": [
+      "git log --oneline",
+      "git reset --hard HEAD~2",
+      "git revert HEAD~1",
+      "git push",
+      "git status"
+    ],
+    "m10l3": [
+      "echo \"cache/\" > .gitignore",
+      "echo \"*.log\" >> .gitignore",
+      "echo \"*.env\" >> .gitignore",
+      "git add -f example.env",
+      "rm deploy.env",
+      "git add .",
+      "git commit -m \"Ignore local junk, stop tracking deploy.env, keep example.env\""
+    ],
+    "m11l3": [
+      "git add login.css",
+      "git commit --amend --no-edit",
+      "git add app.js",
+      "git commit -m \"Reject a login with an empty password\"",
+      "git add README.md docs/setup.md",
+      "git commit -m \"Document the login page for new members\""
+    ]
+  }
+}

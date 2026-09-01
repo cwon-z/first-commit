@@ -1,0 +1,567 @@
+{
+  "module": {
+    "id": "m4",
+    "number": 4,
+    "title": "Status & Diff: Reading What Changed",
+    "summary": "Read git status like a report instead of a wall of text, and learn the diff format you will meet in every code review for the rest of your life.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m4l1",
+        "title": "Anatomy of git status — and of a diff",
+        "type": "concept",
+        "body": [
+          {
+            "p": "You have typed `git status` a dozen times by now, and if you are like most beginners you have been skimming it. Every line of it is a precise answer to a precise question, and learning to read it — along with a diff — is most of what separates someone who *uses* Git from someone who is *nervous around* Git."
+          },
+          {
+            "h": "Status is a report with three shelves"
+          },
+          {
+            "p": "`git status` sorts the interesting files in your project into three sections. Those sections are the three areas from Module 3, printed top to bottom."
+          },
+          {
+            "analogy": "Picture packing for a trip. **Changes to be committed** are the clothes already zipped into the suitcase. **Changes not staged for commit** are the clothes lying on the bed — chosen, but not packed. **Untracked files** are still in the wardrobe: Git has never packed them, doesn't know you want them, and will leave without them."
+          },
+          {
+            "p": "All three sections at once. Read it slowly:"
+          },
+          {
+            "code": "On branch main\n\nChanges to be committed:\n  (use \"git restore --staged <file>...\" to unstage)\n\tmodified:   README.md\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   todo.txt\n\nUntracked files:\n  (use \"git add <file>...\" to include in what will be committed)\n\tscratch.txt"
+          },
+          {
+            "list": [
+              "`On branch main` — where you are working. (Branches arrive in Module 5.)",
+              "**Changes to be committed** — the staging area. `README.md` is in the suitcase: commit now and this is what you get.",
+              "**Changes not staged for commit** — the working directory. `todo.txt` has edits Git can see but was never asked to pack.",
+              "**Untracked files** — `scratch.txt` is brand new. Git has never stored a version of it and will not put it in any commit until you `git add` it.",
+              "The lines in parentheses are the exact commands Git suggests for each section — but read them before you run them: one of them is not like the others."
+            ]
+          },
+          {
+            "warn": "Two of those suggestions are safe: `git add` and `git restore --staged <file>` only move a change between shelves. `git restore <file>` — same word, no `--staged` — throws your edit away and puts the file back to the last version Git knows about. There is no undo for that, because Git never had a copy of what you deleted. Check for the `--staged` before you press Enter."
+          },
+          {
+            "p": "A file can appear in **two** sections at once. Stage it, then edit it again: the suitcase holds the shirt you packed, and the bed holds the newer version you have ironed since. (Module 3’s camera, if you prefer: the frame still holds the version you placed in it.)"
+          },
+          {
+            "h": "The line that trips absolutely everybody up"
+          },
+          {
+            "p": "Now take `README.md` back out of the suitcase and ask again. Both files sit under **Changes not staged for commit**, and Git signs off with a line that reads like a contradiction:"
+          },
+          {
+            "code": "no changes added to commit (use \"git add\" and/or \"git commit -a\")"
+          },
+          {
+            "p": "It means: *\"if you ran `git commit` this second, the commit would be empty.\"* **Changed is not the same as staged.** The clothes are all over the bed; the suitcase is empty. That line has confused more beginners than anything else Git prints."
+          },
+          {
+            "tip": "`git status` changes nothing. Ever. It is the one Git command you can run as often as you breathe, and the fastest way out of \"what state am I in?\""
+          },
+          {
+            "h": "A diff is a set of edit instructions"
+          },
+          {
+            "p": "Status tells you *which* files changed, never *how*. That is `git diff`, and what it prints is a **unified diff** — the format used by every code-review tool, and by every programmer showing another what they changed. Learn it once, read it forever."
+          },
+          {
+            "analogy": "A diff is not a picture of the new file. It is a proofreader's marks on the old one: *cross out this line, write this one instead, and add that one at the end.* The unmarked lines are printed too, quietly, only so you can tell where on the page you are."
+          },
+          {
+            "p": "Here is the diff of that `todo.txt` edit:"
+          },
+          {
+            "code": "diff --git a/todo.txt b/todo.txt\nindex 88c4e99..525fdba 100644\n--- a/todo.txt\n+++ b/todo.txt\n@@ -1,4 +1,5 @@\n - book the train\n-- pack chargers\n+- pack chargers (2x USB-C)\n - print tickets\n - water the plants\n+- ask Sam to feed the cat"
+          },
+          {
+            "p": "A header block, then the lines. Every part of it, once, so that none of it is ever mysterious again:"
+          },
+          {
+            "list": [
+              "`diff --git a/todo.txt b/todo.txt` — the header. **a/** is the *before* version, **b/** the *after*: same file, two moments in time.",
+              "`index 88c4e99..525fdba 100644` — internal ids and file permissions. Ignore this line for the rest of your career.",
+              "`--- a/todo.txt` and `+++ b/todo.txt` — which side is before (`---`) and which is after (`+++`).",
+              "`@@ -1,4 +1,5 @@` — a **hunk header**, and the only cryptic part. Read it as: *the before side contributes 4 lines starting at line 1; the after side contributes 5.* A **hunk** is one neighbourhood of edits plus three lines of context either side, so edits in two far-apart places print as two `@@` blocks with the untouched middle left out.",
+              "In real Git there is often text *after* the closing `@@`, like `@@ -40,7 +40,9 @@ def process_order(order):`. That is not part of the numbers — it is Git quoting the nearest heading above the hunk, so you can see where you are. This sandbox leaves it off.",
+              "Then the lines themselves: `-` was **removed**, `+` was **added**, a leading **space** is unchanged **context**. A reworded line shows up as a `-` and a `+` together, because Git compares whole lines, never words."
+            ]
+          },
+          {
+            "tip": "Mnemonic: `-` is what **left**, `+` is what **arrived**. Changing one word in a sentence therefore costs you a whole `-` line and a whole `+` line."
+          },
+          {
+            "h": "The real question: which two things is it comparing?"
+          },
+          {
+            "p": "This is where people quietly get lost, and it is the heart of the module. `git diff` has no single meaning: it has a *pair of endpoints*, and the flag you use chooses them. Your file can live in three places — the last commit, the staging area, your working directory — so there are three interesting gaps between them. (`HEAD` is Git’s name for the commit you are sitting on right now.)"
+          },
+          {
+            "analogy": "Back to the suitcase. `git diff` holds the bed up against the suitcase: *what have I chosen but not packed?* `git diff --staged` holds the suitcase up against the packing list you filed last trip: *what will this trip's list say?* And `git diff HEAD` ignores the suitcase entirely, comparing the whole room against that list."
+          },
+          {
+            "p": "Each row of the table reads older on the left, newer on the right — the direction `add` and `commit` push your work into history, which is why the last commit sits at the far left:"
+          },
+          {
+            "code": "git diff            staging area -> working directory\ngit diff --staged   last commit  -> staging area\ngit diff HEAD       last commit  -> working directory\ngit diff <A> <B>    commit A     -> commit B"
+          },
+          {
+            "tip": "`git diff --cached` in older tutorials and answers online is the same command — `--cached` and `--staged` are two names for one flag. Both work everywhere, including here."
+          },
+          {
+            "p": "There is no such thing as *the* diff. Ask two of those questions in the same second, about the same repository, and you can get two completely different answers — both correct."
+          },
+          {
+            "warn": "Every form of `git diff` is blind to **untracked** files. `scratch.txt` appears in no diff at all, because Git has no earlier version of it to compare against. It becomes visible — to `git diff --staged` — once you `git add` it, and then it arrives as `new file mode` over `--- /dev/null` (Git saying \"before, there was nothing\") with every line prefixed `+`."
+          },
+          {
+            "h": "Looking backwards: one commit, or the gap between two"
+          },
+          {
+            "p": "Everything so far compares the present against something. You can also point Git at the past — at one commit alone, or at the gap between two."
+          },
+          {
+            "graph": {
+              "caption": "Four commits. `git show <ref>` opens one dot and prints what it changed. `git diff <A> <B>` measures the distance between two dots — it does not care how many commits sit in between.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "todo.txt",
+                  "content": "- book the train"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Start the trip planner"
+                },
+                {
+                  "op": "write",
+                  "path": "todo.txt",
+                  "content": "- book the train\n- print tickets"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add ticket printing"
+                },
+                {
+                  "op": "write",
+                  "path": "todo.txt",
+                  "content": "- book the train\n- print tickets\n- pack chargers"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Remember the chargers"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "A tiny offline app for planning trips."
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Describe the app"
+                }
+              ]
+            }
+          },
+          {
+            "list": [
+              "`git show HEAD` — the newest commit: id, author, date, message, **and** the full diff of what it changed. Plain `git show` means the same thing.",
+              "`git show HEAD~1` — one commit further back; `HEAD~2` is two back. You can also paste a short id from `git log --oneline` — the history you met in Module 2, squeezed to one line per commit: short id, then message.",
+              "`git diff HEAD~3 HEAD` — the net change across the last three commits as one diff. The steps in between disappear; you see only before and after."
+            ]
+          },
+          {
+            "p": "`status`, `diff`, `show` and `log` are all **read-only**. None of them can lose an edit or change what you are about to commit. Prod at them as much as you like — that is the entire point of this module."
+          }
+        ]
+      },
+      {
+        "id": "m4l2",
+        "title": "Guided: diff detective",
+        "type": "guided",
+        "body": [
+          {
+            "p": "A café keeps its menu in Git. Someone edited `menu.txt` since the last commit and left a scratch file lying around, and nobody wrote down what they changed. You are going to find out — reading before you touch anything, then staging and committing once you know what you are agreeing to."
+          },
+          {
+            "p": "Watch for the moment in the middle where a change **vanishes** from `git diff`. That disappearance is the most useful thing in this module."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "menu.txt",
+              "content": "CORNER CAFE\n\nSOUPS\n- tomato\n- lentil\n- corn\n\nSANDWICHES\n- cheese\n- hummus\n\nDESSERTS\n- apple pie\n- ice cream"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add the cafe menu"
+            },
+            {
+              "op": "write",
+              "path": "menu.txt",
+              "content": "CORNER CAFE\n\nSOUPS\n- tomato\n- lentil (vegan)\n- corn\n\nSANDWICHES\n- cheese\n- hummus\n\nDESSERTS\n- apple pie\n- ice cream\n- brownie"
+            },
+            {
+              "op": "write",
+              "path": "specials.txt",
+              "content": "thursday: soup + bread, 6.50"
+            }
+          ],
+          "steps": [
+            {
+              "say": "Start where you always start. Read the report as three shelves: `menu.txt` is modified but **not staged**, `specials.txt` has never been committed at all, and the closing line tells you the suitcase is currently empty.",
+              "cmd": "git status",
+              "hint": "Type: git status",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "status",
+                  "label": "Read the status report"
+                }
+              ]
+            },
+            {
+              "say": "Status told you *which* file changed. Now ask *how*. You should see **two** `@@` hunks — one edit among the soups, one among the desserts — and nothing at all about `specials.txt`, because Git has no earlier version of it to compare against.",
+              "cmd": "git diff",
+              "hint": "Type: git diff",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "diff",
+                  "label": "See how menu.txt changed"
+                }
+              ]
+            },
+            {
+              "say": "You have read the change and you approve of it. Put it in the suitcase.",
+              "cmd": "git add menu.txt",
+              "hint": "Type: git add menu.txt — just that one file, not `git add .`, which would also sweep in specials.txt.",
+              "expect": [
+                {
+                  "kind": "fileStaged",
+                  "path": "menu.txt",
+                  "label": "menu.txt is staged"
+                }
+              ]
+            },
+            {
+              "say": "Now run `git diff` again — and brace yourself, because you will get **nothing back**. Blank. That blank answer is the lesson: `git diff` only ever reports the gap between the staging area and your files, and you have just closed that gap. Nothing was lost.",
+              "cmd": "git diff",
+              "hint": "Type: git diff again. An empty answer is the correct answer here.",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "diff",
+                  "label": "git diff is now empty"
+                }
+              ]
+            },
+            {
+              "say": "So where did the change go? One shelf to the left. `git diff --staged` compares the **last commit** with the **staging area** — in other words, it prints exactly what your next commit will contain. Same two hunks, different question.",
+              "cmd": "git diff --staged",
+              "hint": "Type: git diff --staged",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "diff",
+                  "label": "The change reappears, staged"
+                }
+              ]
+            },
+            {
+              "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. `menu.txt` is listed **twice**: the version you staged, and newer edits sitting on top of it.",
+              "cmd": "echo \"- lemon tart\" >> menu.txt\ngit status",
+              "hint": "Two commands: echo \"- lemon tart\" >> menu.txt then git status",
+              "expect": [
+                {
+                  "kind": "fileChanged",
+                  "path": "menu.txt",
+                  "label": "menu.txt has a fresh edit on top"
+                },
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "status",
+                  "label": "menu.txt appears in two sections"
+                }
+              ]
+            },
+            {
+              "say": "Three questions, three answers. Right now `git diff` would show only the lemon tart, and `git diff --staged` would still show only the vegan lentils and the brownie. `git diff HEAD` skips over the staging area entirely and reports **everything** since the last commit. Run it and count the lines that begin with a single `+` — there should be three. (The `+++ b/menu.txt` header line is the after-side marker, not an added line.)",
+              "cmd": "git diff HEAD",
+              "hint": "Type: git diff HEAD",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "diff",
+                  "label": "See everything since the last commit"
+                }
+              ]
+            },
+            {
+              "say": "You have read every change and you want all of it. Stage the newest edit too, then commit the lot.",
+              "cmd": "git add menu.txt\ngit commit -m \"Refresh the soups and desserts\"",
+              "hint": "git add menu.txt, then git commit -m \"Refresh the soups and desserts\"",
+              "expect": [
+                {
+                  "kind": "commitCount",
+                  "min": 2,
+                  "label": "A second commit exists"
+                },
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "menu.txt"
+                  ],
+                  "label": "Your commit records the menu.txt changes"
+                }
+              ]
+            },
+            {
+              "say": "Last move: look backwards. `git diff HEAD~1 HEAD` asks for the *distance between two dots* — the commit before yours, and yours. Then open the commit itself: `git show` prints it from the inside, with its message, author and date above the very same diff. Run both and compare — the diff bodies are identical, and the only difference is the commit header on top.",
+              "cmd": "git diff HEAD~1 HEAD\ngit show",
+              "hint": "Two commands: git diff HEAD~1 HEAD then git show",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "show",
+                  "label": "Open the commit itself with git show"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m4l3",
+        "title": "Challenge: find the change nobody mentioned",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "The pancake recipe has been through four commits and it no longer works — the pancakes come out flat. Nobody remembers editing anything they should not have."
+          },
+          {
+            "p": "Here is the thing about a good history: **every commit message is a promise about what that commit did.** Somewhere in these four commits, one of them quietly did something extra that its message never mentions. Find it with `git log`, `git show` and `git diff`, then undo only that."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "recipe.txt",
+              "content": "Pancakes (serves 4)\n- 2 eggs\n- 1 cup flour\n- 1 cup milk\n- 1 tsp baking powder\n- pinch of salt"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add the pancake recipe"
+            },
+            {
+              "op": "write",
+              "path": "recipe.txt",
+              "content": "Pancakes (serves 4)\n- 4 eggs\n- 1 cup flour\n- 1 cup milk\n- 1 tsp baking powder\n- pinch of salt"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Double the eggs for a fluffier batter"
+            },
+            {
+              "op": "write",
+              "path": "recipe.txt",
+              "content": "Pancakes (serves 4)\n- 4 eggs\n- 1 cup flour\n- 1 cup milk\n- pinch of salt\n- 2 tbsp sugar"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Sweeten the batter with a little sugar"
+            },
+            {
+              "op": "write",
+              "path": "recipe.txt",
+              "content": "Pancakes (serves 4)\n- 4 eggs\n- 1 cup flour\n- 1 cup milk\n- pinch of salt\n- 2 tbsp sugar\n- 1 tsp vanilla"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add vanilla"
+            }
+          ],
+          "goal": "One of the four commits removed an ingredient without saying so. Work out which ingredient went missing, put that line back into `recipe.txt`, and commit the fix on its own. Every deliberate change — the extra eggs, the sugar, the vanilla — must survive. Finish with a clean working tree.",
+          "hints": [
+            "Start with `git log --oneline`. Four commits, four promises. Now go and read what actually happened.",
+            "`git show HEAD~1` prints exactly what one commit changed. Walk back through the commits until you find the one whose diff removed a line its message never mentions.",
+            "`git diff HEAD~3 HEAD` compares the very first commit with the current one. Every difference in that diff should be explained by one of the four messages — except one. Look for a `-` line nobody promised.",
+            "To fix it, put the missing ingredient line back into the file (`echo \"- 1 tsp baking powder\" >> recipe.txt` works fine), then `git add recipe.txt` and `git commit -m \"...\"`."
+          ],
+          "expect": [
+            {
+              "kind": "fileCommitted",
+              "path": "recipe.txt",
+              "contains": "baking powder",
+              "ci": true,
+              "label": "The missing ingredient is back in the committed recipe"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "recipe.txt",
+              "contains": "4 eggs",
+              "ci": true,
+              "label": "The extra eggs survived"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "recipe.txt",
+              "contains": "sugar",
+              "ci": true,
+              "label": "The sugar survived"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "recipe.txt",
+              "contains": "vanilla",
+              "ci": true,
+              "label": "The vanilla survived"
+            },
+            {
+              "kind": "commitTouched",
+              "ref": "HEAD",
+              "paths": [
+                "recipe.txt"
+              ],
+              "exact": true,
+              "label": "The newest commit changes recipe.txt and nothing else"
+            },
+            {
+              "kind": "commitCount",
+              "min": 5,
+              "label": "A fifth commit exists"
+            },
+            {
+              "kind": "cleanWorkingTree",
+              "label": "Working tree is clean"
+            }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        {
+          "h": "Module 4 recap"
+        },
+        {
+          "list": [
+            "`git status` is a report with three shelves: **staged** (in the suitcase), **not staged** (on the bed), **untracked** (still in the wardrobe).",
+            "**no changes added to commit** means \"committing right now would produce an empty commit\". Changed is not staged.",
+            "A diff is a list of edit instructions: `-` left, `+` arrived, a leading space is unchanged context, and `@@ -1,4 +1,5 @@` tells you where in the file you are.",
+            "`git diff` never has one meaning — always ask *which two endpoints?*",
+            "`git show <ref>` opens a single commit; `git diff <A> <B>` measures the gap between two.",
+            "Untracked files are invisible to every form of `git diff` until you `git add` them.",
+            "`status`, `diff`, `show` and `log` are read-only — none of them can hurt you. The one command on this page that can is `git restore <file>` without `--staged`: it discards your edit for good."
+          ]
+        },
+        {
+          "code": "git diff            staging area -> working directory\ngit diff --staged   last commit  -> staging area\ngit diff HEAD       last commit  -> working directory\ngit diff <A> <B>    commit A     -> commit B"
+        },
+        {
+          "graph": {
+            "caption": "A history you can now interrogate: `git show` any dot, `git diff` between any two.",
+            "ops": [
+              {
+                "op": "init"
+              },
+              {
+                "op": "write",
+                "path": "menu.txt",
+                "content": "SOUPS\n- tomato"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add the cafe menu"
+              },
+              {
+                "op": "write",
+                "path": "menu.txt",
+                "content": "SOUPS\n- tomato\n- lentil"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Refresh the soups"
+              },
+              {
+                "op": "write",
+                "path": "menu.txt",
+                "content": "SOUPS\n- tomato\n- lentil\n\nDESSERTS\n- brownie"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add desserts"
+              }
+            ]
+          }
+        },
+        {
+          "p": "Next: branches — how to try an idea in a parallel universe without touching the timeline everyone else is standing on."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m4l3": [
+      "echo \"- 1 tsp baking powder\" >> recipe.txt",
+      "git add recipe.txt",
+      "git commit -m \"Restore the baking powder dropped in the sugar commit\""
+    ]
+  }
+}

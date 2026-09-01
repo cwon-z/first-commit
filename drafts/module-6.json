@@ -1,0 +1,403 @@
+{
+  "module": {
+    "id": "m6",
+    "number": 6,
+    "title": "Merging & Conflicts",
+    "summary": "How branches come back together: fast-forwards, merge commits, and meeting your first conflict calmly — it is only text, and you can always back out.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m6l1",
+        "title": "Two kinds of merge",
+        "type": "concept",
+        "body": [
+          { "p": "Last module you learned to split your work onto a **branch** — a movable label pointing at a commit, a safe side road for an idea. That is only half the story. Sooner or later the side road has to rejoin the main one, and the work you did over there has to come back. That is **merging**." },
+          { "p": "`git merge <branch>` always means one thing: *take the branch I name, and bring its work into the branch I am standing on right now*. The branch you name is not changed at all. Only the branch you are standing on moves." },
+          { "tip": "Merging is directional, and beginners get it backwards constantly. To get `feature` into `main`, you `git switch main` **first**, then `git merge feature`. Say it out loud before you type: stand where you want the work to land." },
+
+          { "h": "Kind one: the fast-forward" },
+          { "p": "Sometimes there is nothing to reconcile at all. You branched off `main`, did some work, and while you were away nobody touched `main`. Your branch is not a rival version of the project — it is `main` plus a few more commits." },
+          {
+            "graph": {
+              "caption": "Before the merge. main still sits on the first commit; hours-fix is one commit further along the same road. Nothing on main has moved — that is the fast-forward condition.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+                { "op": "add" },
+                { "op": "commit", "message": "Publish the cafe site" },
+                { "op": "switchCreate", "name": "hours-fix" },
+                { "op": "write", "path": "hours.txt", "content": "Open 7 to 5." },
+                { "op": "add" },
+                { "op": "commit", "message": "Correct the opening hours" },
+                { "op": "switch", "name": "main" }
+              ]
+            }
+          },
+          { "p": "Look at what Git actually has to do here: nothing. Every commit on `hours-fix` already sits in a straight line after `main`'s commit. To bring the work in, Git only has to pick up the `main` label and set it down further along the road it was already on. That is a **fast-forward** — no new commit is made, and the history stays one straight line." },
+          {
+            "graph": {
+              "caption": "After git merge hours-fix. No new dot appeared. main and hours-fix now label the very same commit.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+                { "op": "add" },
+                { "op": "commit", "message": "Publish the cafe site" },
+                { "op": "switchCreate", "name": "hours-fix" },
+                { "op": "write", "path": "hours.txt", "content": "Open 7 to 5." },
+                { "op": "add" },
+                { "op": "commit", "message": "Correct the opening hours" },
+                { "op": "switch", "name": "main" },
+                { "op": "merge", "name": "hours-fix" }
+              ]
+            }
+          },
+          { "analogy": "Remember what Module 5 said happens every time you commit: Git peels the sticky note you are standing on off its photo and re-sticks it to the new one. A fast-forward is that same move, done once, by hand. `hours-fix`'s note is already further down the album; the merge lifts `main`'s note and puts it on the same photo. No photograph is copied, edited, or taken — one sticky note moved." },
+
+          { "h": "Kind two: the three-way merge" },
+          { "p": "Now the interesting case. You branched off, did your work — but `main` moved too while you were away. The two lines of work have **diverged**: neither one is *ahead* of the other in the way `hours-fix` was, because each contains commits the other has never seen. There is no sticky note to slide forward — it would have to leave commits behind." },
+          {
+            "graph": {
+              "caption": "Diverged. Both sides gained a commit after they parted, so neither branch contains the other.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "menu.txt", "content": "coffee" },
+                { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+                { "op": "add" },
+                { "op": "commit", "message": "Publish the cafe site" },
+                { "op": "switchCreate", "name": "new-hours" },
+                { "op": "write", "path": "hours.txt", "content": "Open 7 to 5, seven days." },
+                { "op": "add" },
+                { "op": "commit", "message": "Longer opening hours" },
+                { "op": "switch", "name": "main" },
+                { "op": "write", "path": "menu.txt", "content": "coffee\ncroissants" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add croissants" }
+              ]
+            }
+          },
+          { "analogy": "You and a friend each photocopied the same page of notes and scribbled on your own copy. To combine them you do not lay the two scribbled copies side by side — you put each one next to the *original*. Anything only you touched is plainly yours to keep; anything only they touched is theirs; and the only real argument is a line you both rewrote. The original is the referee." },
+          { "p": "Git handles this by looking at **three** commits — which is where the name *three-way merge* comes from. Its referee is the fork point: the last commit both branches shared. It compares that against your side's **tip** and their side's tip — a branch's *tip* is the newest commit it points at, the sticky note's current home. For every part of every file it asks one plain question: *did this change on one side, or on both?*" },
+          {
+            "list": [
+              "Changed on **only their side** → take their version.",
+              "Changed on **only your side** → keep yours.",
+              "Changed on **neither** side → nothing to do.",
+              "Changed on **both** sides, in the same place, differently → Git stops and asks you. That is a conflict. Note *same place*: if you edited the top of a file while they edited the bottom, real Git combines both without a word."
+            ]
+          },
+          { "p": "When nothing at all lands in that last row, Git can combine both sides by itself, and it records the result as a **merge commit**: the one kind of commit that has **two** parents, one pointing back into each side of the fork." },
+          {
+            "graph": {
+              "caption": "After the merge. The newest dot is a merge commit — follow the two lines leaving it and you land on both sides of the fork. That fork-and-join shape is what a merge looks like forever after.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "menu.txt", "content": "coffee" },
+                { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+                { "op": "add" },
+                { "op": "commit", "message": "Publish the cafe site" },
+                { "op": "switchCreate", "name": "new-hours" },
+                { "op": "write", "path": "hours.txt", "content": "Open 7 to 5, seven days." },
+                { "op": "add" },
+                { "op": "commit", "message": "Longer opening hours" },
+                { "op": "switch", "name": "main" },
+                { "op": "write", "path": "menu.txt", "content": "coffee\ncroissants" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add croissants" },
+                { "op": "merge", "name": "new-hours" }
+              ]
+            }
+          },
+          { "p": "That shape is permanent, and that is a feature. Months later the graph still shows that two lines of work ran side by side and exactly where they came back together. Nothing was flattened or thrown away — every commit from both sides is still in the history, reachable and readable." },
+
+          { "h": "Which one will you get?" },
+          { "p": "Ask yourself one question before you merge: **has the branch I am standing on moved since the other branch split off?** If it has not, you get a fast-forward and no new commit. If it has, you get a merge commit. `git log --oneline --all` shows every branch's tip at once, which is usually enough to see the answer at a glance." },
+          { "p": "You do not have to predict it, though. Git works it out and tells you: the output says `Fast-forward`, or `Merge made by the 'ort' strategy` — or `Already up to date.`, which means the branch you named holds nothing yours does not already have. That last one is not a failure either; there was nothing to bring over. Knowing which to expect means you are never surprised by your own history." },
+          { "p": "(`ort` is only the name of the recipe Git used to combine the two sides. You never have to choose it, nothing needs installing, and you can read that line as *merge commit made*.)" },
+
+          { "h": "A conflict is not an error" },
+          { "p": "Here is the sentence to hold on to: **a merge conflict is not a failure, not a bug, and not damage to your project.** It is Git being careful. Two people wrote different words in the same place; Git has no opinion about English, so it refuses to guess and hands the decision to the only one qualified to make it." },
+          { "analogy": "Two people are editing the same shopping list. One crosses out 'milk' and writes 'oat milk'; the other writes 'whole milk'. A robot combining those lists cannot possibly know which you meant. A careful robot does not flip a coin — it writes both suggestions onto the line, hands you the pen, and waits." },
+          { "p": "When Git stops, it says so in plain words. Here the `bold-tagline` branch had changed two files — the tagline and the opening hours — and only one of them clashed:" },
+          { "code": "$ git merge bold-tagline\nAuto-merging tagline.txt\nCONFLICT (content): Merge conflict in tagline.txt\nAutomatic merge failed; fix conflicts and then commit the result." },
+          { "p": "Your terminal prints that CONFLICT line in red, here and on your own machine — red is how Git styles the word, and real Git does finish with a *something needs your attention* status. It is a flag, not a verdict on your work." },
+          { "p": "Notice that Git names the stuck file twice. `Auto-merging tagline.txt` is Git saying it *tried* to combine that file; the CONFLICT line underneath says it could not. Everything it could merge, it already merged — if ten files changed and one clashed, the other nine are done and sitting in your staging area. The merge is now **paused**: half finished, holding still until you say what to do." },
+          { "p": "`git status` is at its most helpful in this state. It names what is stuck, and hands you both exits:" },
+          { "code": "$ git status\nOn branch main\nYou have unmerged paths.\n  (fix conflicts and run \"git commit\")\n  (use \"git merge --abort\" to abort the merge)\n\nChanges to be committed:\n  (use \"git restore --staged <file>...\" to unstage)\n\tmodified:   hours.txt\n\nUnmerged paths:\n  (use \"git add <file>...\" to mark resolution)\n\tboth modified:   tagline.txt" },
+          { "p": "Two lists. The top one is work Git already finished for you — `hours.txt` came across cleanly and is staged, ready to go. Only the bottom one is waiting on a human." },
+
+          { "h": "The conflict markers, line by line" },
+          { "p": "Open the conflicted file and you will find something like this. Beginners find it alarming — it looks like the file has been vandalised. It has not. Those are ordinary lines of text that Git typed into your file, and you can delete them with the same keyboard you delete anything else." },
+          { "code": "<<<<<<< HEAD\nGood coffee, no fuss.\n=======\nWake up and taste the sunrise.\n>>>>>>> bold-tagline" },
+          {
+            "list": [
+              "`<<<<<<< HEAD` opens the block. Everything below it, down to the `=======`, is **your** version — what the branch you are standing on says. `HEAD` is Git's word for *where you are right now*.",
+              "`=======` is the fence in the middle. Above it, yours. Below it, theirs. It belongs to neither side and is not part of anybody's text.",
+              "`>>>>>>> bold-tagline` closes the block. Everything above it, back up to the `=======`, is **their** version — and the name after the arrows tells you which branch it came from."
+            ]
+          },
+          { "p": "That is the entire format. Nothing is hidden, nothing is encoded, and there is no way to break it by reading it. On your own machine, a file with three separate clashes in it shows three of these blocks, one after another. (This sandbox compares whole files, so here you will only ever meet one block per file.)" },
+
+          { "h": "Resolving: three moves, always in this order" },
+          { "p": "Settling a conflict is the same small loop every single time, once per conflicted file:" },
+          {
+            "list": [
+              "**1. Edit the file** so it says what you actually want, and delete all three marker lines. Keep your side, keep their side, keep both, or write a third thing that is neither — Git does not check and has no preference.",
+              "**2. `git add <file>`** — during a merge, `add` carries an extra meaning: *I have settled this one*. It is how you tell Git the file is no longer in dispute.",
+              "**3. `git commit`** — this concludes the merge and creates the merge commit. You can leave off `-m` here: mid-merge, Git offers a sensible default message such as `Merge branch 'bold-tagline'`."
+            ]
+          },
+          { "tip": "On your own machine that last step does not finish silently. Git opens a text editor showing the default message already written for you, and the merge is not committed until you save and close it (in vim: press `Esc`, type `:wq`, press Enter — in nano: `Ctrl-O`, Enter, `Ctrl-X`). Nothing has gone wrong when that happens. If you would rather skip the editor entirely, `git commit --no-edit` accepts the default message straight away — and that works in this sandbox too. Plain `git commit` works here as well, because there is no editor to open." },
+          { "p": "This sandbox has no text editor, so step 1 is done by overwriting the whole file: `echo \"the line you want\" > tagline.txt`. That is a tidy way to do it anyway — writing the file fresh removes the marker lines automatically." },
+          { "warn": "Deleting every marker is your job, and it is easy to leave one behind — a stray `=======` halfway down a long file. Git will commit it without complaint, because to Git it is only text. Read the file once more before you `git add` it." },
+
+          { "h": "The escape hatch" },
+          { "p": "Suppose you start the merge, look at the mess, and decide today is not the day. Type `git merge --abort`. Every file snaps back to exactly how it was before you typed `git merge`, the markers vanish, and Git forgets the merge ever started. It prints nothing at all, which is its way of saying *fine, done*." },
+          { "p": "Nothing is lost. Both branches still sit exactly where they were, with all their commits. You can come back and try the merge again in five minutes, or next week, with someone else sitting beside you." },
+          { "tip": "`git merge --abort` is the reason you never need to be afraid of *starting* a merge. Attempt it; if you do not like what you find, back out. Until you make that final commit, the whole thing is reversible." },
+          { "warn": "One way this sandbox is blunter than real Git: it compares whole files, so it reports a conflict whenever the same file changed on both sides. Real Git compares line by line and will merge edits to different parts of one file without a murmur. Everything else here — the markers, the three-move loop, `--abort` — behaves as it does on your own machine, with one cosmetic exception: real Git opens a text editor for the merge message where this sandbox writes it for you." }
+        ]
+      },
+      {
+        "id": "m6l2",
+        "title": "Guided: your first conflict",
+        "type": "guided",
+        "body": [
+          { "p": "You are back on the Luna Cafe site, and two branches are waiting for you. `hours-fix` corrects the opening hours and was started from exactly where `main` stands today. `bold-tagline` was started earlier in the week — before you sat down and rewrote the tagline yourself." },
+          {
+            "graph": {
+              "caption": "Your starting point. hours-fix grew out of main's current commit; bold-tagline branched off one commit earlier, before 'Try a plainer tagline' existed.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "tagline.txt", "content": "Coffee, probably." },
+                { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+                { "op": "add" },
+                { "op": "commit", "message": "Publish the cafe site" },
+                { "op": "switchCreate", "name": "bold-tagline" },
+                { "op": "write", "path": "tagline.txt", "content": "Wake up and taste the sunrise." },
+                { "op": "add" },
+                { "op": "commit", "message": "Try a bolder tagline" },
+                { "op": "switch", "name": "main" },
+                { "op": "write", "path": "tagline.txt", "content": "Good coffee, no fuss." },
+                { "op": "add" },
+                { "op": "commit", "message": "Try a plainer tagline" },
+                { "op": "switchCreate", "name": "hours-fix" },
+                { "op": "write", "path": "hours.txt", "content": "Open 7 to 5, seven days a week." },
+                { "op": "add" },
+                { "op": "commit", "message": "Correct the opening hours" },
+                { "op": "switch", "name": "main" }
+              ]
+            }
+          },
+          { "p": "You will do both kinds of merge in one sitting: the effortless one first, then the one everybody dreads — and you will find out it is nothing much. You are standing on `main` already." }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "tagline.txt", "content": "Coffee, probably." },
+            { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+            { "op": "add" },
+            { "op": "commit", "message": "Publish the cafe site" },
+            { "op": "switchCreate", "name": "bold-tagline" },
+            { "op": "write", "path": "tagline.txt", "content": "Wake up and taste the sunrise." },
+            { "op": "add" },
+            { "op": "commit", "message": "Try a bolder tagline" },
+            { "op": "switch", "name": "main" },
+            { "op": "write", "path": "tagline.txt", "content": "Good coffee, no fuss." },
+            { "op": "add" },
+            { "op": "commit", "message": "Try a plainer tagline" },
+            { "op": "switchCreate", "name": "hours-fix" },
+            { "op": "write", "path": "hours.txt", "content": "Open 7 to 5, seven days a week." },
+            { "op": "add" },
+            { "op": "commit", "message": "Correct the opening hours" },
+            { "op": "switch", "name": "main" }
+          ],
+          "steps": [
+            {
+              "say": "Get the lay of the land before touching anything. `--all` tells the log to show every branch's commits, not only the branch you are on. Read it bottom-up: everything grew out of **Publish the cafe site**, and each name in brackets marks where that branch label currently sits.",
+              "cmd": "git log --oneline --all",
+              "hint": "Type: git log --oneline --all",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "log", "label": "You surveyed every branch" }
+              ]
+            },
+            {
+              "say": "Merge the easy one first. `hours-fix` was started from `main`'s current commit, so `main` has nothing of its own to protect. Watch for the word **Fast-forward** in the output — and notice the graph gains no new dot. The `main` label slid one commit to the right.",
+              "cmd": "git merge hours-fix",
+              "hint": "Type: git merge hours-fix — you are already standing on main, which is where the work should land.",
+              "expect": [
+                { "kind": "branchesMerged", "from": "hours-fix", "into": "main", "label": "hours-fix is merged into main" },
+                { "kind": "commitCount", "exact": 3, "label": "main has 3 commits — no merge commit was created" },
+                { "kind": "cleanWorkingTree", "label": "Nothing left over in the working tree" }
+              ]
+            },
+            {
+              "say": "Now the other one. `bold-tagline` was created *before* you wrote your own tagline, so both sides have changed `tagline.txt` since they parted — and they disagree about what it should say. Run the merge and read every line of the output. Nothing here is broken.",
+              "cmd": "git merge bold-tagline",
+              "hint": "Type: git merge bold-tagline — expect it to stop with the word CONFLICT. That is the whole point of this lesson.",
+              "expect": [
+                { "kind": "fileExists", "path": "tagline.txt", "contains": "<<<<<<< HEAD", "label": "The merge paused with a conflict in tagline.txt" }
+              ]
+            },
+            {
+              "say": "First ask the compass. Git names the file that is stuck under **Unmerged paths**, and spells out both exits: fix it and commit, or abort. Then look at what it actually wrote into the file — your version sits under `<<<<<<< HEAD`, theirs sits under the `=======` fence, and `>>>>>>> bold-tagline` closes the block and names where it came from. Three lines of ordinary text. That is the entire horror show.",
+              "cmd": "git status\ncat tagline.txt",
+              "hint": "Type: git status — then: cat tagline.txt",
+              "expect": [
+                { "kind": "commandRan", "command": "cat", "label": "You read the conflict markers" }
+              ]
+            },
+            {
+              "say": "Before fixing anything, prove to yourself that you can walk away. `git merge --abort` rewinds to the moment before you typed `git merge`: markers gone, both branches untouched, merge forgotten. It prints nothing — that is Git saying *fine, done*. Do not settle the file yet — you are going to walk back into this same conflict in a moment and finish it properly.",
+              "cmd": "git merge --abort",
+              "hint": "Type: git merge --abort. (If you already finished the merge instead, press ↺ reset to restore the starting state and pick it up again from step 2.)",
+              "expect": [
+                { "kind": "notMerging", "label": "The merge is called off" },
+                { "kind": "noConflictMarkers", "path": "tagline.txt", "label": "tagline.txt is back to normal" }
+              ]
+            },
+            {
+              "say": "Good — that escape hatch is always there. Now walk back in on purpose. Same command, same conflict, except this time you are going to settle it.",
+              "cmd": "git merge bold-tagline",
+              "hint": "Type: git merge bold-tagline again.",
+              "expect": [
+                { "kind": "fileExists", "path": "tagline.txt", "contains": ">>>>>>> bold-tagline", "label": "You are back in the conflict, deliberately" }
+              ]
+            },
+            {
+              "say": "Resolve it by writing the line you actually want. Here we borrow from both taglines. On your own machine you could keep either side untouched or invent something else entirely — Git has no opinion. This checklist only asks for a line of your own that still mentions coffee. Writing the whole file in one go also wipes the three marker lines, which is exactly what you need.",
+              "cmd": "echo \"Wake up to good coffee. No fuss.\" > tagline.txt",
+              "hint": "Type: echo \"Wake up to good coffee. No fuss.\" > tagline.txt — or any line of your own that mentions coffee.",
+              "expect": [
+                { "kind": "noConflictMarkers", "path": "tagline.txt", "label": "The conflict markers are gone" },
+                { "kind": "fileExists", "path": "tagline.txt", "contains": "coffee", "ci": true, "label": "tagline.txt now says something about coffee" }
+              ]
+            },
+            {
+              "say": "Editing the file is **not** enough — as far as Git is concerned the dispute is still open. `git add` is how you say *this one is settled*. It is the same command you have used since module 2, quietly doing a second job in the middle of a merge.",
+              "cmd": "git add tagline.txt",
+              "hint": "Type: git add tagline.txt",
+              "expect": [
+                { "kind": "fileStaged", "path": "tagline.txt", "content": true, "contains": "coffee", "ci": true, "label": "tagline.txt is marked as resolved" }
+              ]
+            },
+            {
+              "say": "Conclude the merge. Notice there is no `-m` this time: mid-merge, Git has a sensible default message ready. This sandbox accepts it for you; on your own machine an editor would open with that message in it, and `git commit --no-edit` skips the editor. Then look at the graph — the new dot reaches back into both sides of the fork. It has finally closed.",
+              "cmd": "git commit",
+              "hint": "Type: git commit — no -m needed while a merge is in progress. (git commit --no-edit works too.)",
+              "expect": [
+                { "kind": "mergeCommitAt", "label": "main's newest commit is a merge commit with two parents" },
+                { "kind": "branchesMerged", "from": "bold-tagline", "into": "main", "label": "bold-tagline is merged into main" },
+                { "kind": "notMerging", "label": "The merge is finished" },
+                { "kind": "cleanWorkingTree", "label": "Working tree is clean" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m6l3",
+        "title": "Challenge: the peacemaker",
+        "type": "challenge",
+        "body": [
+          { "p": "Three friends are planning a trip in one shared repository. You raised the budget on `main` after the flights went up. Sam, off on a branch, raised it too — to a different number — and also added a rain jacket to the packing list. Meanwhile somebody added a day trip to Porto on a third branch." },
+          { "p": "Two branches are waiting, and one of them is going to fight you. Take any route you like — the checklist watches the end state, not the commands you type. And remember `git merge --abort` exists, so you genuinely cannot get stuck." }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "itinerary.txt", "content": "Day 1: fly to Lisbon\nDay 2: nothing planned" },
+            { "op": "write", "path": "packing.txt", "content": "socks\ntoothbrush" },
+            { "op": "write", "path": "budget.txt", "content": "Budget: 300 each" },
+            { "op": "add" },
+            { "op": "commit", "message": "Plan the trip" },
+            { "op": "switchCreate", "name": "sams-edits" },
+            { "op": "write", "path": "packing.txt", "content": "socks\ntoothbrush\nrain jacket" },
+            { "op": "write", "path": "budget.txt", "content": "Budget: 500 each" },
+            { "op": "add" },
+            { "op": "commit", "message": "Sam: pack a rain jacket, raise the budget" },
+            { "op": "switch", "name": "main" },
+            { "op": "switchCreate", "name": "route-change" },
+            { "op": "write", "path": "itinerary.txt", "content": "Day 1: fly to Lisbon\nDay 2: train to Porto" },
+            { "op": "add" },
+            { "op": "commit", "message": "Add a day trip to Porto" },
+            { "op": "switch", "name": "main" },
+            { "op": "write", "path": "budget.txt", "content": "Budget: 450 each" },
+            { "op": "add" },
+            { "op": "commit", "message": "Raise the budget for flights" }
+          ],
+          "goal": "Get both `route-change` and `sams-edits` merged into `main`. One of them will go through quietly; the other clashes on `budget.txt`, because you and Sam each raised the budget to a different number. Sam was right about the flights, so the settled file must say **500**, with no conflict markers left anywhere in it. Sam's `rain jacket` line has to survive into the final `packing.txt` too. Finish with a clean working tree and no merge still in progress.",
+          "hints": [
+            "Start with git log --oneline --all to see where each branch tip (its newest commit) sits. Either order works: route-change touches only the itinerary, so it goes through without a murmur; sams-edits is the one that clashes on budget.txt, whenever you get to it.",
+            "When the conflict appears, run git status. It shows two separate lists: the files Git already merged for you, and the one file it wants you to settle. Only that one file needs your attention.",
+            "Overwrite the conflicted file with the single line you want and nothing else: echo \"Budget: 500 each\" > budget.txt — writing it fresh wipes the three marker lines at the same time.",
+            "Editing is not enough. git add budget.txt marks it resolved, then git commit concludes the merge (no -m needed). Then merge the other branch the same way."
+          ],
+          "expect": [
+            { "kind": "branchesMerged", "from": "route-change", "into": "main", "label": "The Porto day trip is merged into main" },
+            { "kind": "branchesMerged", "from": "sams-edits", "into": "main", "label": "Sam's branch is merged into main" },
+            { "kind": "noConflictMarkers", "path": "budget.txt", "label": "No conflict markers left in budget.txt" },
+            { "kind": "fileExists", "path": "budget.txt", "contains": "500", "label": "budget.txt settles on 500" },
+            { "kind": "fileExists", "path": "packing.txt", "contains": "rain jacket", "label": "Sam's rain jacket survived the merge" },
+            { "kind": "commitCount", "min": 5, "branch": "main", "label": "Every commit from both branches is still in main's history" },
+            { "kind": "cleanWorkingTree", "label": "Clean working tree" },
+            { "kind": "notMerging", "label": "No merge left half-finished" }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        { "h": "Module 6 recap" },
+        {
+          "list": [
+            "`git merge <branch>` brings the named branch's work **into the branch you are standing on**. Switch to the destination first.",
+            "**Fast-forward**: your branch never moved, so Git slides its label forward. No new commit, history stays a straight line.",
+            "**Three-way merge**: both sides moved, so Git compares the fork point against both tips and records a **merge commit** with two parents.",
+            "A **conflict** happens only where both sides changed the same thing differently. Git merges everything else for you first, and says so.",
+            "A conflict is not an error. It is Git declining to guess — and it is completely reversible right up until you commit.",
+            "`Already up to date.` is a third possible answer: the branch you named holds nothing yours does not already have, so there was nothing to bring over."
+          ]
+        },
+        { "h": "The resolution loop" },
+        { "code": "git merge <branch>       # CONFLICT (content): Merge conflict in <file>\ngit status               # which file is stuck, and both ways out\n\n# 1. edit <file>: keep what you want, delete <<<<<<<, ======= and >>>>>>>\ngit add <file>           # \"this one is settled\"\ngit commit               # concludes the merge (or --no-edit, to skip the editor)\n\ngit merge --abort        # or: back out entirely, any time before that commit" },
+        {
+          "graph": {
+            "caption": "Both shapes in one history. Early on, hours-fix was merged while main had not moved — a fast-forward, which left no trace: the line runs straight through. Later, both sides had moved, so merging bold-tagline left a dot with two parents.",
+            "ops": [
+              { "op": "init" },
+              { "op": "write", "path": "tagline.txt", "content": "Coffee, probably." },
+              { "op": "write", "path": "hours.txt", "content": "Open 8 to 4." },
+              { "op": "add" },
+              { "op": "commit", "message": "Publish the cafe site" },
+              { "op": "switchCreate", "name": "hours-fix" },
+              { "op": "write", "path": "hours.txt", "content": "Open 7 to 5, seven days a week." },
+              { "op": "add" },
+              { "op": "commit", "message": "Correct the opening hours" },
+              { "op": "switch", "name": "main" },
+              { "op": "merge", "name": "hours-fix" },
+              { "op": "switchCreate", "name": "bold-tagline" },
+              { "op": "write", "path": "tagline.txt", "content": "Wake up and taste the sunrise." },
+              { "op": "add" },
+              { "op": "commit", "message": "Try a bolder tagline" },
+              { "op": "switch", "name": "main" },
+              { "op": "write", "path": "menu.txt", "content": "coffee\ncroissants" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add croissants" },
+              { "op": "merge", "name": "bold-tagline" }
+            ]
+          }
+        },
+        { "p": "Everything so far has happened on one computer. Next: **remotes** — putting your repository somewhere other people can reach, and pulling their work back down." }
+      ]
+    }
+  },
+  "solutions": {
+    "m6l3": [
+      "git merge route-change",
+      "git merge sams-edits",
+      "echo \"Budget: 500 each\" > budget.txt",
+      "git add budget.txt",
+      "git commit -m \"Merge sams-edits and settle the budget at 500\""
+    ]
+  }
+}

@@ -1,0 +1,670 @@
+{
+  "module": {
+    "id": "m8",
+    "number": 8,
+    "title": "Collaboration Basics",
+    "summary": "The loop real teams run every day: sync main, branch, commit, push, open a pull request, merge, delete. What a pull request actually is, and how to be someone people like reviewing.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m8l1",
+        "title": "The pull request, conceptually",
+        "type": "concept",
+        "body": [
+          {
+            "p": "You already know every command in this module. `switch -c`, `commit`, `push`, `pull`, `merge`, `branch -d` — that's the whole toolkit, and you've used all of it. What you haven't seen is the **order** teams run them in, and the reasoning that produced the order. That order has a name — the *feature-branch workflow* — and some version of it runs at nearly every place that writes software."
+          },
+          {
+            "h": "The loop"
+          },
+          {
+            "list": [
+              "**Sync** — bring your local `main` up to date with everyone else's.",
+              "**Branch** — cut a new branch for this one piece of work.",
+              "**Work** — edit, stage, commit. As many commits as the work honestly needs.",
+              "**Push** — send the branch to the shared copy.",
+              "**Open a pull request** — in a browser, ask for your branch to be merged.",
+              "**Review** — someone reads it and asks questions; you push fixes to the same branch.",
+              "**Merge** — your commits join `main`.",
+              "**Sync back** — `git switch main`, `git pull`. The merge happened on the server; this brings it down to you.",
+              "**Delete the branch** — it did its job."
+            ]
+          },
+          {
+            "p": "Round and round, several times a week, for years. Eight of those nine steps are commands you can already type. The interesting question isn't *how* — it's *why this shape*."
+          },
+          {
+            "h": "So what is a pull request?"
+          },
+          {
+            "p": "The honest part first: there is no `git pull-request` command, and there never will be. Git has no idea pull requests exist. A pull request is a feature of the **website** your team's repository lives on — GitHub, GitLab, Bitbucket — and it is exactly what its name says: a request that someone pull your branch into theirs."
+          },
+          {
+            "p": "Concretely it is one page with two halves. One half is a **diff**: every change your branch has made *since it left* `main`, laid out file by file — measured from the point the two lines diverged, not against wherever `main` has got to since. The other half is a **conversation**: comments on individual lines, questions, suggested edits, and eventually an approval. When somebody clicks **Merge**, the website runs a merge on a server — the closest thing you can run yourself is a `git merge` on `main`."
+          },
+          {
+            "analogy": "A pull request is the note you clip to a manuscript before handing it to your editor. The manuscript — your branch — is finished as far as you're concerned. The note says: here's what I changed and why; please read it, and if you're happy, fold it into the edition that goes to the printers. The margin notes and your replies are the review. Nothing reaches the printed book until someone says yes."
+          },
+          {
+            "graph": {
+              "caption": "What a pull request is looking at. `main` and `origin/main` sit on the same commit — your machine and the shared copy agree about the trunk — while `add-faq` runs one commit ahead of both. That gap, the commit your branch has that `main` doesn't, is the diff a reviewer is handed.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "site/index.html",
+                  "content": "<h1>Trailhead</h1>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Publish the club site"
+                },
+                {
+                  "op": "remote",
+                  "url": "https://github.com/trailhead/site.git"
+                },
+                {
+                  "op": "switchCreate",
+                  "name": "add-faq"
+                },
+                {
+                  "op": "write",
+                  "path": "site/faq.html",
+                  "content": "<h1>FAQ</h1>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add an FAQ page"
+                }
+              ]
+            }
+          },
+          {
+            "tip": "Real git spells that comparison with three dots: `git diff main...your-branch`, meaning \"everything my branch did since the two diverged\". This sandbox doesn't accept the three-dot form, so keep it as vocabulary for later — while `main` hasn't moved, the two-ref `git diff main your-branch` you already know shows the same thing."
+          },
+          {
+            "tip": "GitLab calls the identical thing a **merge request**, which is frankly the better name — \"pull\" describes what the maintainer does at the far end, not what you're asking for. Same object, different word. Don't let the vocabulary throw you."
+          },
+          {
+            "warn": "This sandbox has no network and no browser, so it cannot open a real pull request. Everything git does in the loop — branch, commit, push, merge, delete — you will run for real. When we reach the browser half, I'll say so plainly, and then you'll play the website yourself: merge locally and push the result, which is the closest thing you can run locally to what the Merge button does on your behalf. Not identical: the real button usually records a merge commit even when a fast-forward would do, and some teams pick *Squash* instead, which folds your whole branch into one brand-new commit. Same idea, different shape of history."
+          },
+          {
+            "h": "Why the loop is shaped like this"
+          },
+          {
+            "p": "Every step exists to protect one promise: **`main` always works.** Anyone should be able to take `main` at any moment — to deploy it (put it in front of real users), demo it, or branch from it — and find it in one piece. Your branch is the opposite: it's where things are *allowed* to be broken, half-finished and ugly, because nobody else is standing on it. The pull request is the door between the two, and review is the lock."
+          },
+          {
+            "h": "Branch from the newest main you can get"
+          },
+          {
+            "p": "That's what the `git pull` at the top of the loop is for. A branch cut from a stale `main` shows your reviewer a diff against code that has already moved on, and everything `main` gained in the meantime turns into a merge you'll have to do later, in a hurry, under someone else's deadline."
+          },
+          {
+            "tip": "Work you haven't committed yet isn't attached to any branch — it sits in your working directory and comes with you when you switch. So a file you started on `main` by mistake is easy to rehome: cut the branch, then commit it there. Nothing was ever on `main` except in your head."
+          },
+          {
+            "h": "Short branches merge; long branches negotiate"
+          },
+          {
+            "p": "A branch is a bet that the rest of the world will hold still while you work. It won't. Every day your branch lives, `main` drifts further from the ground you built on. A branch that lives a day merges quietly. A branch that lives three weeks becomes a negotiation — with the code, and usually with a person."
+          },
+          {
+            "graph": {
+              "caption": "One afternoon, two people. Your branch left main at 'Add a readme'; while it was away, Priya's opening-hours commit landed on main. Note that pulling first did not stop main moving after you branched — nothing can; that is exactly why short branches are easier. The last dot is the merge that folds the two lines back together, and the longer your branch lives, the more there is to fold.",
+              "ops": [
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "site/index.html",
+                  "content": "<h1>Trailhead</h1>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Publish the club site"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "# Trailhead"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a readme"
+                },
+                {
+                  "op": "switchCreate",
+                  "name": "add-faq"
+                },
+                {
+                  "op": "write",
+                  "path": "site/faq.html",
+                  "content": "<h1>FAQ</h1>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add an FAQ page"
+                },
+                {
+                  "op": "switch",
+                  "name": "main"
+                },
+                {
+                  "op": "write",
+                  "path": "site/hours.html",
+                  "content": "<h1>Opening hours</h1>"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add opening hours (Priya)"
+                },
+                {
+                  "op": "merge",
+                  "name": "add-faq"
+                }
+              ]
+            }
+          },
+          {
+            "p": "So the size of your branch is a choice you make at the start, not a fact you discover at the end. If a piece of work is too big to finish in a day or two, that's information: find the first useful slice of it, ship that, and branch again."
+          },
+          {
+            "tip": "Before you ask anyone to look, sync your branch: `git switch main` → `git pull` → `git switch your-branch` → `git merge main`. Now the branch shows the *result* of your change against today's code rather than last Tuesday's, and any conflicts are yours to solve calmly, instead of ambushing whoever clicks Merge."
+          },
+          {
+            "h": "How to be reviewed, and how to review"
+          },
+          {
+            "p": "Reviews catch bugs. That's the advertised benefit and the smallest one. The real payoff is that a second person now understands this part of the project, and that writing \"here's what I did and why\" makes you notice things you'd otherwise have shipped."
+          },
+          {
+            "p": "One mechanical thing that trips up everyone the first time: a pull request is not a frozen submission. It **watches the branch**. When a reviewer asks for a change, you fix it on the same branch, commit, and `git push` — and the pull request page updates itself, diff and all. No second pull request, no re-uploading anything. That is the whole reason review comments are cheap to act on."
+          },
+          {
+            "list": [
+              "**Keep the diff small.** A forty-line change gets careful, specific comments. A two-thousand-line change gets \"looks good to me\". Reviewer attention is a budget — decide what you're spending it on.",
+              "**Write the description for someone who wasn't in your head.** What changed, why it changed, and how to check that it works.",
+              "**Review the code, not the person.** \"This loop runs twice\" — not \"you always do this\". When you're unsure, ask a question instead of delivering a verdict; you'll be wrong often enough to be glad you did.",
+              "**Reply to every comment**, even if the reply is \"good catch, fixed\". Silence reads as a shrug.",
+              "**An approval is a signature.** If you don't understand a change, say so and ask. That's a legitimate review outcome, not a failure of nerve."
+            ]
+          },
+          {
+            "warn": "The one habit worth being strict about: on a shared project, don't commit straight to `main` — not even for a one-line typo fix. Git will happily let you. But it's the single path with no second pair of eyes, and \"tiny\" fixes are exactly the ones that turn out to touch something you'd forgotten about."
+          },
+          {
+            "h": "Which half does what"
+          },
+          {
+            "list": [
+              "**Git, on your machine:** `switch -c`, `add`, `commit`, `push`, `fetch` / `pull`, `merge`, `branch -d`.",
+              "**The website:** the pull request page, the side-by-side diff, comments and approvals, automated test runs, the Merge button, and the button that deletes the branch afterwards."
+            ]
+          },
+          {
+            "p": "None of the website's half is magic — every button is running git commands on a server somewhere. Which is why, when the buttons confuse you, the questions that get you unstuck are the ones you already own: which branch is this? What commits does it have that `main` doesn't? What would merging it actually do?"
+          }
+        ]
+      },
+      {
+        "id": "m8l2",
+        "title": "Guided: the feature-branch workflow",
+        "type": "guided",
+        "body": [
+          {
+            "p": "You're on a two-person project: a little site for a hiking club, already connected to `origin`. Your teammate Priya has been working while you were away. Your job today is one small page — and one full trip around the loop, from syncing `main` to deleting the branch behind you."
+          },
+          {
+            "p": "Every command below you have run before. The thing to learn here is the *sequence*, and what each step buys you. Watch the graph redraw as you go."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Trailhead\nWeekend walks for people who own exactly one pair of boots."
+            },
+            {
+              "op": "write",
+              "path": "site/index.html",
+              "content": "<h1>Trailhead</h1>\n<p>Weekend walks, every weekend.</p>"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Publish the club site"
+            },
+            {
+              "op": "remote",
+              "url": "https://github.com/trailhead/site.git"
+            },
+            {
+              "op": "remoteCommit",
+              "branch": "main",
+              "path": "site/hours.html",
+              "content": "<h1>Opening hours</h1>\n<p>The hut is open Saturdays and Sundays, 8am to 5pm.</p>",
+              "message": "Add opening hours page"
+            }
+          ],
+          "steps": [
+            {
+              "say": "Start at the top of the loop, always: get your `main` up to date. Priya has pushed since you last looked, and you want to branch off *her* work rather than off a two-day-old copy of it. One command — and it costs you nothing on the days when there's nothing new.",
+              "cmd": "git pull",
+              "hint": "Type: git pull — origin/main is already this branch's upstream, so you don't need to name anything.",
+              "expect": [
+                {
+                  "kind": "pulledRemote",
+                  "branch": "main",
+                  "label": "Your main has caught up with origin/main"
+                },
+                {
+                  "kind": "fileCommitted",
+                  "path": "site/hours.html",
+                  "branch": "main",
+                  "label": "Priya's opening-hours page is in your main"
+                }
+              ]
+            },
+            {
+              "say": "Now cut the branch, off the `main` you just synced. Name it after the **work**: a stranger scanning a branch list learns something from `add-faq` and nothing at all from `chris-branch-2`.",
+              "cmd": "git switch -c add-faq",
+              "hint": "Type: git switch -c add-faq — the -c creates it and moves you onto it in one go.",
+              "expect": [
+                {
+                  "kind": "branchExists",
+                  "name": "add-faq",
+                  "label": "The add-faq branch exists"
+                },
+                {
+                  "kind": "headOnBranch",
+                  "name": "add-faq",
+                  "label": "You're standing on add-faq"
+                }
+              ]
+            },
+            {
+              "say": "The middle of the loop is the part you already know cold: change something, stage it, commit it. No new ideas here, so here are all three at once. Write the message for the person who is going to review it, not for yourself at six in the evening.",
+              "cmd": "echo \"<h1>FAQ</h1>\" > site/faq.html\ngit add site/faq.html\ngit commit -m \"Add an FAQ page for new members\"",
+              "hint": "Three commands, one after another: create the file with echo, then git add site/faq.html, then git commit -m \"Add an FAQ page for new members\".",
+              "expect": [
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "site/faq.html"
+                  ],
+                  "exact": true,
+                  "label": "A commit on add-faq adds the FAQ page"
+                },
+                {
+                  "kind": "cleanWorkingTree",
+                  "label": "Nothing left uncommitted"
+                }
+              ]
+            },
+            {
+              "say": "Push the branch. Two useful things happen at once: your work now exists somewhere other than your laptop, and your team can see it. `-u` links this branch to `origin/add-faq`, so from now on `git push` on its own is enough. Read the output — `* [new branch]`. Nothing on `main` moved.",
+              "cmd": "git push -u origin add-faq",
+              "hint": "Type: git push -u origin add-faq — this branch has no upstream yet, which is exactly what -u is for.",
+              "expect": [
+                {
+                  "kind": "remoteUpToDate",
+                  "branch": "add-faq",
+                  "label": "origin has your add-faq branch"
+                }
+              ]
+            },
+            {
+              "say": "Here is the step git cannot do. In a browser you would now open the **pull request**: GitHub notices the freshly pushed branch, offers a *Compare & pull request* button, and you write a title and a description. Half of the page it builds is this — the change itself, your branch measured against `main`. This is the diff Priya will read line by line, so read it yourself first; it's the last cheap moment to notice you left something in.",
+              "cmd": "git diff main add-faq",
+              "hint": "Type: git diff main add-faq — the two-ref comparison from module 4, main on the left, your branch on the right.",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "diff",
+                  "label": "See the diff a reviewer would read"
+                }
+              ]
+            },
+            {
+              "say": "The other half of the page is the list of commits, and it comes from exactly this: your branch, one commit ahead of `main`. Two pictures of one request — what changed, and the steps you took to get there.",
+              "cmd": "git log --oneline --graph --all",
+              "hint": "Type: git log --oneline --graph --all — the --all shows every branch, not only the one you're standing on.",
+              "expect": [
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "See what the pull request would show"
+                }
+              ]
+            },
+            {
+              "say": "Priya read it, asked one question, approved it. On a real project you would click **Merge** and a server would run this for you — so play the server yourself: get onto `main`, and merge the branch in. `Fast-forward` means `main` hadn't moved since you branched, so git slid the label forward instead of inventing a merge commit. (On GitHub the button usually records a merge commit even here, so the history keeps a visible mark that this branch existed — same commits, one extra dot. There's a setting for it, and teams argue about it.)",
+              "cmd": "git switch main\ngit merge add-faq",
+              "hint": "Two commands: git switch main, then git merge add-faq.",
+              "expect": [
+                {
+                  "kind": "branchesMerged",
+                  "from": "add-faq",
+                  "into": "main",
+                  "label": "add-faq is merged into main"
+                },
+                {
+                  "kind": "headOnBranch",
+                  "name": "main",
+                  "label": "You're back on main"
+                }
+              ]
+            },
+            {
+              "say": "Your machine knows about the merge; the shared copy does not. Push `main`. **This** is the moment the feature actually ships — the moment anyone else who pulls receives your FAQ page. On a real project the merge already happened on the server when the button was clicked, so here you would `git pull` instead of pushing: same end state, and it's what makes the next step's `git branch -d` work.",
+              "cmd": "git push",
+              "hint": "Type: git push — main already tracks origin/main, so no flags are needed.",
+              "expect": [
+                {
+                  "kind": "remoteUpToDate",
+                  "branch": "main",
+                  "label": "origin/main matches your main — it's shipped"
+                }
+              ]
+            },
+            {
+              "say": "Last step, and the one everybody skips: delete the branch. `-d` is the careful version — it refuses if the branch holds commits `main` doesn't have, so it cannot lose work. The commits live on inside `main`; only the label goes. A short branch list is how a team sees at a glance what is genuinely in flight. Now look at the graph: `origin/add-faq` is still sitting there. `-d` deletes only your local label — the copy on the server is a separate branch, and it's the website's *Delete branch* button, next to the merged pull request, that clears it. That one belongs to the browser half, so there's nothing to run for it here.",
+              "cmd": "git branch -d add-faq",
+              "hint": "Type: git branch -d add-faq",
+              "expect": [
+                {
+                  "kind": "branchAbsent",
+                  "name": "add-faq",
+                  "label": "The add-faq branch is gone"
+                },
+                {
+                  "kind": "cleanWorkingTree",
+                  "label": "Working tree still clean"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m8l3",
+        "title": "Challenge: ship a feature",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "Thursday afternoon, same hiking club. You started typing before you thought: there is a `site/trips.html` sitting untracked in your working directory — written while you were standing on `main`, where the work should never have started. Meanwhile Priya has pushed a photo gallery to `origin/main`, so your `main` is behind."
+          },
+          {
+            "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --graph --all` whenever you lose your bearings."
+          },
+          {
+            "p": "Two boxes in the checklist start ticked — you're standing on `main` and there's no branch yet. They'll un-tick as you work and come back at the end; that's the loop closing, not you going backwards."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Trailhead\nWeekend walks for people who own exactly one pair of boots."
+            },
+            {
+              "op": "write",
+              "path": "site/index.html",
+              "content": "<h1>Trailhead</h1>\n<p>Weekend walks, every weekend.</p>"
+            },
+            {
+              "op": "write",
+              "path": "site/faq.html",
+              "content": "<h1>FAQ</h1>\n<p>Do I need boots? Yes.</p>"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Publish the club site"
+            },
+            {
+              "op": "remote",
+              "url": "https://github.com/trailhead/site.git"
+            },
+            {
+              "op": "remoteCommit",
+              "branch": "main",
+              "path": "site/gallery.html",
+              "content": "<h1>Photos</h1>\n<p>Mud, mostly.</p>",
+              "message": "Add photo gallery"
+            },
+            {
+              "op": "write",
+              "path": "site/trips.html",
+              "content": "<h1>Trip reports</h1>\n<p>Ridge walk, October: windy, worth it.</p>"
+            }
+          ],
+          "goal": "Ship `site/trips.html` through the whole loop, picking up Priya's work on the way. Get the file off `main` first: the commit that adds `site/trips.html` must be made on a branch called `trip-reports`, not on `main`. Push that branch to origin — on a real project that push is what makes the pull request possible — then land it. The finished state: `main` contains both `site/trips.html` and Priya's `site/gallery.html`, and `origin/main` matches it. The `trip-reports` branch has been pushed, merged and deleted, and you're standing on `main` with nothing left uncommitted.",
+          "hints": [
+            "That file isn't committed yet. Does it belong to `main` at all? Run `git status` right after you create the branch and see where it went.",
+            "Your local main is behind origin — until you fix that, anything you push to main will be rejected. `git switch main`, then `git pull`.",
+            "Sync before you would ask for review: back on `trip-reports`, `git merge main` folds Priya's gallery into your branch, so the branch shows your change against today's main.",
+            "Landing it: `git push -u origin trip-reports`, then on `main` run `git merge trip-reports` and `git push`, and finish with `git branch -d trip-reports`."
+          ],
+          "expect": [
+            {
+              "kind": "fileCommitted",
+              "path": "site/trips.html",
+              "branch": "main",
+              "label": "Your trip reports page is committed on main"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "site/gallery.html",
+              "branch": "main",
+              "label": "Priya's photo gallery has arrived in your main"
+            },
+            {
+              "kind": "branchesMerged",
+              "from": "origin/trip-reports",
+              "into": "main",
+              "label": "The branch you pushed to origin is merged into main"
+            },
+            {
+              "kind": "remoteUpToDate",
+              "branch": "main",
+              "label": "origin/main matches your main — the feature is shipped"
+            },
+            {
+              "kind": "branchAbsent",
+              "name": "trip-reports",
+              "label": "No trip-reports branch left in flight"
+            },
+            {
+              "kind": "headOnBranch",
+              "name": "main",
+              "label": "You're standing on main again, ready for the next loop"
+            },
+            {
+              "kind": "cleanWorkingTree",
+              "label": "Nothing left uncommitted"
+            }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        {
+          "h": "Module 8 recap"
+        },
+        {
+          "p": "The mental model: **`main` is a promise that always holds; a branch is a place where it doesn't have to.** A pull request is the door between them, and every step of the loop exists to keep that door working."
+        },
+        {
+          "list": [
+            "`git switch main` + `git pull` — start from what everyone else already has.",
+            "`git switch -c add-faq` — one branch per piece of work, named after the work.",
+            "`git add` + `git commit -m \"…\"` — as many commits as the work needs.",
+            "`git push -u origin add-faq` — now it exists off your laptop and the team can see it. The `-u` is for the first push only.",
+            "**Open the pull request in the browser** — git has no command for this, and never will.",
+            "`git merge add-faq` on `main`, then `git push` — here that's us standing in for the Merge button; on a real project the server merges when someone clicks it, and you run `git switch main` + `git pull` instead to bring the merge down to you.",
+            "`git branch -d add-faq` — the branch is spent; the commits stay in `main`."
+          ]
+        },
+        {
+          "p": "And the judgement, which matters more than the commands: keep branches short, sync with `main` before asking for review, keep the diff small enough to be read properly, and review the code rather than the person."
+        },
+        {
+          "graph": {
+            "caption": "A healthy week: main is the trunk, each branch a short detour that comes back, and `origin/main` sitting on the tip because everything that landed got pushed. Two features shipped, Priya's commits arriving on main in between — drawn here as plain commits, though on a real project they came through her own branches, the same way yours did.",
+            "ops": [
+              {
+                "op": "init"
+              },
+              {
+                "op": "write",
+                "path": "site/index.html",
+                "content": "<h1>Trailhead</h1>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Publish the club site"
+              },
+              {
+                "op": "switchCreate",
+                "name": "add-faq"
+              },
+              {
+                "op": "write",
+                "path": "site/faq.html",
+                "content": "<h1>FAQ</h1>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add an FAQ page"
+              },
+              {
+                "op": "switch",
+                "name": "main"
+              },
+              {
+                "op": "write",
+                "path": "site/hours.html",
+                "content": "<h1>Opening hours</h1>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add opening hours (Priya)"
+              },
+              {
+                "op": "merge",
+                "name": "add-faq"
+              },
+              {
+                "op": "switchCreate",
+                "name": "trip-reports"
+              },
+              {
+                "op": "write",
+                "path": "site/trips.html",
+                "content": "<h1>Trip reports</h1>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add trip reports"
+              },
+              {
+                "op": "switch",
+                "name": "main"
+              },
+              {
+                "op": "write",
+                "path": "site/gallery.html",
+                "content": "<h1>Photos</h1>"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add photo gallery (Priya)"
+              },
+              {
+                "op": "merge",
+                "name": "trip-reports"
+              },
+              {
+                "op": "remote",
+                "url": "https://github.com/trailhead/site.git"
+              }
+            ]
+          }
+        },
+        {
+          "p": "Next: undoing mistakes. Reset, revert, stash and the reflog — the module where you find out how little of what beginners fear is actually unrecoverable."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m8l3": [
+      "git switch -c trip-reports",
+      "git add site/trips.html",
+      "git commit -m \"Add a trip reports page\"",
+      "git switch main",
+      "git pull",
+      "git switch trip-reports",
+      "git merge main",
+      "git push -u origin trip-reports",
+      "git switch main",
+      "git merge trip-reports",
+      "git push",
+      "git branch -d trip-reports"
+    ]
+  }
+}

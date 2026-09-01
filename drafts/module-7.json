@@ -1,0 +1,421 @@
+{
+  "module": {
+    "id": "m7",
+    "number": 7,
+    "title": "Remotes & Push/Pull",
+    "summary": "A remote is a whole other copy of your repository living somewhere else. How to send work to it, how to get work from it, and why origin/main is a memory rather than a branch.",
+    "status": "ready",
+    "lessons": [
+      {
+        "id": "m7l1",
+        "title": "Your repo's twin in the cloud",
+        "type": "concept",
+        "body": [
+          {
+            "p": "Everything you have built so far lives in exactly one place: this folder, on this computer. That has been fine for learning. It is not fine for real work, for two reasons. One spilled coffee and the project is gone. And nobody else can help you — there is nothing for them to help *on*."
+          },
+          {
+            "p": "Both problems have the same fix, and it is the last big idea in everyday Git."
+          },
+          {
+            "h": "A remote is a whole other repository"
+          },
+          {
+            "p": "A **remote** is another complete copy of your repository that lives somewhere else — usually on a server you can reach over the internet (GitHub, GitLab, your company's machine), sometimes on a colleague's laptop."
+          },
+          {
+            "p": "Read that again, because beginners nearly always read it wrong. A remote is not a backup of your files. It is not a folder in the cloud. It is a **repository**: every commit, every message, the whole album, sitting in a second place."
+          },
+          {
+            "analogy": "You and a friend each keep a photo album of the same trip. The album on the shelf in their house is the remote. It is a real album, not a photocopy of yours — and neither album updates itself. If you want their new photos, you ask for them. If you want them to have yours, you post them."
+          },
+          {
+            "warn": "Git is not Dropbox. Saving a file doesn't sync. Committing doesn't sync either. Nothing you do reaches the remote until you run `git push`, and nothing of theirs reaches you until you run `git fetch` or `git pull`. That is not a missing feature — it is the whole design. You decide what crosses, and when."
+          },
+          {
+            "h": "Introducing your repo to a remote"
+          },
+          {
+            "p": "In the real world you usually meet a remote from the other direction: `git clone <url>` copies an entire repository down onto your machine and wires up the connection for you in one step. That is how you will join most projects. This sandbox has no network, so `git clone` here will politely tell you so — we will wire the connection up by hand instead, which lands in exactly the same place."
+          },
+          {
+            "p": "`git remote add origin <url>` tells your repository: *there is another copy of us over there, and I am going to call it `origin`*. The word `origin` is a nickname and nothing more — it is the conventional name for \"the remote this project came from\". You could call it `sam` or `server`; everyone calls it `origin`, so we will too."
+          },
+          {
+            "p": "`git remote -v` prints the nicknames you have saved and the URLs hiding behind them. The `v` is for *verbose*."
+          },
+          {
+            "code": "git remote add origin https://github.com/you/iceland-trip.git\n\ngit remote -v\n# origin   https://github.com/you/iceland-trip.git (fetch)\n# origin   https://github.com/you/iceland-trip.git (push)"
+          },
+          {
+            "p": "Here is the whole ceremony of putting a project of your own on the internet, start to finish. You make a new empty repository on GitHub (or GitLab, or wherever); the site shows you a URL. Then, in your project folder on your machine:"
+          },
+          {
+            "code": "git init                       # only if it isn't a repository yet\ngit add .\ngit commit -m \"First commit\"\ngit remote add origin https://github.com/you/iceland-trip.git\ngit push -u origin main"
+          },
+          {
+            "p": "Five lines and your project is on the internet. The URL comes from the site; everything else you already know except the last line, which is next."
+          },
+          {
+            "h": "push: send my commits over there"
+          },
+          {
+            "p": "`git push` uploads the commits on your current branch to the remote. The very first time, you type a slightly longer version:"
+          },
+          {
+            "code": "git push -u origin main\n# Enumerating objects: 5, done.\n# To https://github.com/you/iceland-trip.git\n#  * [new branch]      main -> main\n# branch 'main' set up to track 'origin/main'."
+          },
+          {
+            "p": "The `-u` (long form: `--set-upstream`) is a one-time piece of bookkeeping. It records the pairing \"my `main` goes with `origin`'s `main`\" — Git calls that the **upstream**. From then on you can type a bare `git push`, or a bare `git pull`, and Git already knows which remote and which branch you mean."
+          },
+          {
+            "tip": "Forget the `-u` on your first push and nothing bad happens: Git stops and prints the exact command to type instead. It is a nudge, not a disaster. This is the whole of it:"
+          },
+          {
+            "code": "git push\n# fatal: The current branch main has no upstream branch.\n# To push the current branch and set the remote as upstream, use\n#\n#     git push --set-upstream origin main"
+          },
+          {
+            "warn": "`git push` sends **commits**. Edits you have not committed do not go anywhere — there is no such thing as pushing an unsaved file. If you want it on the remote, commit it first."
+          },
+          {
+            "h": "The idea this whole module rests on: origin/main"
+          },
+          {
+            "p": "You are about to meet three things with maddeningly similar names. Go slowly here — very nearly every confusion people have about remotes comes from blurring these together."
+          },
+          {
+            "list": [
+              "`main` — your branch, in your repository, on your computer. You move it by committing.",
+              "`origin/main` — a label that lives **inside your repository** and records where `origin`'s `main` was **the last time you talked to the remote**. It is local, and you never move it by hand.",
+              "`origin`'s actual `main` — the branch as it exists on the server right now. You cannot see it without asking over the network."
+            ]
+          },
+          {
+            "p": "So `origin/main` is not the remote's branch. It is your **memory** of the remote's branch. Once that clicks, `fetch` and `pull` stop being interchangeable magic words and become two plainly different jobs."
+          },
+          {
+            "analogy": "`origin/main` is the last photo you have of a friend. It isn't your friend — it is a record of how they looked when you last met. They may have had a haircut this morning; your photo will keep showing the old hair until you see them again. `git fetch` is seeing them again."
+          },
+          {
+            "tip": "This course draws you a graph panel. The real world does not — so here is how you answer \"where do I stand relative to origin?\" without one. Real `git status` says it in words: *\"Your branch is ahead of 'origin/main' by 1 commit\"*, or *\"Your branch and 'origin/main' have diverged\"*. And `git log --oneline` prints the same `main` and `origin/main` labels you are watching in the panel, next to the commits they point at — that one works in real Git and in this sandbox alike. (This sandbox's `git status` is the quieter of the two and leaves the ahead/behind line out, so lean on `git log --oneline` while you are here.)"
+          },
+          {
+            "p": "Here is your repository the moment after a successful push. Your memory of the remote is accurate, because you were just there:"
+          },
+          {
+            "graph": {
+              "caption": "Straight after git push: main and origin/main sit on the same commit. Your record of the remote matches reality.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
+                { "op": "add" },
+                { "op": "commit", "message": "Start the trip plan" },
+                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add a packing list" },
+                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" }
+              ]
+            }
+          },
+          {
+            "p": "Now your teammate Sam commits something and pushes it. Your computer gets no notification. No file of yours changes. No label of yours moves. As far as your repository is concerned, absolutely nothing has happened:"
+          },
+          {
+            "graph": {
+              "caption": "The remote now has a third commit — the bare dot on the right, with no label of yours pointing at it. origin/main still sits one commit back, because nobody has told your repo anything.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
+                { "op": "add" },
+                { "op": "commit", "message": "Start the trip plan" },
+                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add a packing list" },
+                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
+                { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" }
+              ]
+            }
+          },
+          {
+            "p": "This course's diagram can draw Sam's commit, because it can see the whole simulation. Your repository cannot. Watch the **labels**, not the dots — the labels are what your repo actually knows."
+          },
+          {
+            "h": "fetch updates your memory; pull updates your memory and your work"
+          },
+          {
+            "p": "`git fetch` contacts the remote, downloads any commits you are missing, and moves your `origin/...` labels to match what it found. That is the entire job. It does not touch your branch, your files, or your staging area."
+          },
+          {
+            "tip": "`git fetch` cannot damage anything you are working on. It is the safest command in Git. So if you are ever curious what the others have been up to, fetch — nothing will move under your feet."
+          },
+          {
+            "p": "`git pull` is two commands wearing one coat:"
+          },
+          {
+            "code": "git pull   ==   git fetch   +   git merge origin/main"
+          },
+          {
+            "p": "The fetch half is safe. The merge half is a real merge — the same one from Module 6 — so it rewrites files in your working directory, and if you and Sam edited the same lines you will get the same conflict markers you already know how to resolve."
+          },
+          {
+            "p": "Most pulls are gentler than that. If you have made no commits of your own since you last synced, the merge half has nothing to reconcile: your branch slides forward onto their commits and Git prints `Fast-forward`, with no merge commit at all. That is the ordinary, everyday pull. You get a merge commit only when both sides committed since you last agreed — the fork drawn further down."
+          },
+          {
+            "warn": "Modern Git (2.34 and later) wants you to say once how you like your diverged branches reconciled before it will do it. The first time you pull with commits on both sides it stops on `fatal: Need to specify how to reconcile divergent branches`. Nothing is broken and nothing is lost — you answer it once with `git config pull.rebase false` in this project, or `git config --global pull.rebase false` for every project on the machine. That asks for merging, which is the behaviour taught here, and the message never comes back. This sandbox has no `git config` and no preference to set, so `git pull` merges straight away."
+          },
+          {
+            "tip": "Nervous is good, and you are allowed to look before you leap. Fetch, then read: `git show origin/main` prints the newest incoming commit, message and diff, and that really is what is about to arrive. You can also run `git diff main origin/main` — but read that one carefully. It compares two snapshots in both directions, so Sam's new work shows as `+` lines while your own commits, which the remote has never seen, show as `-` lines. Nothing is about to be deleted. You are looking at the difference between two photographs, not at a plan of action."
+          },
+          {
+            "warn": "`git pull` will not run over uncommitted edits. Real Git stops when the incoming merge would touch a file you have edited, and names those files: *\"Your local changes to the following files would be overwritten by merge.\"* This sandbox is stricter — it stops while **anything** at all is uncommitted, so it may name a file the merge would never have touched. Either way it is protecting unsaved work rather than being broken, and either way the cure is the same: commit your changes (or stash them — Module 9) and pull again."
+          },
+          {
+            "h": "! [rejected] — the message everybody meets on day one"
+          },
+          {
+            "p": "Picture the situation that causes it. You and Sam both started this morning from \"Add a packing list\". You committed. Sam committed and pushed first. The two histories have now forked:"
+          },
+          {
+            "graph": {
+              "caption": "One fork, three names. Your main is on 'Pack for the rain'. The unlabelled dot is Sam's commit, which the server has. And origin/main — your memory of the server — is still back on 'Add a packing list', where you last looked.",
+              "ops": [
+                { "op": "init" },
+                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
+                { "op": "add" },
+                { "op": "commit", "message": "Start the trip plan" },
+                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
+                { "op": "add" },
+                { "op": "commit", "message": "Add a packing list" },
+                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
+                { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" },
+                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks\n- waterproof trousers" },
+                { "op": "add" },
+                { "op": "commit", "message": "Pack for the rain" }
+              ]
+            }
+          },
+          {
+            "p": "Look hard at where your memory is sitting. Your repository still believes the remote is on \"Add a packing list\" — so from where your repository stands, your push is a simple step forward onto the end of the branch, nothing unusual about it. The server knows otherwise."
+          },
+          {
+            "p": "You run `git push`, and Git says no:"
+          },
+          {
+            "code": "To https://github.com/you/iceland-trip.git\n ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs to 'https://github.com/you/iceland-trip.git'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. This is usually caused by another repository pushing to\nhint: the same ref. If you want to integrate the remote changes, use\nhint: 'git pull' before pushing again."
+          },
+          {
+            "p": "Read it as it is meant: *the remote has work you do not have; if I let your push through, Sam's commit would be knocked off the end of the branch and nobody would have it.* Git is refusing to lose somebody's work. It is on your side."
+          },
+          {
+            "p": "Git words this rejection two ways depending on what you already know. If you have not fetched, you get `(fetch first)`, as above. If you have already fetched — so Sam's commit is sitting in your repository, merely not on your branch — you get `! [rejected]  main -> main (non-fast-forward)` instead, and the hint changes to *\"the tip of your current branch is behind its remote counterpart\"*. The two mean the same thing: the remote has commits your branch does not contain. (This sandbox always prints the `(fetch first)` wording.)"
+          },
+          {
+            "p": "And notice that either way the fix starts with catching your memory up. That is why the hint says *fetch first*: your record of the remote has to become true before anything you do next can be based on the truth."
+          },
+          {
+            "p": "The cure is in the hint, and it is always the same three beats:"
+          },
+          {
+            "list": [
+              "**Pull** — bring their commits down and merge them with yours, in your repository, where a mistake is cheap.",
+              "**Fix** — resolve any conflict the merge raises, and check the result still makes sense.",
+              "**Push** — your history now contains theirs, so the remote can accept it without losing anything."
+            ]
+          },
+          {
+            "warn": "There is a `git push --force`, which orders the remote to throw its version away and take yours. It has legitimate uses that you do not have yet. It is also exactly how people delete a colleague's afternoon. Never reach for it to make an error message go away."
+          }
+        ]
+      },
+      {
+        "id": "m7l2",
+        "title": "Guided: push, teammate, pull",
+        "type": "guided",
+        "body": [
+          {
+            "p": "You and Sam are planning a trip in a shared repository. Yours is already connected to `origin` — you pushed it last week. This morning you thought of something for the packing list. So, it turns out, did Sam."
+          },
+          {
+            "p": "Watch the graph panel as you go, and in particular watch **when the `origin/main` label moves** — and when it stubbornly does not."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "trip.md", "content": "# Iceland trip\n\n## Flights\nKEF, 14 March." },
+            { "op": "add" },
+            { "op": "commit", "message": "Start the trip plan" },
+            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
+            { "op": "add" },
+            { "op": "commit", "message": "Add a packing list" },
+            { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
+            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" }
+          ],
+          "steps": [
+            {
+              "say": "First, who is this repository connected to? `git remote -v` lists every remote nickname and the URL behind it. One remote, nicknamed `origin`, fetch and push — those two lines are the whole connection. Somebody once ran `git remote add origin https://github.com/you/iceland-trip.git` and then `git push -u origin main`; this is what that left behind.",
+              "cmd": "git remote -v",
+              "hint": "Type: git remote -v",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "remote", "label": "You listed the remotes" }
+              ]
+            },
+            {
+              "say": "Now look at your history. Two commits — and notice the labels on the newest one: **HEAD -> main, origin/main**. Your branch and your memory of the remote's branch are in the same place.",
+              "cmd": "git log --oneline",
+              "hint": "Type: git log --oneline",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "log", "label": "You read the history" }
+              ]
+            },
+            {
+              "say": "Do your morning's work: add a line to the packing list and commit it. (`>>` appends a line to the end of a file — the single `>` you met in Module 1 would replace everything in it. And `git commit -am` stages every *tracked* file that changed and commits in one move. Tracked only: a brand-new file Git has never seen still needs its own `git add`.) Notice in the graph that `main` steps forward and `origin/main` does not — committing sends nothing anywhere.",
+              "cmd": "echo \"- waterproof trousers\" >> packing.md\ngit commit -am \"Pack for the rain\"",
+              "hint": "Two commands: echo \"- waterproof trousers\" >> packing.md — then git commit -am \"Pack for the rain\"",
+              "expect": [
+                { "kind": "commitCount", "min": 3, "label": "Your third commit exists" },
+                { "kind": "cleanWorkingTree", "label": "Nothing left uncommitted" }
+              ]
+            },
+            {
+              "say": "Before pushing, ask the remote whether anything changed while you were typing. `git fetch` downloads what is new and moves your `origin/main` label — and does nothing else at all; your files are untouched. Read the last line of the output: `origin/main` just jumped forward. Sam has been busy.",
+              "cmd": "git fetch",
+              "hint": "Type: git fetch",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "fetch", "label": "You fetched from origin" }
+              ]
+            },
+            {
+              "say": "You now *have* Sam's commit, but it is not part of your branch yet — so you can read it before letting it anywhere near your files. `git show origin/main` prints the newest commit on your memory of the remote: its message and its diff. (The sandbox signs every commit with your own name, so ignore the Author line and picture Sam's there.)",
+              "cmd": "git show origin/main",
+              "hint": "Type: git show origin/main",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "show", "label": "You inspected the incoming commit" }
+              ]
+            },
+            {
+              "say": "A budget file — harmless, and it touches none of your files. Bring it into your branch with `git pull` (fetch, then merge `origin/main` into `main`). You already fetched a moment ago, so there is nothing new to download and you will only see the merge half do any work. You and Sam both built on the same commit, so this is a three-way merge: Git makes a merge commit joining the two lines of work, exactly like Module 6.",
+              "cmd": "git pull",
+              "hint": "Type: git pull",
+              "expect": [
+                { "kind": "pulledRemote", "branch": "main", "label": "Sam's work is part of your main now" },
+                { "kind": "mergeCommitAt", "label": "A merge commit joins the two histories" },
+                { "kind": "fileExists", "path": "budget.md", "label": "budget.md has arrived in your folder" }
+              ]
+            },
+            {
+              "say": "Look at the history now. Your commit, Sam's commit, and a merge commit on top — with `origin/main` still sitting back on Sam's commit. Pulling brought their work to you; it sent nothing of yours to them.",
+              "cmd": "git log --oneline",
+              "hint": "Type: git log --oneline",
+              "expect": [
+                { "kind": "commandRan", "command": "git", "sub": "log", "label": "You saw the merge in the history" }
+              ]
+            },
+            {
+              "say": "Finish the round trip. Your history now contains Sam's commit, so the remote can accept yours without losing anything — this push goes through. Notice what you did *not* have to type: no remote, no branch name. That is the `-u` from this repo's very first push paying out; the pairing was recorded once, so a bare `git push` is now unambiguous. Check the labels afterwards: `main` and `origin/main` are together again, and the two copies of the repository match.",
+              "cmd": "git push",
+              "hint": "Type: git push",
+              "expect": [
+                { "kind": "remoteUpToDate", "branch": "main", "label": "origin's main matches your main" }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "m7l3",
+        "title": "Challenge: rejected!",
+        "type": "challenge",
+        "body": [
+          {
+            "p": "A week later, same trip, same repository. You have been writing all morning and committed none of it. While you were writing, Sam pushed **twice**."
+          },
+          {
+            "p": "Get everything onto the remote without losing a word of anybody's work. Expect Git to refuse you at least once along the way — when it does, read the message all the way to the bottom. It tells you what to do next."
+          }
+        ],
+        "exercise": {
+          "setup": [
+            { "op": "init" },
+            { "op": "write", "path": "trip.md", "content": "# Iceland trip\n\n## Flights\nKEF, 14 March." },
+            { "op": "add" },
+            { "op": "commit", "message": "Start the trip plan" },
+            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
+            { "op": "add" },
+            { "op": "commit", "message": "Add a packing list" },
+            { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
+            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" },
+            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210\nfood 150", "message": "Budget: allow for food" },
+            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks\n- swimsuit (for the lagoon)" },
+            { "op": "write", "path": "gear.md", "content": "- crampons\n- head torch" }
+          ],
+          "goal": "Get your uncommitted work — the new swimsuit line in `packing.md`, and the brand-new file `gear.md` — all the way onto the remote, while keeping both of Sam's commits. Finish with: `origin`'s `main` and your `main` on the same commit; that commit holding Sam's `budget.md` (including his `food 150` line) as well as both of your changes; and a completely clean working tree — nothing modified, nothing untracked.",
+          "hints": [
+            "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours.",
+            "In this sandbox `git pull` stops while anything at all is uncommitted, so commit your work first: `git add .` then `git commit -m \"...\"`. (Remember `gear.md` is brand new — `git commit -am` would walk right past it.)",
+            "Now try `git push`, and read the rejection carefully. The hint at the bottom of it names the command that fixes this.",
+            "The full loop: commit your work, `git pull` to merge Sam's commits into yours, then `git push` to send the combined history back."
+          ],
+          "expect": [
+            { "kind": "remoteUpToDate", "branch": "main", "label": "origin's main and your main are on the same commit" },
+            { "kind": "fileCommitted", "path": "gear.md", "contains": "crampons", "label": "Your new gear.md is committed" },
+            { "kind": "fileCommitted", "path": "packing.md", "contains": "swimsuit", "label": "Your packing list line is committed" },
+            { "kind": "pulledRemote", "branch": "main", "label": "Sam's two commits are part of your history now" },
+            { "kind": "fileCommitted", "path": "budget.md", "contains": "food 150", "label": "Sam's budget.md, food line and all, is in your latest commit" },
+            { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Working tree completely clean" }
+          ]
+        }
+      }
+    ],
+    "recap": {
+      "body": [
+        { "h": "Module 7 recap" },
+        {
+          "list": [
+            "A **remote** is a whole other copy of the repository, somewhere else. `origin` is the nickname you gave its URL, nothing more.",
+            "Nothing crosses between the two copies unless you ask. `git push` sends; `git fetch` and `git pull` receive.",
+            "`origin/main` is **not** the remote's branch — it is your record of where the remote's branch was the last time you talked to it.",
+            "`git fetch` updates that record and nothing else, so it can never disturb your work. `git pull` = `git fetch` + `git merge origin/main`, and the merge half *does* change your files. If you have committed nothing yourself, that merge is a `Fast-forward` and no merge commit appears; you get a merge commit only when both sides have moved.",
+            "`! [rejected] ... (fetch first)` means the remote has commits you do not. Pull, fix anything the merge raises, push. Never `--force` your way past it.",
+            "Push sends commits, not edits — uncommitted work stays on your machine. And `git commit -am` only sweeps up files Git already tracks, so a brand-new file still needs its own `git add` before it can travel anywhere."
+          ]
+        },
+        {
+          "code": "git remote add origin <url>   attach a remote and nickname it origin\ngit remote -v                 list your remotes and their URLs\ngit push -u origin main       first push; records main <-> origin/main\ngit push                      send this branch's new commits\ngit fetch                     move the origin/* labels; touch nothing else\ngit pull                      fetch, then merge origin/main into your branch"
+        },
+        {
+          "graph": {
+            "caption": "The state worth ending every working session in: main and origin/main on the same commit, everything committed and sent.",
+            "ops": [
+              { "op": "init" },
+              { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
+              { "op": "add" },
+              { "op": "commit", "message": "Start the trip plan" },
+              { "op": "write", "path": "packing.md", "content": "- passport" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add a packing list" },
+              { "op": "write", "path": "budget.md", "content": "flights 480" },
+              { "op": "add" },
+              { "op": "commit", "message": "Add a budget" },
+              { "op": "remote", "url": "https://github.com/you/iceland-trip.git" }
+            ]
+          }
+        },
+        {
+          "p": "Next: remotes and branches together. Module 8 walks the loop real teams live in — branch off, push the branch, get it reviewed, merge it back — the feature-branch workflow, end to end."
+        }
+      ]
+    }
+  },
+  "solutions": {
+    "m7l3": [
+      "git status",
+      "git fetch",
+      "git add .",
+      "git commit -m \"Add swimsuit and a gear list\"",
+      "git push",
+      "git pull",
+      "git push"
+    ]
+  }
+}
