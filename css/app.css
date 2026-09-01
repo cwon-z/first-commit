@@ -563,7 +563,7 @@ body {
   gap: 12px;
   min-height: 0;
 }
-#graph-panel { flex: 1.2; }
+#graph-panel { flex: 1.6; }
 #files-wrap { flex: 1; }
 
 /* ------------------------------- terminal --------------------------------- */

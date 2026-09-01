@@ -117,6 +117,7 @@ function idsUsedBy(source) {
   ok(read('ui', 'terminal.js').includes('destroy()'), 'Terminal can unbind its root listener');
   ok(app.includes('S.terminal.destroy()'), 'app.js tears the terminal down before rebuilding it');
   ok(app.includes('advanceSteps'), 'app.js uses the shared guided-step cascade');
+  ok(app.includes('scrollGraphToHead'), 'app.js keeps HEAD in view in both axes of the graph');
 }
 
 /* ------------------------------- report ---------------------------------- */

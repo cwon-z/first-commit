@@ -400,13 +400,31 @@ function handleCommand(line, entry, mode) {
 
 function updateVisuals() {
   const graph = S.engine.getGraph();
-  renderGraph($('#graph-svg'), graph);
-  const scroller = $('#graph-scroll');
-  scroller.scrollLeft = scroller.scrollWidth;
+  const svg = $('#graph-svg');
+  renderGraph(svg, graph);
+  scrollGraphToHead($('#graph-scroll'), svg);
   renderFiles($('#files-panel'), S.engine.getFileState());
   const head = S.engine.headCommit();
   $('#graph-headline').textContent = head ? `HEAD: ${head.message}` : '';
   $('#graph-a11y').textContent = graphSummary(graph);
+}
+
+/**
+ * Keep the commit you just moved in view. Scrolling only to the right was
+ * enough until branches arrived — now HEAD is often on a lower lane, and the
+ * learner would see an unchanged picture after a command that did something.
+ * The SVG's width/height attributes match its viewBox, so graph units are CSS
+ * pixels and the node transform can be used directly.
+ */
+function scrollGraphToHead(scroller, svg) {
+  const ring = svg.querySelector('.node-head-ring');
+  const transform = ring && ring.parentNode.getAttribute('transform');
+  const at = transform && /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(transform);
+  if (!at) { scroller.scrollLeft = scroller.scrollWidth; return; }
+  const x = parseFloat(at[1]);
+  const y = parseFloat(at[2]);
+  scroller.scrollLeft = Math.max(0, x - scroller.clientWidth / 2);
+  scroller.scrollTop = Math.max(0, y - scroller.clientHeight / 2);
 }
 
 /** The commit graph is the core teaching visual; say out loud what it shows. */
