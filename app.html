@@ -10,7 +10,7 @@
 </head>
 <body>
   <header id="topbar">
-    <button id="menu-btn" aria-label="toggle lesson menu">☰</button>
+    <button id="menu-btn" aria-label="toggle lesson menu" aria-controls="sidebar" aria-expanded="false">☰</button>
     <a class="brand" href="./index.html" title="back to landing page">
       <span class="brand-dot" aria-hidden="true"></span>
       <span id="brand-name">First Commit</span>
@@ -25,6 +25,9 @@
   <div id="layout">
     <nav id="sidebar" aria-label="course modules">
       <div id="module-nav"></div>
+      <div id="sidebar-foot">
+        <button id="reset-progress" class="btn btn-ghost btn-small" type="button">↺ reset my progress</button>
+      </div>
     </nav>
     <div id="sidebar-scrim"></div>
 
@@ -52,6 +55,7 @@
                 <span id="graph-headline"></span>
               </div>
               <div id="graph-scroll"><svg id="graph-svg" role="img" aria-label="commit graph visualization"></svg></div>
+              <p id="graph-a11y" class="sr-only" aria-live="polite"></p>
             </div>
             <div id="files-wrap" class="panel">
               <div class="panel-head"><span class="panel-title">file state — the three areas</span></div>

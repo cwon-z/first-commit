@@ -43,11 +43,19 @@ export class Terminal {
     root.append(this.out, this.inputLine);
     this.refreshPrompt();
 
-    root.addEventListener('mouseup', () => {
+    // `root` outlives this instance — a new Terminal is built on every lesson
+    // change and every reset — so keep the handler around to unbind in destroy().
+    this.onRootMouseUp = () => {
       // don't steal focus if the user is selecting text to copy
       if (!window.getSelection()?.toString()) this.input.focus();
-    });
+    };
+    root.addEventListener('mouseup', this.onRootMouseUp);
     this.input.addEventListener('keydown', (ev) => this.onKey(ev));
+  }
+
+  /** Unbind everything attached to the persistent root element. */
+  destroy() {
+    this.root.removeEventListener('mouseup', this.onRootMouseUp);
   }
 
   refreshPrompt() {

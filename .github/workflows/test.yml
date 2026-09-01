@@ -1,0 +1,25 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 18 is the floor declared in package.json; 20 is the current LTS.
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Engine + validator unit tests
+        run: node tests/engine.test.js
+      - name: Course content validation
+        run: node tests/content.test.js
+      - name: UI contract checks
+        run: node tests/ui.test.js

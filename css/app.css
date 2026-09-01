@@ -777,3 +777,58 @@ body {
   #viz-col { flex-direction: column; }
   .progress-wrap #progress-bar { width: 70px; }
 }
+/* ======================= accessibility & motion ==========================
+ * Everything below is global: a visible keyboard focus ring, a screen-reader
+ * -only utility, and an opt-out for users who ask for reduced motion.
+ * ========================================================================= */
+
+/* Visible focus for every keyboard user. :focus-visible keeps mouse clicks
+   from painting rings, so this costs nothing visually for pointer users. */
+:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* The whole terminal panel is one big click target that focuses the hidden
+   input; ring the panel rather than the bare input sitting inside it. */
+.term-input:focus-visible { outline: none; }
+.terminal:focus-within {
+  outline: 2px solid var(--acc-dim);
+  outline-offset: -2px;
+}
+/* <summary> and links need the ring pulled in slightly to stay inside the rail. */
+.nav-module > summary:focus-visible,
+.nav-lesson:focus-visible,
+.nav-playground:focus-visible { outline-offset: -2px; }
+
+/* Visually hidden, still announced. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------- sidebar footer ----------------------------- */
+
+#sidebar-foot {
+  margin-top: 18px;
+  padding: 12px 8px 0;
+  border-top: 1px solid var(--line-soft);
+}
+#reset-progress { width: 100%; }
+#reset-progress:hover { color: var(--red); border-color: var(--red); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

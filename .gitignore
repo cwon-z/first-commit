@@ -1,0 +1,9 @@
+# This project has no build step and no dependencies — the only things that
+# should ever appear here are editor and OS droppings.
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+drafts/.candidates/

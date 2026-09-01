@@ -95,40 +95,26 @@
   <section class="curriculum" id="curriculum">
     <h2 class="section-title">The curriculum</h2>
     <p class="section-sub">From "what even is version control" to collaborating like a professional. Each module: concepts explained with analogies → a guided walkthrough → a challenge that proves you've got it.</p>
-    <ol class="module-grid">
-      <li class="mod ready"><span class="mod-num">01</span><h3>Why Git Exists</h3><p>Version control from first principles — snapshots, repositories, and the mental model everything else builds on.</p><span class="mod-tag">available</span></li>
-      <li class="mod ready"><span class="mod-num">02</span><h3>Your First Repository</h3><p>init, status, add, commit — from ordinary folder to protected history.</p><span class="mod-tag">available</span></li>
-      <li class="mod ready"><span class="mod-num">03</span><h3>Staging vs Committing</h3><p>Why the two-step save exists and how to craft commits that tell one story.</p><span class="mod-tag">available</span></li>
-      <li class="mod"><span class="mod-num">04</span><h3>Status &amp; Diff</h3><p>Reading exactly what changed, anywhere in history.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">05</span><h3>Branching</h3><p>Parallel universes for your ideas — branches as movable pointers.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">06</span><h3>Merging &amp; Conflicts</h3><p>Fast-forwards, merge commits, and staying calm in a conflict.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">07</span><h3>Remotes &amp; Push/Pull</h3><p>Sync with a copy of your repo that lives elsewhere.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">08</span><h3>Collaboration Basics</h3><p>Feature branches and pull requests, conceptually.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">09</span><h3>Undoing Mistakes</h3><p>reset, revert, reflog — why almost nothing is ever truly lost.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">10</span><h3>.gitignore</h3><p>Keeping junk (and secrets) out of history forever.</p><span class="mod-tag soon">coming soon</span></li>
-      <li class="mod"><span class="mod-num">11</span><h3>Commit Hygiene</h3><p>Messages and history your teammates will thank you for.</p><span class="mod-tag soon">coming soon</span></li>
-    </ol>
+    <!-- Rendered from content/course.json by ui/landing.js — do not hand-edit,
+         add the module to course.json and it shows up here automatically. -->
+    <ol class="module-grid" id="module-grid"></ol>
+    <p class="curriculum-fallback" id="curriculum-fallback" hidden>
+      The full module list lives inside the course —
+      <a href="./app.html">open First Commit</a> to browse it.
+    </p>
   </section>
 
   <!-- =============================== VIDEO ================================ -->
   <section class="video-section" id="video">
     <h2 class="section-title">Prefer to watch first?</h2>
     <p class="section-sub">This course pairs with a video series — watch the concepts, then practice them here.</p>
-    <div class="video-frame">
-      <!--
-        YOUTUBE EMBED SLOT
-        Replace VIDEO_ID below with your YouTube video id (also update
-        meta.youtubeVideoId in content/course.json if you surface it in-app).
-      -->
+    <!-- YOUTUBE EMBED SLOT — set meta.youtubeVideoId in content/course.json and
+         ui/landing.js swaps this placeholder for the embed. Nothing to edit here. -->
+    <div class="video-frame" id="video-frame">
       <div class="video-placeholder" id="video-placeholder">
         <span class="vp-play">▶</span>
         <p>Video coming soon — subscribe to catch the launch.</p>
       </div>
-      <!-- When ready, replace the placeholder above with:
-      <iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID"
-              title="First Commit — Git course" frameborder="0" allowfullscreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
-      -->
     </div>
   </section>
 
@@ -145,5 +131,7 @@
     <span class="foot-sep">·</span>
     <span>Runs entirely in your browser — no data leaves your device</span>
   </footer>
+
+  <script type="module" src="./ui/landing.js"></script>
 </body>
 </html>

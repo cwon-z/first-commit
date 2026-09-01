@@ -198,4 +198,33 @@ export function allPassed(results) {
   return results.length > 0 && results.every((r) => r.passed);
 }
 
-export default { CHECKS, runChecks, allPassed };
+/**
+ * Advance a guided walkthrough after a command has run. Returns the new step
+ * index (unchanged if nothing was satisfied).
+ *
+ * One command can legitimately satisfy several consecutive steps — `git commit
+ * -am` covers both a "stage it" and a "commit it" step — so this keeps walking
+ * while the state checks pass. The exception is `commandRan`: that check
+ * inspects the single command sitting in `engine.lastCommand`, so once that
+ * command has been consumed to advance one step it must not tick off the next
+ * one too, or a lone `git status` would complete every read-only step at once.
+ *
+ * @param {object} engine   GitEngine instance
+ * @param {Array}  steps    exercise.steps from course.json
+ * @param {number} stepIdx  the learner's current step
+ * @returns {number} the step index after this command
+ */
+export function advanceSteps(engine, steps = [], stepIdx = 0) {
+  let idx = stepIdx;
+  let advanced = false;
+  while (idx < steps.length) {
+    const step = steps[idx];
+    if (advanced && (step.expect || []).some((c) => c.kind === 'commandRan')) break;
+    if (!allPassed(runChecks(engine, step.expect))) break;
+    idx++;
+    advanced = true;
+  }
+  return idx;
+}
+
+export default { CHECKS, runChecks, allPassed, advanceSteps };

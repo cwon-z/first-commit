@@ -10,7 +10,7 @@
  *   - branches           : this.branches (Map name -> sha)
  *   - HEAD               : { type:'branch', ref } | { type:'commit', id }
  *   - simulated remote   : this.remotes.origin { url, branches: {name: sha} }
- *   - remote-tracking    : this.tracking (Map 'main' -> sha, i.e. origin/main)
+ *   - remote-tracking    : this.tracking (Map 'origin/main' -> sha)
  *
  * Output strings are formatted to match real git's output as closely as is
  * practical, so learners are not surprised when they graduate to real git.
@@ -19,6 +19,13 @@
 const BASE_TIME = Date.UTC(2026, 0, 5, 9, 0, 0); // deterministic fake clock
 const REPO_PATH = '/home/learner/project';
 const AUTHOR = 'Learner <learner@example.com>';
+
+/** Setup operations `applySetup()` understands. Exported so the content test
+ *  can reject a typo'd op in course.json instead of silently ignoring it. */
+export const SETUP_OPS = [
+  'init', 'write', 'add', 'commit', 'branch', 'switch', 'switchCreate',
+  'merge', 'remote', 'remoteCommit',
+];
 
 /* ------------------------------- utilities ------------------------------- */
 
@@ -162,10 +169,12 @@ export class GitEngine {
     this.branches = new Map();
     this.HEAD = { type: 'branch', ref: 'main' };
     this.remotes = {};                // { origin: { url, branches: {name: sha} } }
-    this.tracking = new Map();        // 'main' -> sha  (rendered as origin/main)
+    this.tracking = new Map();        // 'origin/main' -> sha (remote-tracking refs)
     this.upstreams = new Map();       // local branch -> 'origin/main'
     this.mergeState = null;           // { mergeHead, fromName, conflicts:Set, preState }
     this.reflog = [];                 // [{ sha, desc }], newest first
+    this.stash = [];                  // [{ id, fs, index, desc }], newest first
+    this.setupWarnings = [];          // unknown ops seen by applySetup()
     this.seq = 0;
     this.lastCommand = null;          // { name, sub, ok, raw } — semantic record
     this.setupSnapshot = null;        // fs snapshot taken after applySetup()
@@ -299,6 +308,9 @@ export class GitEngine {
       case 'fetch': return this.cmdFetch(rest);
       case 'pull': return this.cmdPull(rest);
       case 'reflog': return this.cmdReflog(rest);
+      case 'show': return this.cmdShow(rest);
+      case 'stash': return this.cmdStash(rest);
+      case 'clone': return this.cmdClone(rest);
       default:
         return { output: `git: '${sub}' is not a git command. See 'git --help'.`, error: true };
     }
@@ -315,7 +327,8 @@ export class GitEngine {
       '   restore    Restore working tree files (--staged to unstage)',
       '   commit     Record changes to the repository  (-m "message")',
       '   log        Show commit history  (--oneline)',
-      '   diff       Show changes  (--staged for index vs last commit)',
+      '   diff       Show changes  (--staged, or between two commits)',
+      '   show       Show one commit and what it changed',
       '   branch     List, create, or delete branches',
       '   switch     Switch branches  (-c to create)',
       '   checkout   Switch branches or restore files',
@@ -328,6 +341,9 @@ export class GitEngine {
       '   fetch      Download remote history',
       '   pull       Fetch and merge remote changes',
       '   reflog     Show where HEAD has been',
+      '   stash      Shelve changes away and restore them later  (pop | list)',
+      '',
+      'Handy flags:  commit --amend · add -f · push -u · reset --soft|--mixed|--hard',
     ].join('\n');
   }
 
@@ -362,9 +378,8 @@ export class GitEngine {
     let id = null;
     if (base === 'HEAD') id = this.headCommitId();
     else if (this.branches.has(base)) id = this.branches.get(base);
-    else if (base.startsWith('origin/')) {
-      const b = base.slice('origin/'.length);
-      id = this.tracking.get(b) || null;
+    else if (this.tracking.has(base)) {
+      id = this.tracking.get(base);
     } else if (/^[0-9a-f]{4,40}$/.test(base)) {
       const matches = [...this.commits.keys()].filter((k) => k.startsWith(base));
       if (matches.length === 1) id = matches[0];
@@ -566,6 +581,7 @@ export class GitEngine {
   cmdAdd(args) {
     const paths = args.filter((a) => !a.startsWith('-'));
     const all = paths.includes('.') || args.includes('-A') || args.includes('--all');
+    const force = args.includes('-f') || args.includes('--force');
     if (!paths.length && !all) {
       return { output: "Nothing specified, nothing added.\nhint: Maybe you wanted to say 'git add .'?", error: true };
     }
@@ -576,7 +592,7 @@ export class GitEngine {
       if (this.mergeState) this.mergeState.conflicts.delete(p);
     };
     if (all) {
-      for (const p of this.fs.keys()) if (!this.isIgnored(p)) stageOne(p);
+      for (const p of this.fs.keys()) if (force || !this.isIgnored(p)) stageOne(p);
       for (const p of [...this.index.keys()]) if (!this.fs.has(p)) stageOne(p);
       for (const p of Object.keys(head)) if (!this.fs.has(p)) stageOne(p);
       return { output: '', error: false };
@@ -585,6 +601,18 @@ export class GitEngine {
       const known = this.fs.has(p) || this.index.has(p) || p in head;
       if (!known) {
         return { output: `fatal: pathspec '${p}' did not match any files`, error: true };
+      }
+    }
+    if (!force) {
+      const ignored = paths.filter((p) => this.isIgnored(p));
+      if (ignored.length) {
+        return {
+          output: 'The following paths are ignored by one of your .gitignore files:\n' +
+            ignored.join('\n') +
+            '\nhint: Use -f if you really want to add them.\n' +
+            'hint: Turn this message off by running "git config advice.addIgnoredFile false"',
+          error: true,
+        };
       }
     }
     for (const p of paths) stageOne(p);
@@ -652,17 +680,26 @@ export class GitEngine {
     // parse -m "msg" and -a / -am
     let message = null;
     let stageTracked = false;
+    let amend = false;
     for (let i = 0; i < args.length; i++) {
       const a = args[i];
       if (a === '-m' || a === '--message') { message = args[i + 1]; i++; }
       else if (a === '-am' || a === '-ma') { stageTracked = true; message = args[i + 1]; i++; }
       else if (a === '-a' || a === '--all') stageTracked = true;
+      else if (a === '--amend') amend = true;
     }
     if (stageTracked) {
       for (const p of [...this.index.keys()]) {
         if (this.fs.has(p)) this.index.set(p, this.fs.get(p));
         else this.index.delete(p);
       }
+    }
+
+    if (amend) {
+      if (this.mergeState) {
+        return { output: 'fatal: You are in the middle of a merge -- cannot amend.', error: true };
+      }
+      return this.commitAmend(message);
     }
 
     if (this.mergeState) {
@@ -736,6 +773,36 @@ export class GitEngine {
     };
   }
 
+  /**
+   * `git commit --amend` — replace the HEAD commit with a new one carrying the
+   * same parents. The old commit object stays in the store (unreachable, but
+   * findable through the reflog), which is exactly the point of the lesson:
+   * amending REWRITES history, it does not edit a commit in place.
+   */
+  commitAmend(message) {
+    const old = this.headCommit();
+    if (!old) {
+      return {
+        output: 'fatal: You have nothing to amend.\n' +
+          '(there are no commits on this branch yet — make one with git commit -m "…")',
+        error: true,
+      };
+    }
+    const msg = message != null ? message : old.message;
+    const newTree = Object.fromEntries(this.index);
+    const parentTree = old.parents.length ? this.commits.get(old.parents[0]).tree : {};
+    const c = this.makeCommit(msg, old.parents, newTree);
+    const br = this.currentBranch();
+    if (br) this.branches.set(br, c.id); else this.HEAD = { type: 'commit', id: c.id };
+    const rootTag = old.parents.length ? '' : ' (root-commit)';
+    const stat = this.statBlock(parentTree, newTree);
+    this.logReflog(c.id, `commit (amend): ${msg}`);
+    return {
+      output: `[${br || 'detached HEAD'}${rootTag} ${short(c.id)}] ${msg}\n${stat.lines.join('\n')}`,
+      error: false,
+    };
+  }
+
   sortedTree(tree) {
     const out = {};
     for (const k of Object.keys(tree).sort()) out[k] = tree[k];
@@ -752,7 +819,7 @@ export class GitEngine {
     }
     if (this.HEAD.type === 'commit' && this.HEAD.id === id) refs.unshift('HEAD');
     for (const [name, tip] of this.tracking) {
-      if (tip === id) refs.push(`origin/${name}`);
+      if (tip === id) refs.push(name);
     }
     return refs.length ? ` (${refs.join(', ')})` : '';
   }
@@ -815,30 +882,87 @@ export class GitEngine {
     return lines;
   }
 
+  /** The working tree as a plain tree object, limited to paths git tracks. */
+  workingTree() {
+    const out = {};
+    const tracked = new Set([...this.index.keys(), ...Object.keys(this.headTree())]);
+    for (const p of tracked) if (this.fs.has(p)) out[p] = this.fs.get(p);
+    return out;
+  }
+
+  /** Unified diff between any two tree objects, optionally filtered by path. */
+  treeDiff(aTree, bTree, paths = []) {
+    const out = [];
+    const all = [...new Set([...Object.keys(aTree), ...Object.keys(bTree)])].sort();
+    for (const p of all) {
+      if (paths.length && !paths.includes(p)) continue;
+      const a = p in aTree ? aTree[p] : null;
+      const b = p in bTree ? bTree[p] : null;
+      if (a === b) continue;
+      out.push(...this.fileDiff(p, a, b));
+    }
+    return out;
+  }
+
+  /**
+   * `git diff` in its four useful shapes:
+   *   git diff                  index      → working tree
+   *   git diff --staged         last commit→ index
+   *   git diff <ref>            that commit→ working tree  (or index with --staged)
+   *   git diff <refA> <refB>    tree A     → tree B
+   * Trailing arguments that aren't revisions are treated as path filters.
+   */
   cmdDiff(args) {
     const staged = args.includes('--staged') || args.includes('--cached');
-    const paths = args.filter((a) => !a.startsWith('-'));
-    const head = this.headTree();
-    const out = [];
-    if (staged) {
-      const all = [...new Set([...this.index.keys(), ...Object.keys(head)])].sort();
-      for (const p of all) {
-        if (paths.length && !paths.includes(p)) continue;
-        const a = p in head ? head[p] : null;
-        const b = this.index.has(p) ? this.index.get(p) : null;
-        out.push(...this.fileDiff(p, a, b));
-      }
-    } else {
-      const all = [...new Set([...this.index.keys(), ...this.fs.keys()])].sort();
-      for (const p of all) {
-        if (paths.length && !paths.includes(p)) continue;
-        if (!this.index.has(p)) continue; // untracked files don't show in git diff
-        const a = this.index.get(p);
-        const b = this.fs.has(p) ? this.fs.get(p) : null;
-        out.push(...this.fileDiff(p, a, b));
+    const positional = args.filter((a) => !a.startsWith('-'));
+
+    // A token is a revision only if it resolves AND isn't a path we know about,
+    // so `git diff notes.txt` still filters by file rather than hunting a ref.
+    const refs = [];
+    const paths = [];
+    for (const a of positional) {
+      if (this.fs.has(a) || this.index.has(a) || a in this.headTree()) paths.push(a);
+      else if (this.resolveRef(a)) refs.push(a);
+      else {
+        return {
+          output: `fatal: ambiguous argument '${a}': unknown revision or path not in the working tree.`,
+          error: true,
+        };
       }
     }
-    return { output: out.join('\n'), error: false };
+
+    const treeOf = (ref) => this.commits.get(this.resolveRef(ref)).tree;
+    let aTree, bTree;
+    if (refs.length >= 2) {
+      aTree = treeOf(refs[0]);
+      bTree = treeOf(refs[1]);
+    } else if (refs.length === 1) {
+      aTree = treeOf(refs[0]);
+      bTree = staged ? Object.fromEntries(this.index) : this.workingTree();
+    } else if (staged) {
+      aTree = this.headTree();
+      bTree = Object.fromEntries(this.index);
+    } else {
+      aTree = Object.fromEntries(this.index);
+      bTree = this.workingTree();
+    }
+    return { output: this.treeDiff(aTree, bTree, paths).join('\n'), error: false };
+  }
+
+  /** `git show [<ref>]` — one commit's metadata plus what it changed. */
+  cmdShow(args) {
+    const target = args.filter((a) => !a.startsWith('-'))[0] || 'HEAD';
+    const id = this.resolveRef(target);
+    if (!id) {
+      return { output: `fatal: ambiguous argument '${target}': unknown revision or path not in the working tree.`, error: true };
+    }
+    const c = this.commits.get(id);
+    const parentTree = c.parents.length ? this.commits.get(c.parents[0]).tree : {};
+    const lines = [`commit ${c.id}${this.decorations(c.id)}`];
+    if (c.parents.length > 1) lines.push(`Merge: ${c.parents.map(short).join(' ')}`);
+    lines.push(`Author: ${AUTHOR}`, `Date:   ${gitDate(c.seq)}`, '', `    ${c.message}`, '');
+    lines.push(...this.treeDiff(parentTree, c.tree));
+    return { output: lines.join('\n'), error: false };
   }
 
   cmdBranch(args) {
@@ -911,6 +1035,12 @@ export class GitEngine {
     return { localMods: localMods.sort(), untrackedClobber: untrackedClobber.sort() };
   }
 
+  /**
+   * Update the working tree and index to `targetTree`.
+   * CONTRACT: call this BEFORE moving HEAD or the branch pointer — it reads
+   * `headTree()` as the tree being left behind in order to tell which files
+   * actually change.
+   */
   moveToTree(targetTree) {
     const head = this.headTree();
     // remove tracked files not in target
@@ -918,7 +1048,18 @@ export class GitEngine {
       const tracked = this.index.has(p) || p in head;
       if (tracked && !(p in targetTree)) this.fs.delete(p);
     }
-    for (const [p, content] of Object.entries(targetTree)) this.fs.set(p, content);
+    for (const [p, content] of Object.entries(targetTree)) {
+      // Real git only rewrites files that DIFFER between the two commits. A
+      // file identical on both sides is left completely alone, so uncommitted
+      // work in it survives the switch. Clobbering it here would teach the
+      // learner that changing branches destroys work — exactly backwards, and
+      // the single scariest thing you can teach a beginner about branching.
+      if (p in head && head[p] === content) {
+        const working = this.fs.has(p) ? this.fs.get(p) : null;
+        if (working !== head[p]) continue; // locally modified or deleted — keep it
+      }
+      this.fs.set(p, content);
+    }
     this.index = new Map(Object.entries(targetTree));
   }
 
@@ -1148,17 +1289,20 @@ HEAD is now at ${short(id)} ${commit.message}`,
     if (!id) return { output: `fatal: ambiguous argument '${target}': unknown revision or path not in the working tree.`, error: true };
     const commit = this.commits.get(id);
     const br = this.currentBranch();
+    // Paths git tracks RIGHT NOW — captured before the index and HEAD move, so
+    // --hard can remove files that only ever existed in the discarded commits.
+    const trackedBefore = new Set([...this.index.keys(), ...Object.keys(this.headTree())]);
     if (br) this.branches.set(br, id); else this.HEAD = { type: 'commit', id };
     if (mode === '--mixed' || mode === '--hard') {
       this.index = new Map(Object.entries(commit.tree));
     }
     if (mode === '--hard') {
       // replace tracked working files with target tree; keep untracked
-      const head = commit.tree;
+      const target = commit.tree;
       for (const p of [...this.fs.keys()]) {
-        if (this.index.has(p) || p in head) this.fs.delete(p);
+        if (trackedBefore.has(p) || p in target) this.fs.delete(p);
       }
-      for (const [p, content] of Object.entries(head)) this.fs.set(p, content);
+      for (const [p, content] of Object.entries(target)) this.fs.set(p, content);
       this.logReflog(id, `reset: moving to ${target}`);
       return { output: `HEAD is now at ${short(id)} ${commit.message}`, error: false };
     }
@@ -1224,8 +1368,8 @@ HEAD is now at ${short(id)} ${commit.message}`,
     const ourId = this.headCommitId();
     if (this.isAncestor(ourId, ontoId)) {
       // fast-forward case
-      this.branches.set(br, ontoId);
       this.moveToTree(this.commits.get(ontoId).tree);
+      this.branches.set(br, ontoId);
       return { output: `Successfully rebased and updated refs/heads/${br}.`, error: false };
     }
     if (this.isAncestor(ontoId, ourId)) {
@@ -1269,8 +1413,8 @@ HEAD is now at ${short(id)} ${commit.message}`,
       newParent = replayed.id;
       prevTree = c.tree;
     }
-    this.branches.set(br, newParent);
     this.moveToTree({ ...newTree });
+    this.branches.set(br, newParent);
     this.logReflog(newParent, `rebase (finish): returning to refs/heads/${br}`);
     return { output: `Successfully rebased and updated refs/heads/${br}.`, error: false };
   }
@@ -1299,8 +1443,17 @@ HEAD is now at ${short(id)} ${commit.message}`,
   cmdPush(args) {
     const setUpstream = args.includes('-u') || args.includes('--set-upstream');
     const rest = args.filter((a) => !a.startsWith('-'));
-    const origin = this.remotes.origin;
+    const remoteName = rest[0] || 'origin';
+    const origin = this.remotes[remoteName];
     if (!origin) {
+      if (rest.length) {
+        return {
+          output: `fatal: '${remoteName}' does not appear to be a git repository\n` +
+            'fatal: Could not read from remote repository.\n\n' +
+            'Please make sure you have the correct access rights\nand the repository exists.',
+          error: true,
+        };
+      }
       return { output: 'fatal: No configured push destination.\nEither specify the URL from the command-line or configure a remote repository using\n\n    git remote add <name> <url>', error: true };
     }
     let branch;
@@ -1312,7 +1465,7 @@ HEAD is now at ${short(id)} ${commit.message}`,
         return {
           output: `fatal: The current branch ${branch} has no upstream branch.\n` +
             'To push the current branch and set the remote as upstream, use\n\n' +
-            `    git push --set-upstream origin ${branch}`,
+            `    git push --set-upstream ${remoteName} ${branch}`,
           error: true,
         };
       }
@@ -1323,7 +1476,12 @@ HEAD is now at ${short(id)} ${commit.message}`,
     const localTip = this.branches.get(branch);
     const remoteTip = origin.branches[branch];
     if (remoteTip && remoteTip === localTip) {
-      return { output: 'Everything up-to-date', error: false };
+      const lines = ['Everything up-to-date'];
+      if (setUpstream) {
+        this.upstreams.set(branch, `${remoteName}/${branch}`);
+        lines.push(`branch '${branch}' set up to track '${remoteName}/${branch}'.`);
+      }
+      return { output: lines.join('\n'), error: false };
     }
     if (remoteTip && !this.isAncestor(remoteTip, localTip)) {
       return {
@@ -1340,7 +1498,7 @@ hint: 'git pull' before pushing again.`,
     }
     const isNew = !remoteTip;
     origin.branches[branch] = localTip;
-    this.tracking.set(branch, localTip);
+    this.tracking.set(`${remoteName}/${branch}`, localTip);
     const lines = [
       'Enumerating objects: 5, done.',
       'Counting objects: 100% (5/5), done.',
@@ -1349,25 +1507,27 @@ hint: 'git pull' before pushing again.`,
       isNew ? ` * [new branch]      ${branch} -> ${branch}`
             : `   ${short(remoteTip)}..${short(localTip)}  ${branch} -> ${branch}`,
     ];
-    if (setUpstream || (isNew && rest.length >= 2)) {
-      this.upstreams.set(branch, `origin/${branch}`);
-      lines.push(`branch '${branch}' set up to track 'origin/${branch}'.`);
+    if (setUpstream) {
+      this.upstreams.set(branch, `${remoteName}/${branch}`);
+      lines.push(`branch '${branch}' set up to track '${remoteName}/${branch}'.`);
     }
     return { output: lines.join('\n'), error: false };
   }
 
-  cmdFetch() {
-    const origin = this.remotes.origin;
-    if (!origin) return { output: "fatal: 'origin' does not appear to be a git repository", error: true };
+  cmdFetch(args = []) {
+    const remoteName = args.filter((a) => !a.startsWith('-'))[0] || 'origin';
+    const origin = this.remotes[remoteName];
+    if (!origin) return { output: `fatal: '${remoteName}' does not appear to be a git repository`, error: true };
     const lines = [];
     let any = false;
     for (const [name, tip] of Object.entries(origin.branches)) {
-      const old = this.tracking.get(name);
+      const ref = `${remoteName}/${name}`;
+      const old = this.tracking.get(ref);
       if (old === tip) continue;
       any = true;
-      if (!old) lines.push(` * [new branch]      ${name}       -> origin/${name}`);
-      else lines.push(`   ${short(old)}..${short(tip)}  ${name}       -> origin/${name}`);
-      this.tracking.set(name, tip);
+      if (!old) lines.push(` * [new branch]      ${name}       -> ${ref}`);
+      else lines.push(`   ${short(old)}..${short(tip)}  ${name}       -> ${ref}`);
+      this.tracking.set(ref, tip);
     }
     if (!any) return { output: '', error: false };
     return {
@@ -1377,27 +1537,108 @@ hint: 'git pull' before pushing again.`,
   }
 
   cmdPull(args) {
-    const origin = this.remotes.origin;
-    if (!origin) return { output: "fatal: 'origin' does not appear to be a git repository", error: true };
+    const rest = args.filter((a) => !a.startsWith('-'));
+    const remoteName = rest[0] || 'origin';
+    const origin = this.remotes[remoteName];
+    if (!origin) return { output: `fatal: '${remoteName}' does not appear to be a git repository`, error: true };
     const branch = this.currentBranch();
     if (!branch) return { output: 'fatal: you are not currently on a branch.', error: true };
-    const rest = args.filter((a) => !a.startsWith('-'));
     const remoteBranch = rest.length >= 2 ? rest[1] : branch;
     if (!this.upstreams.has(branch) && rest.length < 2) {
       return {
         output: 'There is no tracking information for the current branch.\n' +
           'Please specify which branch you want to merge with.\n\n' +
-          `    git pull origin ${branch}`,
+          `    git pull ${remoteName} ${branch}`,
         error: true,
       };
     }
     if (!(remoteBranch in origin.branches)) {
       return { output: `fatal: couldn't find remote ref ${remoteBranch}`, error: true };
     }
-    const fetchRes = this.cmdFetch();
-    const mergeRes = this.cmdMerge([`origin/${remoteBranch}`]);
+    const fetchRes = this.cmdFetch([remoteName]);
+    const mergeRes = this.cmdMerge([`${remoteName}/${remoteBranch}`]);
     const parts = [fetchRes.output, mergeRes.output].filter(Boolean);
     return { output: parts.join('\n'), error: mergeRes.error };
+  }
+
+  /**
+   * `git stash` — shelve local changes to TRACKED files and restore the working
+   * tree to HEAD. Untracked files are left alone, same as real git.
+   */
+  cmdStash(args) {
+    if (this.mergeState) {
+      return { output: 'fatal: cannot stash: you have unmerged files.\nfatal: Exiting because of an unresolved conflict.', error: true };
+    }
+    const sub = args[0] && !args[0].startsWith('-') ? args[0] : 'push';
+    const head = this.headTree();
+
+    if (sub === 'list') {
+      return { output: this.stash.map((s, i) => `stash@{${i}}: ${s.desc}`).join('\n'), error: false };
+    }
+    if (sub === 'clear') { this.stash = []; return { output: '', error: false }; }
+    if (sub === 'drop') {
+      if (!this.stash.length) return { output: 'No stash entries found.', error: true };
+      const s = this.stash.shift();
+      return { output: `Dropped refs/stash@{0} (${short(s.id)})`, error: false };
+    }
+    if (sub === 'pop' || sub === 'apply') {
+      if (!this.stash.length) return { output: 'No stash entries found.', error: true };
+      const s = this.stash[0];
+      for (const [p, content] of s.fs) {
+        if (content == null) this.fs.delete(p); else this.fs.set(p, content);
+      }
+      this.index = new Map(s.index);
+      if (sub === 'pop') this.stash.shift();
+      const status = this.cmdStatus().output;
+      const tail = sub === 'pop' ? `\nDropped refs/stash@{0} (${short(s.id)})` : '';
+      return { output: status + tail, error: false };
+    }
+    if (sub !== 'push' && sub !== 'save') {
+      return { output: `error: unknown subcommand: ${sub}`, error: true };
+    }
+
+    const headId = this.headCommitId();
+    if (!headId) {
+      return { output: 'You do not have the initial commit yet', error: true };
+    }
+    const { staged, unstaged } = this.statuses();
+    if (!staged.length && !unstaged.length) {
+      return { output: 'No local changes to save', error: false };
+    }
+    const mIdx = args.findIndex((a) => a === '-m' || a === '--message');
+    const label = mIdx !== -1 ? args[mIdx + 1] : null;
+    const tracked = new Set([...this.index.keys(), ...Object.keys(head)]);
+    const savedFs = new Map();
+    for (const p of tracked) savedFs.set(p, this.fs.has(p) ? this.fs.get(p) : null);
+    const branch = this.currentBranch() || `(no branch)`;
+    const desc = label
+      ? `On ${branch}: ${label}`
+      : `WIP on ${branch}: ${short(headId)} ${this.commits.get(headId).message}`;
+    this.stash.unshift({
+      id: makeSha(`stash|${++this.seq}|${desc}`),
+      fs: savedFs,
+      index: new Map(this.index),
+      desc,
+    });
+    for (const p of tracked) {
+      if (p in head) this.fs.set(p, head[p]); else this.fs.delete(p);
+    }
+    this.index = new Map(Object.entries(head));
+    return { output: `Saved working directory and index state ${desc}`, error: false };
+  }
+
+  /** There is no network in the sandbox — explain that instead of "not a git command". */
+  cmdClone(args) {
+    const url = args.filter((a) => !a.startsWith('-'))[0];
+    if (!url) return { output: 'fatal: You must specify a repository to clone.', error: true };
+    const name = (url.split('/').pop() || 'project').replace(/\.git$/, '');
+    return {
+      output: `Cloning into '${name}'...\n` +
+        'fatal: this sandbox has no network, so there is nothing to clone from.\n' +
+        'hint: you already have a folder to work in — run `git init` to start a repository\n' +
+        'hint: here, or `git remote add origin <url>` to attach the simulated remote.',
+      error: true,
+    };
   }
 
   cmdReflog() {
@@ -1414,7 +1655,11 @@ hint: 'git pull' before pushing again.`,
    */
   applySetup(ops = []) {
     this.setupOps = ops;
+    this.setupWarnings = [];
     for (const op of ops) {
+      if (!SETUP_OPS.includes(op.op)) {
+        this.setupWarnings.push(`unknown setup op: ${JSON.stringify(op.op)}`);
+      }
       switch (op.op) {
         case 'init': this.cmdInit(); break;
         case 'write': this.fs.set(op.path, op.content.endsWith('\n') ? op.content : op.content + '\n'); break;
@@ -1430,7 +1675,7 @@ hint: 'git pull' before pushing again.`,
           if (op.push !== false && this.headCommitId()) {
             const br = this.currentBranch() || 'main';
             this.remotes.origin.branches[br] = this.branches.get(br);
-            this.tracking.set(br, this.branches.get(br));
+            this.tracking.set(`origin/${br}`, this.branches.get(br));
             this.upstreams.set(br, `origin/${br}`);
           }
           break;
@@ -1480,7 +1725,7 @@ hint: 'git pull' before pushing again.`,
       branches: [...this.branches.entries()].map(([name, tip]) => ({
         name, tip, current: name === this.currentBranch(),
       })),
-      remoteBranches: [...this.tracking.entries()].map(([name, tip]) => ({ name: `origin/${name}`, tip })),
+      remoteBranches: [...this.tracking.entries()].map(([name, tip]) => ({ name, tip })),
       head: { detached: this.HEAD.type === 'commit', id: headId, ref: this.currentBranch() },
       merging: !!this.mergeState,
     };
@@ -1521,7 +1766,8 @@ hint: 'git pull' before pushing again.`,
     return {
       commands: ['git', 'ls', 'cat', 'echo', 'touch', 'rm', 'pwd', 'clear', 'help', 'hint'],
       gitSubcommands: ['init', 'status', 'add', 'commit', 'log', 'diff', 'branch', 'switch',
-        'checkout', 'merge', 'restore', 'reset', 'revert', 'rebase', 'remote', 'push', 'pull', 'fetch', 'reflog'],
+        'checkout', 'merge', 'restore', 'reset', 'revert', 'rebase', 'remote', 'push', 'pull', 'fetch',
+        'reflog', 'stash', 'show'],
       files: [...this.fs.keys()].sort(),
       branches: [...this.branches.keys()].sort(),
     };

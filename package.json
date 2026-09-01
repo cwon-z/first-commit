@@ -1,0 +1,19 @@
+{
+  "name": "first-commit",
+  "version": "2.0.0",
+  "private": true,
+  "description": "An interactive, fully static Git course with a simulated in-browser git engine and a live commit graph.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/engine.test.js && node tests/ui.test.js && node tools/lint-course.mjs --strict",
+    "test:engine": "node tests/engine.test.js",
+    "test:content": "node tests/content.test.js",
+    "serve": "python3 -m http.server 8000",
+    "test:ui": "node tests/ui.test.js",
+    "lint:course": "node tools/lint-course.mjs"
+  }
+}

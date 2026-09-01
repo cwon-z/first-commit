@@ -6,6 +6,10 @@
  * whitelist of inline markup (`code`, **bold**, *em*) is applied.
  * ========================================================================== */
 
+/** Block keys `renderBlocks` understands. The content test validates against
+ *  this list so a typo'd block in course.json fails CI instead of vanishing. */
+export const BLOCK_KINDS = ['h', 'p', 'analogy', 'tip', 'warn', 'code', 'list', 'graph'];
+
 function escapeHtml(s) {
   return String(s)
     .replaceAll('&', '&amp;')
@@ -71,7 +75,8 @@ export function renderBlocks(container, blocks = [], helpers = {}) {
         ul.appendChild(li);
       }
       container.appendChild(ul);
-    } else if (block.graph != null && helpers.graphFromOps) {
+    } else if (block.graph != null) {
+      if (!helpers.graphFromOps) continue;
       const fig = document.createElement('figure');
       fig.className = 'lesson-figure';
       const graphEl = helpers.graphFromOps(block.graph.ops || []);
@@ -82,6 +87,10 @@ export function renderBlocks(container, blocks = [], helpers = {}) {
         fig.appendChild(cap);
       }
       container.appendChild(fig);
+    } else {
+      // Otherwise an authoring typo (`{"para": …}`) would silently render
+      // nothing and nobody would ever notice.
+      console.warn('renderBlocks: unrecognised content block', block);
     }
   }
 }

@@ -7,11 +7,11 @@
  * ========================================================================== */
 
 import { GitEngine } from '../engine/git-engine.js';
-import { runChecks, allPassed } from '../engine/validators.js';
+import { runChecks, allPassed, advanceSteps } from '../engine/validators.js';
 import { Terminal } from './terminal.js';
 import { renderGraph } from './graph.js';
 import { renderFiles } from './filetree.js';
-import { renderBlocks } from './lesson.js';
+import { renderBlocks, inlineMd } from './lesson.js';
 import { LocalStorageProgressStore } from './progress.js';
 
 /* ★ BACKEND SEAM: swap this single line for a RestProgressStore(baseUrl, token)
@@ -32,18 +32,40 @@ const S = {
 
 const $ = (sel) => document.querySelector(sel);
 
+/* Programmatic scrolling honours the OS "reduce motion" setting. */
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const scrollBehavior = () => (reducedMotion.matches ? 'auto' : 'smooth');
+
+function setSidebar(open) {
+  $('#sidebar').classList.toggle('open', open);
+  $('#menu-btn').setAttribute('aria-expanded', String(open));
+}
+const closeSidebar = () => setSidebar(false);
+
 /* ------------------------------- bootstrap ------------------------------- */
 
 async function boot() {
   const res = await fetch('./content/course.json');
+  if (!res.ok) {
+    throw new Error(`GET content/course.json → HTTP ${res.status} ${res.statusText}`);
+  }
   S.course = await res.json();
   S.progress = await store.load();
   document.title = `${S.course.meta.brand} — interactive Git course`;
   $('#brand-name').textContent = S.course.meta.brand;
   buildSidebar();
   window.addEventListener('hashchange', route);
-  $('#menu-btn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
-  $('#sidebar-scrim').addEventListener('click', () => $('#sidebar').classList.remove('open'));
+
+  const menuBtn = $('#menu-btn');
+  menuBtn.addEventListener('click', () => setSidebar(!$('#sidebar').classList.contains('open')));
+  $('#sidebar-scrim').addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && $('#sidebar').classList.contains('open')) {
+      closeSidebar();
+      menuBtn.focus();
+    }
+  });
+  $('#reset-progress').addEventListener('click', resetProgress);
   route();
 }
 
@@ -76,12 +98,16 @@ function playableEntries() {
 function buildSidebar() {
   S.entries = flatten();
   const nav = $('#module-nav');
+  // This runs again on every lesson completion; without remembering the
+  // <details> state it would re-expand every module the learner had collapsed.
+  const wasOpen = new Map();
+  nav.querySelectorAll('.nav-module').forEach((d) => wasOpen.set(d.dataset.mod, d.open));
   nav.innerHTML = '';
   for (const mod of S.course.modules) {
     const details = document.createElement('details');
     details.className = 'nav-module';
     details.dataset.mod = mod.id;
-    if (mod.status === 'ready') details.open = true;
+    details.open = wasOpen.has(mod.id) ? wasOpen.get(mod.id) : mod.status === 'ready';
 
     const summary = document.createElement('summary');
     const modDone = S.entries
@@ -113,7 +139,7 @@ function buildSidebar() {
       a.querySelector('.nav-icon').textContent = icon;
       a.querySelector('.nav-title').textContent = entry.lesson.title;
       if (isDone(entry.lesson.id)) a.classList.add('done');
-      a.addEventListener('click', () => $('#sidebar').classList.remove('open'));
+      a.addEventListener('click', closeSidebar);
       li.appendChild(a);
       ul.appendChild(li);
     }
@@ -125,7 +151,7 @@ function buildSidebar() {
   pg.href = '#/playground';
   pg.className = 'nav-playground';
   pg.innerHTML = '<span class="nav-icon">∞</span> Playground — free sandbox';
-  pg.addEventListener('click', () => $('#sidebar').classList.remove('open'));
+  pg.addEventListener('click', closeSidebar);
   nav.appendChild(pg);
 
   updateProgressPill();
@@ -141,8 +167,26 @@ function updateProgressPill() {
 
 function markActive(lessonId) {
   document.querySelectorAll('.nav-lesson').forEach((a) => {
-    a.classList.toggle('active', a.dataset.lesson === lessonId);
+    const on = a.dataset.lesson === lessonId;
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
   });
+}
+
+async function resetProgress() {
+  const done = S.progress.completedLessons.length;
+  if (!done) {
+    window.alert('No progress saved yet — nothing to reset.');
+    return;
+  }
+  const msg = `Reset your course progress?\n\nThis clears ${done} completed ` +
+    `lesson${done === 1 ? '' : 's'} stored in this browser. It cannot be undone.`;
+  if (!window.confirm(msg)) return;
+  await store.clear();
+  S.progress = await store.load();
+  buildSidebar();
+  if (S.current) show(S.current); else route();
 }
 
 /* -------------------------------- routing -------------------------------- */
@@ -178,8 +222,11 @@ function graphFromOps(ops) {
 function show(entry) {
   S.current = entry;
   S.completedThisView = false;
-  S.progress.lastLessonId = entry.lesson.id;
-  store.save(S.progress);
+  // Never resume onto a lesson that isn't written yet — that's a dead end.
+  if (!entry.lesson.comingSoon) {
+    S.progress.lastLessonId = entry.lesson.id;
+    store.save(S.progress);
+  }
   markActive(entry.lesson.id);
 
   const { module: mod, lesson } = entry;
@@ -271,13 +318,14 @@ function showSuccessBanner() {
     </div>`;
   $('#lesson-article').appendChild(banner);
   banner.querySelector('#sb-next').addEventListener('click', () => gotoNext(S.current));
-  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  banner.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' });
 }
 
 /* ------------------------------- workspace ------------------------------- */
 
 function hideWorkspace() {
   $('#workspace').classList.add('hidden');
+  if (S.terminal) { S.terminal.destroy(); S.terminal = null; }
 }
 
 function promptText() {
@@ -296,6 +344,9 @@ function setupWorkspace(entry, mode) {
   $('#workspace').classList.remove('hidden');
   S.engine = new GitEngine();
   S.engine.applySetup(ex.setup || []);
+  for (const w of S.engine.setupWarnings) {
+    console.warn(`${entry.lesson.id}: ${w}`);
+  }
   S.stepIdx = 0;
   S.revealedHints = 0;
 
@@ -306,7 +357,9 @@ function setupWorkspace(entry, mode) {
   else if (mode === 'challenge') renderChallengePanel(panel, entry);
   else renderPlaygroundPanel(panel);
 
-  // terminal
+  // terminal — tear the previous one down first, otherwise its listeners pile
+  // up on the persistent #terminal element on every lesson change and reset.
+  if (S.terminal) S.terminal.destroy();
   const termRoot = $('#terminal');
   S.terminal = new Terminal(termRoot, {
     promptText,
@@ -346,14 +399,33 @@ function handleCommand(line, entry, mode) {
 }
 
 function updateVisuals() {
-  const svg = $('#graph-svg');
-  renderGraph(svg, S.engine.getGraph());
+  const graph = S.engine.getGraph();
+  renderGraph($('#graph-svg'), graph);
   const scroller = $('#graph-scroll');
   scroller.scrollLeft = scroller.scrollWidth;
   renderFiles($('#files-panel'), S.engine.getFileState());
-  const headline = $('#graph-headline');
   const head = S.engine.headCommit();
-  headline.textContent = head ? `HEAD: ${head.message}` : '';
+  $('#graph-headline').textContent = head ? `HEAD: ${head.message}` : '';
+  $('#graph-a11y').textContent = graphSummary(graph);
+}
+
+/** The commit graph is the core teaching visual; say out loud what it shows. */
+function graphSummary(g) {
+  if (!g.initialized) return 'No repository yet. Run git init to begin.';
+  if (!g.commits.length) return 'Repository initialised. No commits yet.';
+  const n = g.commits.length;
+  const where = g.head.detached
+    ? `HEAD is detached at commit ${g.commits.find((c) => c.id === g.head.id)?.short}`
+    : `HEAD is on branch ${g.head.ref}`;
+  const names = g.branches.map((b) => b.name);
+  const branches = names.length
+    ? `${names.length === 1 ? 'Branch' : 'Branches'}: ${names.join(', ')}.`
+    : 'No branches yet.';
+  const remotes = g.remoteBranches.length
+    ? ` Remote refs: ${g.remoteBranches.map((r) => r.name).join(', ')}.`
+    : '';
+  return `${n} commit${n === 1 ? '' : 's'}. ${where}. ${branches}${remotes}` +
+    (g.merging ? ' A merge is in progress.' : '');
 }
 
 /* ------------------------------ guided mode ------------------------------ */
@@ -381,7 +453,7 @@ function renderGuidedPanel(panel, entry) {
         <button class="step-hint-btn hidden-btn" type="button">show hint</button>
         <div class="step-hint" hidden></div>
       </div>`;
-    li.querySelector('.step-say').innerHTML = mdLite(step.say);
+    li.querySelector('.step-say').innerHTML = inlineMd(step.say);
     if (step.cmd) li.querySelector('.step-cmd code').textContent = step.cmd;
     const hintBtn = li.querySelector('.step-hint-btn');
     const hintEl = li.querySelector('.step-hint');
@@ -397,12 +469,6 @@ function renderGuidedPanel(panel, entry) {
   refreshGuidedUI(entry);
 }
 
-function mdLite(s) {
-  // escape + minimal inline markup (same rules as lesson renderer)
-  const esc = String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-  return esc.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-}
-
 function refreshGuidedUI(entry) {
   const steps = entry.lesson.exercise.steps;
   document.querySelectorAll('#step-list .step').forEach((li) => {
@@ -415,20 +481,16 @@ function refreshGuidedUI(entry) {
   const prog = $('#guided-progress');
   if (prog) prog.textContent = `step ${Math.min(S.stepIdx + 1, steps.length)} of ${steps.length}`;
   const current = document.querySelector('#step-list .step-current');
-  if (current) current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (current) current.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' });
 }
 
 function checkGuided(entry) {
   const steps = entry.lesson.exercise.steps;
-  if (S.stepIdx >= steps.length) return;
-  const res = runChecks(S.engine, steps[S.stepIdx].expect);
-  if (allPassed(res)) {
-    S.stepIdx++;
-    refreshGuidedUI(entry);
-    if (S.stepIdx >= steps.length) {
-      completeLesson(entry.lesson.id);
-    }
-  }
+  const next = advanceSteps(S.engine, steps, S.stepIdx);
+  if (next === S.stepIdx) return;
+  S.stepIdx = next;
+  refreshGuidedUI(entry);
+  if (S.stepIdx >= steps.length) completeLesson(entry.lesson.id);
 }
 
 function revealHint(entry, mode) {
@@ -463,7 +525,7 @@ function renderChallengePanel(panel, entry) {
   const goal = document.createElement('div');
   goal.className = 'challenge-goal';
   goal.innerHTML = `<div class="goal-label">Your mission</div><p></p>`;
-  goal.querySelector('p').innerHTML = mdLite(ex.goal);
+  goal.querySelector('p').innerHTML = inlineMd(ex.goal);
   wrap.appendChild(goal);
 
   const list = document.createElement('ul');
@@ -570,10 +632,15 @@ if (typeof document !== 'undefined' && document.getElementById('lesson-article')
   boot().catch((err) => {
     const el = document.getElementById('lesson-article');
     if (el) {
+      const detail = document.createElement('p');
+      detail.className = 'lesson-p';
+      detail.style.opacity = '.7';
+      detail.textContent = String(err && err.message ? err.message : err);
       el.innerHTML = '<h2 class="lesson-title">Failed to load course</h2><p class="lesson-p">' +
         'The course content could not be loaded. If you opened this file directly (file://), ' +
         'please serve the folder with any static server instead, e.g. <code>python -m http.server</code> ' +
         'or Caddy <code>file_server</code>.</p>';
+      el.appendChild(detail);
     }
     console.error(err);
   });

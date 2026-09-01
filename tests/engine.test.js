@@ -1,8 +1,8 @@
 /* Unit tests for the simulated git engine + validators.
  * Run:  node tests/engine.test.js
  */
-import { GitEngine } from '../engine/git-engine.js';
-import { runChecks, allPassed } from '../engine/validators.js';
+import { GitEngine, SETUP_OPS } from '../engine/git-engine.js';
+import { runChecks, allPassed, advanceSteps } from '../engine/validators.js';
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -526,6 +526,362 @@ function includes(haystack, needle, name) {
   ok(find(fsState.working, 'a.txt').state === 'modified', 'modified file flagged');
   ok(find(fsState.index, 'c.txt').state === 'added', 'index shows added');
   ok(find(fsState.repo, 'a.txt') != null, 'repo shows committed file');
+}
+
+/* ---- 13. reset --hard removes files that only existed in discarded commits ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('touch a.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('touch b.txt'); e.run('git add .'); e.run('git commit -m two');
+  e.run('echo "mine" > scratch.txt');            // untracked — must survive
+  e.run('git reset --hard HEAD~1');
+  ok(!e.fs.has('b.txt'), 'reset --hard deletes a file from the discarded commit');
+  ok(!e.index.has('b.txt'), 'reset --hard drops it from the index too');
+  ok(e.fs.has('a.txt'), 'reset --hard keeps files the target commit has');
+  ok(e.fs.has('scratch.txt'), 'reset --hard leaves untracked files alone');
+
+  // --soft and --mixed must NOT touch the working tree
+  const s = new GitEngine();
+  s.run('git init');
+  s.run('touch a.txt'); s.run('git add .'); s.run('git commit -m one');
+  s.run('touch b.txt'); s.run('git add .'); s.run('git commit -m two');
+  s.run('git reset --soft HEAD~1');
+  ok(s.fs.has('b.txt'), 'reset --soft keeps the working file');
+  ok(s.index.has('b.txt'), 'reset --soft keeps it staged');
+  s.run('git reset --mixed HEAD');
+  ok(s.fs.has('b.txt'), 'reset --mixed keeps the working file');
+}
+
+/* ---- 14. push/fetch/pull honour the remote name; -u controls upstream ---- */
+{
+  const e = new GitEngine();
+  e.run('git init'); e.run('touch a.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('git remote add origin https://github.com/me/p.git');
+
+  let r = e.run('git push origin main');
+  ok(!r.error, 'git push origin main succeeds');
+  ok(!e.upstreams.has('main'), 'push without -u does not set an upstream');
+  ok(e.tracking.get('origin/main') === e.branches.get('main'), 'push updates origin/main');
+
+  r = e.run('git push');
+  ok(r.error, 'a bare push still needs an upstream');
+  includes(r.output, 'git push --set-upstream origin main', 'upstream hint names the remote');
+
+  r = e.run('git push -u origin main');
+  ok(!r.error, 'push -u on an up-to-date branch succeeds');
+  includes(r.output, "set up to track 'origin/main'", 'push -u reports the new upstream');
+  ok(e.upstreams.get('main') === 'origin/main', 'push -u records the upstream');
+  ok(!e.run('git push').error, 'a bare push works once the upstream exists');
+
+  r = e.run('git push notorigin main');
+  ok(r.error, 'pushing to an unknown remote is rejected');
+  includes(r.output, "fatal: 'notorigin' does not appear to be a git repository", 'unknown-remote message');
+  ok(e.run('git fetch upstream').error, 'fetching an unknown remote is rejected');
+  ok(e.run('git pull upstream main').error, 'pulling an unknown remote is rejected');
+
+  // origin/<branch> must still resolve, decorate and reach the graph
+  ok(e.resolveRef('origin/main') === e.branches.get('main'), 'origin/main resolves to a commit');
+  includes(e.run('git log --oneline').output, 'origin/main', 'log decorates origin/main');
+  ok(e.getGraph().remoteBranches.some((b) => b.name === 'origin/main'), 'graph exposes origin/main');
+
+  // a second remote keeps its own tracking ref
+  e.run('git remote add fork https://github.com/you/p.git');
+  e.run('git push fork main');
+  ok(e.remotes.fork.branches.main === e.branches.get('main'), 'the second remote received the push');
+  ok(e.tracking.get('fork/main') === e.branches.get('main'), 'fork/main is tracked separately');
+  ok(e.upstreams.get('main') === 'origin/main', 'pushing to a second remote leaves the upstream alone');
+}
+
+/* ---- 15. git commit --amend ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  ok(e.run('git commit --amend -m "nope"').error, 'amend with no commits is an error');
+
+  e.run('echo "v1" > a.txt'); e.run('git add .'); e.run('git commit -m "frist commit"');
+  const original = e.branches.get('main');
+
+  let r = e.run('git commit --amend -m "first commit"');
+  ok(!r.error, 'amend succeeds');
+  includes(r.output, '(root-commit)', 'amending the root commit keeps the root-commit tag');
+  ok(e.branches.get('main') !== original, 'amend replaces the commit (history is rewritten)');
+  ok(e.ancestorsOf(e.branches.get('main')).size === 1, 'amend does not add a commit');
+  ok(e.headCommit().message === 'first commit', 'amend applies the new message');
+  ok(e.reflog[0].desc.startsWith('commit (amend)'), 'amend is recorded in the reflog');
+  ok(!e.getGraph().commits.some((c) => c.id === original), 'the replaced commit leaves the graph');
+
+  // amend also folds in whatever is staged
+  e.run('echo "v2" > a.txt'); e.run('git add a.txt');
+  e.run('git commit --amend -m "first commit, fixed"');
+  ok(e.headCommit().tree['a.txt'] === 'v2\n', 'amend folds staged changes into the commit');
+  ok(e.ancestorsOf(e.branches.get('main')).size === 1, 'still a single commit');
+
+  // no -m keeps the existing message
+  e.run('echo "v3" > a.txt'); e.run('git add a.txt'); e.run('git commit --amend');
+  ok(e.headCommit().message === 'first commit, fixed', 'amend without -m reuses the message');
+  ok(e.headCommit().tree['a.txt'] === 'v3\n', 'amend without -m still updates the tree');
+
+  // a second commit amends without disturbing its parent
+  e.run('echo "b" > b.txt'); e.run('git add .'); e.run('git commit -m "second"');
+  const parentBefore = e.headCommit().parents[0];
+  e.run('git commit --amend -m "second, better"');
+  ok(e.headCommit().parents[0] === parentBefore, 'amend keeps the original parent');
+  ok(e.ancestorsOf(e.branches.get('main')).size === 2, 'amend keeps the rest of the history');
+}
+
+/* ---- 16. git stash ---- */
+{
+  const e = new GitEngine();
+  e.run('git init'); e.run('echo "clean" > a.txt'); e.run('git add .'); e.run('git commit -m one');
+
+  ok(e.run('git stash').output === 'No local changes to save', 'stash with a clean tree says so');
+
+  e.run('echo "dirty" > a.txt');
+  e.run('echo "new" > untracked.txt');
+  let r = e.run('git stash');
+  includes(r.output, 'Saved working directory and index state WIP on main:', 'stash reports what it saved');
+  ok(e.fs.get('a.txt') === 'clean\n', 'stash restores the tracked file to HEAD');
+  ok(e.fs.get('untracked.txt') === 'new\n', 'stash leaves untracked files in place');
+  ok(e.statuses().unstaged.length === 0, 'the working tree is clean after stashing');
+  includes(e.run('git stash list').output, 'stash@{0}: WIP on main:', 'stash list shows the entry');
+
+  r = e.run('git stash pop');
+  ok(e.fs.get('a.txt') === 'dirty\n', 'pop brings the changes back');
+  includes(r.output, 'Dropped refs/stash@{0}', 'pop reports the drop');
+  ok(e.run('git stash list').output === '', 'the stash is empty after popping');
+  ok(e.run('git stash pop').error, 'popping an empty stash is an error');
+}
+{
+  // staged work is stashed too; `apply` keeps the entry, `drop` removes it
+  const e = new GitEngine();
+  e.run('git init'); e.run('echo "clean" > a.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('echo "staged" > a.txt'); e.run('git add a.txt');
+  e.run('git stash');
+  ok(e.index.get('a.txt') === 'clean\n', 'stash resets the index to HEAD');
+  e.run('git stash apply');
+  ok(e.index.get('a.txt') === 'staged\n', 'apply restores the index');
+  ok(e.stash.length === 1, 'apply keeps the stash entry');
+  e.run('git stash drop');
+  ok(e.stash.length === 0, 'drop removes the entry');
+
+  const named = new GitEngine();
+  named.run('git init'); named.run('touch a.txt'); named.run('git add .'); named.run('git commit -m one');
+  named.run('echo "wip" > a.txt');
+  named.run('git stash -m "half-finished idea"');
+  includes(named.run('git stash list').output, 'half-finished idea', 'stash -m labels the entry');
+}
+{
+  // the advice printed by a blocked checkout now actually works
+  const e = new GitEngine();
+  e.run('git init'); e.run('echo "base" > a.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('git switch -c feature'); e.run('echo "feature" > a.txt'); e.run('git add .'); e.run('git commit -m f');
+  e.run('git switch main');
+  e.run('echo "wip" > a.txt');
+  const blocked = e.run('git switch feature');
+  ok(blocked.error, 'a dirty tree blocks the switch');
+  includes(blocked.output, 'stash them', 'the error suggests stashing');
+  ok(!e.run('git stash').error, 'git stash is a real command in the sandbox');
+  ok(!e.run('git switch feature').error, 'the switch works after stashing');
+}
+
+/* ---- 17. git add and .gitignore ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "*.log" > .gitignore');
+  e.run('echo "boom" > debug.log');
+
+  const r = e.run('git add debug.log');
+  ok(r.error, 'adding an ignored path by name is an error');
+  includes(r.output, 'The following paths are ignored by one of your .gitignore files', 'ignored-path message');
+  includes(r.output, 'Use -f if you really want to add them', 'ignored-path hint offers -f');
+  ok(!e.index.has('debug.log'), 'the ignored path was not staged');
+
+  ok(!e.run('git add -f debug.log').error, 'git add -f overrides the ignore');
+  ok(e.index.has('debug.log'), 'git add -f actually stages it');
+
+  const bulk = new GitEngine();
+  bulk.run('git init');
+  bulk.run('echo "*.log" > .gitignore');
+  bulk.run('echo "boom" > debug.log');
+  bulk.run('echo "keep" > notes.txt');
+  bulk.run('git add .');
+  ok(!bulk.index.has('debug.log'), 'git add . silently skips ignored files');
+  ok(bulk.index.has('notes.txt'), 'git add . stages everything else');
+  ok(bulk.index.has('.gitignore'), 'git add . stages .gitignore itself');
+}
+
+/* ---- 18. git clone explains the sandbox instead of "not a git command" ---- */
+{
+  const e = new GitEngine();
+  const r = e.run('git clone https://github.com/me/project.git');
+  ok(r.error, 'clone is an error in the sandbox');
+  includes(r.output, "Cloning into 'project'", 'clone echoes the target folder');
+  includes(r.output, 'no network', 'clone explains why it cannot work');
+  ok(!r.output.includes('is not a git command'), 'clone is not reported as unknown');
+}
+
+/* ---- 19. applySetup flags unknown ops instead of ignoring them ---- */
+{
+  const e = new GitEngine();
+  e.applySetup([{ op: 'init' }, { op: 'wrte', path: 'a.txt', content: 'oops' }]);
+  ok(e.setupWarnings.length === 1, 'a typo\'d setup op is recorded');
+  includes(e.setupWarnings[0], 'wrte', 'the warning names the bad op');
+
+  const good = new GitEngine();
+  good.applySetup([{ op: 'init' }, { op: 'write', path: 'a.txt', content: 'fine' }]);
+  ok(good.setupWarnings.length === 0, 'valid setup ops produce no warnings');
+  ok(SETUP_OPS.includes('remoteCommit'), 'SETUP_OPS lists every documented op');
+}
+
+/* ---- 20. advanceSteps: the guided-walkthrough cascade ---- */
+{
+  const steps = [
+    { expect: [{ kind: 'repoInitialized' }] },
+    { expect: [{ kind: 'fileStaged', path: 'a.txt' }] },
+    { expect: [{ kind: 'commitCount', min: 1 }] },
+    { expect: [{ kind: 'commandRan', command: 'git', sub: 'status' }] },
+  ];
+  const e = new GitEngine();
+  ok(advanceSteps(e, steps, 0) === 0, 'no steps complete before anything is run');
+  e.run('git init');
+  ok(advanceSteps(e, steps, 0) === 1, 'git init completes step 1');
+  e.run('echo "hi" > a.txt');
+  e.run('git add a.txt');
+  ok(advanceSteps(e, steps, 1) === 2, 'staging completes step 2');
+  // one command satisfies the commit step; the commandRan step must NOT cascade
+  e.run('git commit -m "x"');
+  ok(advanceSteps(e, steps, 2) === 3, 'committing completes step 3 but not the commandRan step');
+  e.run('git status');
+  ok(advanceSteps(e, steps, 3) === 4, 'running the named command completes the last step');
+
+  // `git commit -am` stages and commits in one go, satisfying a "it's
+  // committed" step and a "your tree is clean" step from a single command.
+  const cascade = [
+    { expect: [{ kind: 'fileCommitted', path: 'a.txt', contains: 'updated' }] },
+    { expect: [{ kind: 'cleanWorkingTree' }] },
+  ];
+  const c = new GitEngine();
+  c.run('git init'); c.run('echo "first" > a.txt'); c.run('git add .'); c.run('git commit -m one');
+  c.run('echo "updated" > a.txt');
+  ok(advanceSteps(c, cascade, 0) === 0, 'neither step passes on an uncommitted edit');
+  c.run('git commit -am two');
+  ok(advanceSteps(c, cascade, 0) === 2, 'one command can complete two state-based steps');
+}
+
+/* ---- 21. git diff between revisions, and git show (module 4 needs these) ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "line one" > notes.txt');
+  e.run('git add .'); e.run('git commit -m "first"');
+  e.run('echo "line two" >> notes.txt');
+  e.run('echo "readme" > readme.md');
+  e.run('git add .'); e.run('git commit -m "second"');
+  e.run('echo "line three" >> notes.txt');   // uncommitted working-tree change
+
+  // two revisions: commit-to-commit
+  let r = e.run('git diff HEAD~1 HEAD');
+  includes(r.output, '+line two', 'diff A B shows the added line');
+  includes(r.output, 'new file mode 100644', 'diff A B reports a file added between commits');
+  includes(r.output, 'readme.md', 'diff A B names the new file');
+  ok(!r.output.includes('line three'), 'diff A B ignores uncommitted work');
+
+  // one revision: commit vs working tree
+  r = e.run('git diff HEAD');
+  includes(r.output, '+line three', 'diff <ref> compares against the working tree');
+  ok(!r.output.includes('readme.md'), 'diff <ref> skips files that did not change');
+
+  // one revision, --staged: commit vs index
+  e.run('git add notes.txt');
+  r = e.run('git diff HEAD --staged');
+  includes(r.output, '+line three', 'diff <ref> --staged compares against the index');
+  ok(e.run('git diff').output === '', 'nothing left unstaged after adding');
+
+  // path filters still work, and are not mistaken for revisions
+  r = e.run('git diff HEAD notes.txt');
+  includes(r.output, 'notes.txt', 'diff <ref> <path> filters by path');
+  ok(!r.output.includes('readme.md'), 'the path filter excludes other files');
+
+  // a nonsense argument is an error, not silence
+  r = e.run('git diff nosuchthing');
+  ok(r.error, 'diff with an unknown argument errors');
+  includes(r.output, "fatal: ambiguous argument 'nosuchthing'", 'unknown diff argument message');
+
+  // git show
+  r = e.run('git show HEAD');
+  includes(r.output, 'commit ', 'show prints the commit header');
+  includes(r.output, 'Author: Learner', 'show prints the author');
+  includes(r.output, '    second', 'show prints the commit message');
+  includes(r.output, '+line two', 'show prints the diff the commit introduced');
+  ok(!e.run('git show').error, 'git show defaults to HEAD');
+
+  r = e.run('git show HEAD~1');
+  includes(r.output, '    first', 'show works on an older commit');
+  includes(r.output, 'new file mode 100644', 'show reports the root commit as adding files');
+
+  r = e.run('git show nope');
+  ok(r.error, 'show with a bad revision errors');
+  includes(r.output, 'unknown revision', 'bad-revision message');
+}
+{
+  // show on a merge commit lists both parents
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "base" > a.txt'); e.run('git add .'); e.run('git commit -m base');
+  e.run('git switch -c feature');
+  e.run('echo "feature" > f.txt'); e.run('git add .'); e.run('git commit -m feat');
+  e.run('git switch main');
+  e.run('echo "main" > m.txt'); e.run('git add .'); e.run('git commit -m mainwork');
+  e.run('git merge feature');
+  const r = e.run('git show HEAD');
+  includes(r.output, 'Merge: ', 'show marks a merge commit with its parents');
+}
+
+/* ---- 22. switching branches must not destroy uncommitted work ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "shared" > shared.txt');
+  e.run('echo "base" > other.txt');
+  e.run('git add .'); e.run('git commit -m base');
+  e.run('git switch -c feature');
+  e.run('echo "feature version" > other.txt');
+  e.run('git add .'); e.run('git commit -m feat');
+  e.run('git switch main');
+
+  // shared.txt is byte-identical in both commits, so real git does not touch it
+  // on a switch — an uncommitted edit to it comes along with you.
+  e.run('echo "my uncommitted work" > shared.txt');
+  const r = e.run('git switch feature');
+  ok(!r.error, 'switching is allowed when only an unchanged-between-branches file is dirty');
+  ok(e.fs.get('shared.txt') === 'my uncommitted work\n', 'the uncommitted edit survives the switch');
+  ok(e.fs.get('other.txt') === 'feature version\n', 'a file that DOES differ is updated to the new branch');
+  const st = e.statuses();
+  ok(st.unstaged.some((s) => s.path === 'shared.txt'), 'the carried-over edit still shows as unstaged');
+
+  // and it survives the trip back
+  e.run('git switch main');
+  ok(e.fs.get('shared.txt') === 'my uncommitted work\n', 'the edit survives switching back too');
+  ok(e.fs.get('other.txt') === 'base\n', 'the differing file follows the branch back');
+
+  // a dirty file that DOES differ between the branches is still refused
+  e.run('echo "conflicting edit" > other.txt');
+  const blocked = e.run('git switch feature');
+  ok(blocked.error, 'a dirty file that differs between branches still blocks the switch');
+  includes(blocked.output, 'other.txt', 'the block names the offending file');
+
+  // a locally deleted but otherwise-identical file stays deleted
+  const d = new GitEngine();
+  d.run('git init');
+  d.run('echo "keep" > keep.txt'); d.run('echo "x" > x.txt');
+  d.run('git add .'); d.run('git commit -m one');
+  d.run('git switch -c side'); d.run('echo "y" > x.txt'); d.run('git add .'); d.run('git commit -m two');
+  d.run('git switch main');
+  d.run('rm keep.txt');
+  d.run('git switch side');
+  ok(!d.fs.has('keep.txt'), 'a local deletion of an unchanged file is not silently undone');
 }
 
 /* ---- report ---- */

@@ -1,0 +1,4 @@
+# Line endings are normalised to LF in the repository regardless of anyone's
+# core.autocrlf setting, and checked out with the platform convention. Without
+# this, a contributor on a different OS produces a whole-file diff on save.
+* text=auto
