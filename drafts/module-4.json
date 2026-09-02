@@ -296,9 +296,9 @@
               ]
             },
             {
-              "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. `menu.txt` is listed **twice**: the version you staged, and newer edits sitting on top of it.",
+              "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. Note the **double** arrow: `>>` adds a line to the end of a file, where the single `>` you have been using replaces the whole thing. `menu.txt` is then listed **twice**: the version you staged, and newer edits sitting on top of it.",
               "cmd": "echo \"- lemon tart\" >> menu.txt\ngit status",
-              "hint": "Two commands: echo \"- lemon tart\" >> menu.txt then git status",
+              "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status",
               "expect": [
                 {
                   "kind": "fileChanged",

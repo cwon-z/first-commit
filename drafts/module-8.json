@@ -357,8 +357,8 @@
             },
             {
               "say": "The other half of the page is the list of commits, and it comes from exactly this: your branch, one commit ahead of `main`. Two pictures of one request — what changed, and the steps you took to get there.",
-              "cmd": "git log --oneline --graph --all",
-              "hint": "Type: git log --oneline --graph --all — the --all shows every branch, not only the one you're standing on.",
+              "cmd": "git log --oneline --all",
+              "hint": "Type: git log --oneline --all — the --all shows every branch, not only the one you're standing on.",
               "expect": [
                 {
                   "kind": "commandRan",
@@ -426,7 +426,7 @@
             "p": "Thursday afternoon, same hiking club. You started typing before you thought: there is a `site/trips.html` sitting untracked in your working directory — written while you were standing on `main`, where the work should never have started. Meanwhile Priya has pushed a photo gallery to `origin/main`, so your `main` is behind."
           },
           {
-            "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --graph --all` whenever you lose your bearings."
+            "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --all` whenever you lose your bearings."
           },
           {
             "p": "Two boxes in the checklist start ticked — you're standing on `main` and there's no branch yet. They'll un-tick as you work and come back at the end; that's the loop closing, not you going backwards."

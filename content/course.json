@@ -916,7 +916,7 @@
             }
           },
           {
-            "p": "Next: branches — how to try ideas in parallel universes without touching the main timeline."
+            "p": "Next: learning to read what changed — `git status` as a report rather than a wall of text, and the diff format you will meet in every code review for the rest of your life."
           }
         ]
       }
@@ -1218,9 +1218,9 @@
                 ]
               },
               {
-                "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. `menu.txt` is listed **twice**: the version you staged, and newer edits sitting on top of it.",
+                "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. Note the **double** arrow: `>>` adds a line to the end of a file, where the single `>` you have been using replaces the whole thing. `menu.txt` is then listed **twice**: the version you staged, and newer edits sitting on top of it.",
                 "cmd": "echo \"- lemon tart\" >> menu.txt\ngit status",
-                "hint": "Two commands: echo \"- lemon tart\" >> menu.txt then git status",
+                "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status",
                 "expect": [
                   {
                     "kind": "fileChanged",
@@ -4169,8 +4169,8 @@
               },
               {
                 "say": "The other half of the page is the list of commits, and it comes from exactly this: your branch, one commit ahead of `main`. Two pictures of one request — what changed, and the steps you took to get there.",
-                "cmd": "git log --oneline --graph --all",
-                "hint": "Type: git log --oneline --graph --all — the --all shows every branch, not only the one you're standing on.",
+                "cmd": "git log --oneline --all",
+                "hint": "Type: git log --oneline --all — the --all shows every branch, not only the one you're standing on.",
                 "expect": [
                   {
                     "kind": "commandRan",
@@ -4238,7 +4238,7 @@
               "p": "Thursday afternoon, same hiking club. You started typing before you thought: there is a `site/trips.html` sitting untracked in your working directory — written while you were standing on `main`, where the work should never have started. Meanwhile Priya has pushed a photo gallery to `origin/main`, so your `main` is behind."
             },
             {
-              "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --graph --all` whenever you lose your bearings."
+              "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --all` whenever you lose your bearings."
             },
             {
               "p": "Two boxes in the checklist start ticked — you're standing on `main` and there's no branch yet. They'll un-tick as you work and come back at the end; that's the loop closing, not you going backwards."
@@ -5896,7 +5896,7 @@
               ]
             },
             {
-              "tip": "How do you actually *type* a blank line? Not with `-m` — that flag takes one line and stops. In real Git you write a full message by running `git commit` with **no** `-m` at all: Git opens a text editor, you type the subject, press Enter twice, and write the body underneath. Save the file, close it, done. This playground's terminal takes one line at a time and has no editor, so here you'll practise subject lines — which is the half that matters most, and the half you'll write ten times more often."
+              "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch and the login endpoint was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
             },
             {
               "tip": "Small, obvious changes don't need a body at all. `Fix typo in README` is a complete and excellent commit message. Save your words for the changes that will confuse somebody."

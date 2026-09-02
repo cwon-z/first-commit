@@ -884,6 +884,71 @@ function includes(haystack, needle, name) {
   ok(!d.fs.has('keep.txt'), 'a local deletion of an unchanged file is not silently undone');
 }
 
+/* ---- 23. reflog entries name the ref you reset to ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo a > a.txt'); e.run('git add .'); e.run('git commit -m "one"');
+  e.run('echo b > b.txt'); e.run('git add .'); e.run('git commit -m "two"');
+
+  e.run('git reset --hard HEAD~1');
+  let log = e.run('git reflog').output;
+  includes(log, 'reset: moving to HEAD~1', 'reflog names the ref after --hard');
+  ok(!log.includes('[object Object]'), 'reflog never stringifies a tree into the entry');
+
+  e.run('git reset --soft HEAD');
+  e.run('git reset --mixed HEAD');
+  log = e.run('git reflog').output;
+  ok(!log.includes('[object Object]'), 'no reset mode corrupts the reflog');
+
+  // the reflog is module 9's safety net, so the sha must actually be usable
+  const rescued = log.split('\n').find((l) => l.includes('commit: two'));
+  ok(!!rescued, 'the discarded commit is still findable in the reflog');
+  const sha = rescued.slice(0, 7);
+  ok(e.resolveRef(sha) != null, 'the reflog sha resolves, so the work can be recovered');
+}
+
+/* ---- 24. repeated -m writes a subject and a body, as real git does ---- */
+{
+  const e = new GitEngine();
+  e.run('git init'); e.run('touch x.txt'); e.run('git add .');
+  const r = e.run('git commit -m "Add the greeting" -m "Explains why we needed it."');
+  ok(!r.error, 'commit with two -m flags succeeds');
+  ok(e.headCommit().message === 'Add the greeting\n\nExplains why we needed it.',
+    'repeated -m joins with a blank line');
+  includes(r.output, '] Add the greeting', 'the commit line shows only the subject');
+  ok(!r.output.includes('Explains why'), 'the commit line does not spill the body');
+
+  const full = e.run('git log').output;
+  includes(full, '    Add the greeting', 'log indents the subject by four spaces');
+  includes(full, '    Explains why we needed it.', 'log indents the body too');
+
+  const one = e.run('git log --oneline').output;
+  includes(one, 'Add the greeting', 'oneline shows the subject');
+  ok(!one.includes('Explains why'), 'oneline stops at the subject');
+
+  // three parts, and the single-flag form still behaves
+  const t = new GitEngine();
+  t.run('git init'); t.run('touch y.txt'); t.run('git add .');
+  t.run('git commit -m "a" -m "b" -m "c"');
+  ok(t.headCommit().message === 'a\n\nb\n\nc', 'three -m flags join with blank lines');
+
+  const s = new GitEngine();
+  s.run('git init'); s.run('touch z.txt'); s.run('git add .');
+  s.run('git commit -m "just a subject"');
+  ok(s.headCommit().message === 'just a subject', 'a single -m is unchanged');
+  ok(s.run('git commit -m').error, 'a bare -m with no text is still an error');
+
+  // amend and stash summaries show subjects, not whole bodies
+  s.run('echo 1 > z.txt'); s.run('git add .');
+  const am = s.run('git commit --amend -m "new subject" -m "new body"');
+  includes(am.output, '] new subject', 'amend reports the subject');
+  ok(!am.output.includes('new body'), 'amend does not spill the body');
+  s.run('echo 2 > z.txt');
+  includes(s.run('git stash').output, 'WIP on main:', 'stash summarises with the subject');
+  ok(!s.run('git stash list').output.includes('new body'), 'stash list shows no body text');
+}
+
 /* ---- report ---- */
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {

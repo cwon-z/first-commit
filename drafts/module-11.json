@@ -49,7 +49,7 @@
             ]
           },
           {
-            "tip": "How do you actually *type* a blank line? Not with `-m` — that flag takes one line and stops. In real Git you write a full message by running `git commit` with **no** `-m` at all: Git opens a text editor, you type the subject, press Enter twice, and write the body underneath. Save the file, close it, done. This playground's terminal takes one line at a time and has no editor, so here you'll practise subject lines — which is the half that matters most, and the half you'll write ten times more often."
+            "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch and the login endpoint was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
           },
           {
             "tip": "Small, obvious changes don't need a body at all. `Fix typo in README` is a complete and excellent commit message. Save your words for the changes that will confuse somebody."
@@ -115,17 +115,53 @@
             "graph": {
               "caption": "Three weeks of work in a single commit — the one on the right. One commit is one handle: if any part of that work turns out to be wrong, your only undo button removes all of it.",
               "ops": [
-                { "op": "init" },
-                { "op": "write", "path": "README.md", "content": "# Corner Shop" },
-                { "op": "add" },
-                { "op": "commit", "message": "Initial commit" },
-                { "op": "write", "path": "shop.js", "content": "the shop" },
-                { "op": "write", "path": "cart.js", "content": "the cart" },
-                { "op": "write", "path": "checkout.js", "content": "checkout" },
-                { "op": "write", "path": "styles.css", "content": "styling" },
-                { "op": "write", "path": "README.md", "content": "# Corner Shop\ndocs" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add everything" }
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "# Corner Shop"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Initial commit"
+                },
+                {
+                  "op": "write",
+                  "path": "shop.js",
+                  "content": "the shop"
+                },
+                {
+                  "op": "write",
+                  "path": "cart.js",
+                  "content": "the cart"
+                },
+                {
+                  "op": "write",
+                  "path": "checkout.js",
+                  "content": "checkout"
+                },
+                {
+                  "op": "write",
+                  "path": "styles.css",
+                  "content": "styling"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "# Corner Shop\ndocs"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add everything"
+                }
               ]
             }
           },
@@ -136,28 +172,93 @@
             "graph": {
               "caption": "The same work, committed one piece at a time. Six handles instead of one: revert the commit that broke checkout and every other change survives. Hover a dot to read its message — this log is a changelog you never had to write.",
               "ops": [
-                { "op": "init" },
-                { "op": "write", "path": "README.md", "content": "# Corner Shop" },
-                { "op": "add" },
-                { "op": "commit", "message": "Initial commit" },
-                { "op": "write", "path": "shop.js", "content": "the shop" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add the product listing page" },
-                { "op": "write", "path": "cart.js", "content": "the cart" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add a cart that remembers its items" },
-                { "op": "write", "path": "cart.js", "content": "the cart\nwith a total" },
-                { "op": "add" },
-                { "op": "commit", "message": "Show a running total in the cart" },
-                { "op": "write", "path": "checkout.js", "content": "checkout" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add the checkout page" },
-                { "op": "write", "path": "styles.css", "content": "styling" },
-                { "op": "add" },
-                { "op": "commit", "message": "Style the shop for narrow screens" },
-                { "op": "write", "path": "README.md", "content": "# Corner Shop\ndocs" },
-                { "op": "add" },
-                { "op": "commit", "message": "Document how to run the shop locally" }
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "# Corner Shop"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Initial commit"
+                },
+                {
+                  "op": "write",
+                  "path": "shop.js",
+                  "content": "the shop"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add the product listing page"
+                },
+                {
+                  "op": "write",
+                  "path": "cart.js",
+                  "content": "the cart"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a cart that remembers its items"
+                },
+                {
+                  "op": "write",
+                  "path": "cart.js",
+                  "content": "the cart\nwith a total"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Show a running total in the cart"
+                },
+                {
+                  "op": "write",
+                  "path": "checkout.js",
+                  "content": "checkout"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add the checkout page"
+                },
+                {
+                  "op": "write",
+                  "path": "styles.css",
+                  "content": "styling"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Style the shop for narrow screens"
+                },
+                {
+                  "op": "write",
+                  "path": "README.md",
+                  "content": "# Corner Shop\ndocs"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Document how to run the shop locally"
+                }
               ]
             }
           },
@@ -204,18 +305,58 @@
         ],
         "exercise": {
           "setup": [
-            { "op": "init" },
-            { "op": "write", "path": "cart.js", "content": "function total(items) {\n  return items.length;\n}" },
-            { "op": "write", "path": "prices.js", "content": "function price(item) {\n  return item.cents / 100;\n}" },
-            { "op": "write", "path": "README.md", "content": "# Corner Shop\nA very small online shop." },
-            { "op": "add" },
-            { "op": "commit", "message": "Initial commit" },
-            { "op": "write", "path": "cart.js", "content": "function total(items) {\n  return items.reduce((sum, i) => sum + price(i), 0);\n}" },
-            { "op": "add" },
-            { "op": "commit", "message": "stuff" },
-            { "op": "write", "path": "prices.js", "content": "function price(item) {\n  return Math.round(item.cents) / 100;\n}" },
-            { "op": "write", "path": "README.md", "content": "# Corner Shop\nA very small online shop.\n\n## Checkout\nItems go in the cart, the cart shows a running total,\nand checkout charges that total." },
-            { "op": "write", "path": "CHANGELOG.md", "content": "## Unreleased\n- The cart now shows a running total." }
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "cart.js",
+              "content": "function total(items) {\n  return items.length;\n}"
+            },
+            {
+              "op": "write",
+              "path": "prices.js",
+              "content": "function price(item) {\n  return item.cents / 100;\n}"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Corner Shop\nA very small online shop."
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Initial commit"
+            },
+            {
+              "op": "write",
+              "path": "cart.js",
+              "content": "function total(items) {\n  return items.reduce((sum, i) => sum + price(i), 0);\n}"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "stuff"
+            },
+            {
+              "op": "write",
+              "path": "prices.js",
+              "content": "function price(item) {\n  return Math.round(item.cents) / 100;\n}"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Corner Shop\nA very small online shop.\n\n## Checkout\nItems go in the cart, the cart shows a running total,\nand checkout charges that total."
+            },
+            {
+              "op": "write",
+              "path": "CHANGELOG.md",
+              "content": "## Unreleased\n- The cart now shows a running total."
+            }
           ],
           "steps": [
             {
@@ -223,7 +364,12 @@
               "cmd": "git log --oneline",
               "hint": "Type: git log --oneline",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "log", "label": "Read the history" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "Read the history"
+                }
               ]
             },
             {
@@ -231,7 +377,12 @@
               "cmd": "git show HEAD",
               "hint": "Type: git show HEAD",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "show", "label": "Read what the commit actually did" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "show",
+                  "label": "Read what the commit actually did"
+                }
               ]
             },
             {
@@ -239,8 +390,16 @@
               "cmd": "git commit --amend -m \"Show a running total in the cart\"",
               "hint": "git commit --amend -m \"Show a running total in the cart\"",
               "expect": [
-                { "kind": "lastCommitMessage", "minLength": 12, "label": "The last commit says what it did" },
-                { "kind": "commitCount", "exact": 2, "label": "Still two commits — nothing new was added" }
+                {
+                  "kind": "lastCommitMessage",
+                  "minLength": 12,
+                  "label": "The last commit says what it did"
+                },
+                {
+                  "kind": "commitCount",
+                  "exact": 2,
+                  "label": "Still two commits — nothing new was added"
+                }
               ]
             },
             {
@@ -248,7 +407,12 @@
               "cmd": "git reflog",
               "hint": "Type: git reflog",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "reflog", "label": "See that amend replaced the commit" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "reflog",
+                  "label": "See that amend replaced the commit"
+                }
               ]
             },
             {
@@ -256,7 +420,12 @@
               "cmd": "git status",
               "hint": "Type: git status",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "status", "label": "Survey today's mess" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "status",
+                  "label": "Survey today's mess"
+                }
               ]
             },
             {
@@ -264,8 +433,20 @@
               "cmd": "git add prices.js\ngit commit -m \"Round prices to the nearest cent\"",
               "hint": "git add prices.js — then git commit -m \"Round prices to the nearest cent\"",
               "expect": [
-                { "kind": "commitCount", "exact": 3, "label": "A third commit exists" },
-                { "kind": "commitTouched", "ref": "HEAD", "paths": ["prices.js"], "exact": true, "label": "It contains only the rounding fix" }
+                {
+                  "kind": "commitCount",
+                  "exact": 3,
+                  "label": "A third commit exists"
+                },
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "prices.js"
+                  ],
+                  "exact": true,
+                  "label": "It contains only the rounding fix"
+                }
               ]
             },
             {
@@ -273,8 +454,20 @@
               "cmd": "git add README.md\ngit commit -m \"Document how checkout works\"",
               "hint": "git add README.md — then git commit -m \"Document how checkout works\"",
               "expect": [
-                { "kind": "commitCount", "exact": 4, "label": "A fourth commit exists" },
-                { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md"], "exact": true, "label": "It contains only the docs change" }
+                {
+                  "kind": "commitCount",
+                  "exact": 4,
+                  "label": "A fourth commit exists"
+                },
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "README.md"
+                  ],
+                  "exact": true,
+                  "label": "It contains only the docs change"
+                }
               ]
             },
             {
@@ -282,10 +475,32 @@
               "cmd": "git add CHANGELOG.md\ngit commit --amend --no-edit",
               "hint": "git add CHANGELOG.md — then git commit --amend --no-edit",
               "expect": [
-                { "kind": "commitCount", "exact": 4, "label": "Still four commits — no junk commit added" },
-                { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md", "CHANGELOG.md"], "exact": true, "label": "The docs commit now carries both files" },
-                { "kind": "lastCommitMessage", "contains": "checkout", "ci": true, "label": "The message survived untouched" },
-                { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Nothing left behind" }
+                {
+                  "kind": "commitCount",
+                  "exact": 4,
+                  "label": "Still four commits — no junk commit added"
+                },
+                {
+                  "kind": "commitTouched",
+                  "ref": "HEAD",
+                  "paths": [
+                    "README.md",
+                    "CHANGELOG.md"
+                  ],
+                  "exact": true,
+                  "label": "The docs commit now carries both files"
+                },
+                {
+                  "kind": "lastCommitMessage",
+                  "contains": "checkout",
+                  "ci": true,
+                  "label": "The message survived untouched"
+                },
+                {
+                  "kind": "cleanWorkingTree",
+                  "allowUntracked": false,
+                  "label": "Nothing left behind"
+                }
               ]
             }
           ]
@@ -312,19 +527,66 @@
         ],
         "exercise": {
           "setup": [
-            { "op": "init" },
-            { "op": "write", "path": "app.js", "content": "const users = [];\n\nfunction login(name, password) {\n  return users.find((u) => u.name === name);\n}" },
-            { "op": "write", "path": "README.md", "content": "# Bookclub\nA place to argue about books." },
-            { "op": "write", "path": "docs/setup.md", "content": "# Setup\n1. Download the code.\n2. Open index.html." },
-            { "op": "add" },
-            { "op": "commit", "message": "Initial commit" },
-            { "op": "write", "path": "login.html", "content": "<form>\n  <input name=\"name\">\n  <input name=\"password\" type=\"password\">\n</form>" },
-            { "op": "add", "paths": ["login.html"] },
-            { "op": "commit", "message": "Add a login form" },
-            { "op": "write", "path": "login.css", "content": "form { max-width: 20rem; margin: 4rem auto; }" },
-            { "op": "write", "path": "app.js", "content": "const users = [];\n\nfunction login(name, password) {\n  if (!password) return null;\n  return users.find((u) => u.name === name);\n}" },
-            { "op": "write", "path": "README.md", "content": "# Bookclub\nA place to argue about books.\n\nMembers sign in on the login page." },
-            { "op": "write", "path": "docs/setup.md", "content": "# Setup\n1. Download the code.\n2. Open index.html.\n3. Create an account on login.html." }
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "app.js",
+              "content": "const users = [];\n\nfunction login(name, password) {\n  return users.find((u) => u.name === name);\n}"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Bookclub\nA place to argue about books."
+            },
+            {
+              "op": "write",
+              "path": "docs/setup.md",
+              "content": "# Setup\n1. Download the code.\n2. Open index.html."
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Initial commit"
+            },
+            {
+              "op": "write",
+              "path": "login.html",
+              "content": "<form>\n  <input name=\"name\">\n  <input name=\"password\" type=\"password\">\n</form>"
+            },
+            {
+              "op": "add",
+              "paths": [
+                "login.html"
+              ]
+            },
+            {
+              "op": "commit",
+              "message": "Add a login form"
+            },
+            {
+              "op": "write",
+              "path": "login.css",
+              "content": "form { max-width: 20rem; margin: 4rem auto; }"
+            },
+            {
+              "op": "write",
+              "path": "app.js",
+              "content": "const users = [];\n\nfunction login(name, password) {\n  if (!password) return null;\n  return users.find((u) => u.name === name);\n}"
+            },
+            {
+              "op": "write",
+              "path": "README.md",
+              "content": "# Bookclub\nA place to argue about books.\n\nMembers sign in on the login page."
+            },
+            {
+              "op": "write",
+              "path": "docs/setup.md",
+              "content": "# Setup\n1. Download the code.\n2. Open index.html.\n3. Create an account on login.html."
+            }
           ],
           "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, the bug fix in a commit of its own, and both documentation files together in one final commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
           "hints": [
@@ -334,19 +596,59 @@
             "Committed too soon and buried the login commit? You are not stuck. `git reset HEAD~1` from Module 9 lifts the newest commit off the branch and leaves its changes in your working directory, **unstaged** — so your next `git add` picks up only the file you name, and nothing can sneak into the amend. Run it once for each commit you need to lift, then start again from the amend."
           ],
           "expect": [
-            { "kind": "commitCount", "exact": 4, "label": "Exactly four commits — no stray \"forgot a file\" commit" },
-            { "kind": "commitTouched", "ref": "HEAD~2", "paths": ["login.html", "login.css"], "exact": true, "label": "The login commit now carries both of its files" },
-            { "kind": "commitTouched", "ref": "HEAD~1", "paths": ["app.js"], "exact": true, "label": "The bug fix has a commit to itself" },
-            { "kind": "commitTouched", "ref": "HEAD", "paths": ["README.md", "docs/setup.md"], "exact": true, "label": "One documentation commit covering both docs files" },
-            { "kind": "lastCommitMessage", "minLength": 10, "label": "The last commit's message is a real subject line, not \"docs\" or \"wip\"" },
-            { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Nothing modified, nothing untracked" }
+            {
+              "kind": "commitCount",
+              "exact": 4,
+              "label": "Exactly four commits — no stray \"forgot a file\" commit"
+            },
+            {
+              "kind": "commitTouched",
+              "ref": "HEAD~2",
+              "paths": [
+                "login.html",
+                "login.css"
+              ],
+              "exact": true,
+              "label": "The login commit now carries both of its files"
+            },
+            {
+              "kind": "commitTouched",
+              "ref": "HEAD~1",
+              "paths": [
+                "app.js"
+              ],
+              "exact": true,
+              "label": "The bug fix has a commit to itself"
+            },
+            {
+              "kind": "commitTouched",
+              "ref": "HEAD",
+              "paths": [
+                "README.md",
+                "docs/setup.md"
+              ],
+              "exact": true,
+              "label": "One documentation commit covering both docs files"
+            },
+            {
+              "kind": "lastCommitMessage",
+              "minLength": 10,
+              "label": "The last commit's message is a real subject line, not \"docs\" or \"wip\""
+            },
+            {
+              "kind": "cleanWorkingTree",
+              "allowUntracked": false,
+              "label": "Nothing modified, nothing untracked"
+            }
           ]
         }
       }
     ],
     "recap": {
       "body": [
-        { "h": "Module 11 recap" },
+        {
+          "h": "Module 11 recap"
+        },
         {
           "list": [
             "A commit message is a letter to a stranger who has forgotten everything — and that stranger is usually **you**, two years from now.",
@@ -363,30 +665,92 @@
           "graph": {
             "caption": "What a well-kept history looks like: small commits on a branch, merged back into main, each dot one decision you could point at, explain, or undo on its own. Hover any dot to read its message.",
             "ops": [
-              { "op": "init" },
-              { "op": "write", "path": "README.md", "content": "# Bookclub" },
-              { "op": "add" },
-              { "op": "commit", "message": "Initial commit" },
-              { "op": "write", "path": "app.js", "content": "the app" },
-              { "op": "add" },
-              { "op": "commit", "message": "Add the book list page" },
-              { "op": "switchCreate", "name": "login" },
-              { "op": "write", "path": "login.html", "content": "form" },
-              { "op": "write", "path": "login.css", "content": "styles" },
-              { "op": "add" },
-              { "op": "commit", "message": "Add a login form" },
-              { "op": "write", "path": "app.js", "content": "the app\nwith sessions" },
-              { "op": "add" },
-              { "op": "commit", "message": "Remember who is signed in" },
-              { "op": "switch", "name": "main" },
-              { "op": "write", "path": "README.md", "content": "# Bookclub\nHow to run it locally." },
-              { "op": "add" },
-              { "op": "commit", "message": "Document how to run it locally" },
-              { "op": "merge", "name": "login" }
+              {
+                "op": "init"
+              },
+              {
+                "op": "write",
+                "path": "README.md",
+                "content": "# Bookclub"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Initial commit"
+              },
+              {
+                "op": "write",
+                "path": "app.js",
+                "content": "the app"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add the book list page"
+              },
+              {
+                "op": "switchCreate",
+                "name": "login"
+              },
+              {
+                "op": "write",
+                "path": "login.html",
+                "content": "form"
+              },
+              {
+                "op": "write",
+                "path": "login.css",
+                "content": "styles"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add a login form"
+              },
+              {
+                "op": "write",
+                "path": "app.js",
+                "content": "the app\nwith sessions"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Remember who is signed in"
+              },
+              {
+                "op": "switch",
+                "name": "main"
+              },
+              {
+                "op": "write",
+                "path": "README.md",
+                "content": "# Bookclub\nHow to run it locally."
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Document how to run it locally"
+              },
+              {
+                "op": "merge",
+                "name": "login"
+              }
             ]
           }
         },
-        { "h": "And that's the course" },
+        {
+          "h": "And that's the course"
+        },
         {
           "p": "Eleven modules ago, a folder was just a folder and the only way to keep an old version of anything was to name a file `final_FINAL_v2`. Look at what you can do now."
         },
@@ -403,7 +767,9 @@
         {
           "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. A pull request is a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
         },
-        { "h": "Where to go next" },
+        {
+          "h": "Where to go next"
+        },
         {
           "list": [
             "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons.",

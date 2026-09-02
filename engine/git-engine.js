@@ -154,6 +154,14 @@ function tokenize(line) {
 
 function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
 
+/** A commit's subject line — the first line, which is all most output shows. */
+function subject(message) { return String(message).split('\n')[0]; }
+
+/** Indent a commit message the way `git log` does: four spaces on every line. */
+function indentMessage(message) {
+  return String(message).split('\n').map((l) => '    ' + l).join('\n');
+}
+
 /* --------------------------------- engine -------------------------------- */
 
 export class GitEngine {
@@ -678,16 +686,19 @@ export class GitEngine {
 
   cmdCommit(args) {
     // parse -m "msg" and -a / -am
-    let message = null;
+    // Real git joins repeated -m flags with a blank line between them, which is
+    // how you write a subject and a body without opening an editor.
+    const parts = [];
     let stageTracked = false;
     let amend = false;
     for (let i = 0; i < args.length; i++) {
       const a = args[i];
-      if (a === '-m' || a === '--message') { message = args[i + 1]; i++; }
-      else if (a === '-am' || a === '-ma') { stageTracked = true; message = args[i + 1]; i++; }
+      if (a === '-m' || a === '--message') { if (args[i + 1] != null) parts.push(args[i + 1]); i++; }
+      else if (a === '-am' || a === '-ma') { stageTracked = true; if (args[i + 1] != null) parts.push(args[i + 1]); i++; }
       else if (a === '-a' || a === '--all') stageTracked = true;
       else if (a === '--amend') amend = true;
     }
+    const message = parts.length ? parts.join('\n\n') : null;
     if (stageTracked) {
       for (const p of [...this.index.keys()]) {
         if (this.fs.has(p)) this.index.set(p, this.fs.get(p));
@@ -721,7 +732,7 @@ export class GitEngine {
       if (br) this.branches.set(br, c.id); else this.HEAD = { type: 'commit', id: c.id };
       this.mergeState = null;
       this.logReflog(c.id, `commit (merge): ${msg}`);
-      return { output: `[${br || 'detached HEAD'} ${short(c.id)}] ${msg}`, error: false };
+      return { output: `[${br || 'detached HEAD'} ${short(c.id)}] ${subject(msg)}`, error: false };
     }
 
     if (message == null) {
@@ -768,7 +779,7 @@ export class GitEngine {
     const stat = this.statBlock(parentTree, newTree);
     this.logReflog(c.id, `commit${parents.length ? '' : ' (initial)'}: ${message}`);
     return {
-      output: `[${where}${rootTag} ${short(c.id)}] ${message}\n${stat.lines.join('\n')}`,
+      output: `[${where}${rootTag} ${short(c.id)}] ${subject(message)}\n${stat.lines.join('\n')}`,
       error: false,
     };
   }
@@ -798,7 +809,7 @@ export class GitEngine {
     const stat = this.statBlock(parentTree, newTree);
     this.logReflog(c.id, `commit (amend): ${msg}`);
     return {
-      output: `[${br || 'detached HEAD'}${rootTag} ${short(c.id)}] ${msg}\n${stat.lines.join('\n')}`,
+      output: `[${br || 'detached HEAD'}${rootTag} ${short(c.id)}] ${subject(msg)}\n${stat.lines.join('\n')}`,
       error: false,
     };
   }
@@ -854,12 +865,12 @@ export class GitEngine {
     for (const c of list) {
       const deco = this.decorations(c.id);
       if (oneline) {
-        lines.push(`${graphMode ? '* ' : ''}${short(c.id)}${deco} ${c.message}`);
+        lines.push(`${graphMode ? '* ' : ''}${short(c.id)}${deco} ${subject(c.message)}`);
       } else {
         const merge = c.parents.length > 1 ? `Merge: ${c.parents.map(short).join(' ')}\n` : '';
         lines.push(
           `${graphMode ? '* ' : ''}commit ${c.id}${deco}\n${merge}` +
-          `Author: ${AUTHOR}\nDate:   ${gitDate(c.seq)}\n\n    ${c.message}\n`
+          `Author: ${AUTHOR}\nDate:   ${gitDate(c.seq)}\n\n${indentMessage(c.message)}\n`
         );
       }
     }
@@ -960,7 +971,7 @@ export class GitEngine {
     const parentTree = c.parents.length ? this.commits.get(c.parents[0]).tree : {};
     const lines = [`commit ${c.id}${this.decorations(c.id)}`];
     if (c.parents.length > 1) lines.push(`Merge: ${c.parents.map(short).join(' ')}`);
-    lines.push(`Author: ${AUTHOR}`, `Date:   ${gitDate(c.seq)}`, '', `    ${c.message}`, '');
+    lines.push(`Author: ${AUTHOR}`, `Date:   ${gitDate(c.seq)}`, '', indentMessage(c.message), '');
     lines.push(...this.treeDiff(parentTree, c.tree));
     return { output: lines.join('\n'), error: false };
   }
@@ -1169,7 +1180,7 @@ do so (now or later) by using -c with the switch command. Example:
 
   git switch -c <new-branch-name>
 
-HEAD is now at ${short(id)} ${commit.message}`,
+HEAD is now at ${short(id)} ${subject(commit.message)}`,
       error: false,
     };
   }
@@ -1297,14 +1308,16 @@ HEAD is now at ${short(id)} ${commit.message}`,
       this.index = new Map(Object.entries(commit.tree));
     }
     if (mode === '--hard') {
-      // replace tracked working files with target tree; keep untracked
-      const target = commit.tree;
+      // replace tracked working files with the target tree; keep untracked.
+      // NB: do not call this `target` — that name holds the ref string the
+      // reflog entry is built from.
+      const targetTree = commit.tree;
       for (const p of [...this.fs.keys()]) {
-        if (trackedBefore.has(p) || p in target) this.fs.delete(p);
+        if (trackedBefore.has(p) || p in targetTree) this.fs.delete(p);
       }
-      for (const [p, content] of Object.entries(target)) this.fs.set(p, content);
+      for (const [p, content] of Object.entries(targetTree)) this.fs.set(p, content);
       this.logReflog(id, `reset: moving to ${target}`);
-      return { output: `HEAD is now at ${short(id)} ${commit.message}`, error: false };
+      return { output: `HEAD is now at ${short(id)} ${subject(commit.message)}`, error: false };
     }
     this.logReflog(id, `reset: moving to ${target}`);
     if (mode === '--mixed') {
@@ -1613,7 +1626,7 @@ hint: 'git pull' before pushing again.`,
     const branch = this.currentBranch() || `(no branch)`;
     const desc = label
       ? `On ${branch}: ${label}`
-      : `WIP on ${branch}: ${short(headId)} ${this.commits.get(headId).message}`;
+      : `WIP on ${branch}: ${short(headId)} ${subject(this.commits.get(headId).message)}`;
     this.stash.unshift({
       id: makeSha(`stash|${++this.seq}|${desc}`),
       fs: savedFs,
