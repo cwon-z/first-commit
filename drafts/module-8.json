@@ -481,7 +481,8 @@
             "That file isn't committed yet. Does it belong to `main` at all? Run `git status` right after you create the branch and see where it went.",
             "Your local main is behind origin — until you fix that, anything you push to main will be rejected. `git switch main`, then `git pull`.",
             "Sync before you would ask for review: back on `trip-reports`, `git merge main` folds Priya's gallery into your branch, so the branch shows your change against today's main.",
-            "Landing it: `git push -u origin trip-reports`, then on `main` run `git merge trip-reports` and `git push`, and finish with `git branch -d trip-reports`."
+            "Landing it, in this order: `git push -u origin trip-reports` **first** — that push is what a pull request is opened against — then on `main` run `git merge trip-reports` and `git push`, and finish with `git branch -d trip-reports`.",
+            "Merged and deleted the branch before ever pushing it? Then origin never got a copy, and the branch is gone locally so you cannot push it now. Re-create it where main stands, push it, and delete it again: `git switch -c trip-reports`, `git push -u origin trip-reports`, `git switch main`, `git branch -d trip-reports`."
           ],
           "expect": [
             {
@@ -500,7 +501,7 @@
               "kind": "branchesMerged",
               "from": "origin/trip-reports",
               "into": "main",
-              "label": "The branch you pushed to origin is merged into main"
+              "label": "`trip-reports` reached origin, and origin's copy is merged into main"
             },
             {
               "kind": "remoteUpToDate",

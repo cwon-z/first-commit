@@ -106,14 +106,37 @@
             "graph": {
               "caption": "Straight after git push: main and origin/main sit on the same commit. Your record of the remote matches reality.",
               "ops": [
-                { "op": "init" },
-                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
-                { "op": "add" },
-                { "op": "commit", "message": "Start the trip plan" },
-                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add a packing list" },
-                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" }
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "trip.md",
+                  "content": "# Iceland trip"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Start the trip plan"
+                },
+                {
+                  "op": "write",
+                  "path": "packing.md",
+                  "content": "- passport\n- thick socks"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a packing list"
+                },
+                {
+                  "op": "remote",
+                  "url": "https://github.com/you/iceland-trip.git"
+                }
               ]
             }
           },
@@ -124,15 +147,44 @@
             "graph": {
               "caption": "The remote now has a third commit — the bare dot on the right, with no label of yours pointing at it. origin/main still sits one commit back, because nobody has told your repo anything.",
               "ops": [
-                { "op": "init" },
-                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
-                { "op": "add" },
-                { "op": "commit", "message": "Start the trip plan" },
-                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add a packing list" },
-                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
-                { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" }
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "trip.md",
+                  "content": "# Iceland trip"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Start the trip plan"
+                },
+                {
+                  "op": "write",
+                  "path": "packing.md",
+                  "content": "- passport\n- thick socks"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a packing list"
+                },
+                {
+                  "op": "remote",
+                  "url": "https://github.com/you/iceland-trip.git"
+                },
+                {
+                  "op": "remoteCommit",
+                  "branch": "main",
+                  "path": "budget.md",
+                  "content": "flights 480\nhostel 210",
+                  "message": "Add a budget"
+                }
               ]
             }
           },
@@ -167,7 +219,7 @@
             "tip": "Nervous is good, and you are allowed to look before you leap. Fetch, then read: `git show origin/main` prints the newest incoming commit, message and diff, and that really is what is about to arrive. You can also run `git diff main origin/main` — but read that one carefully. It compares two snapshots in both directions, so Sam's new work shows as `+` lines while your own commits, which the remote has never seen, show as `-` lines. Nothing is about to be deleted. You are looking at the difference between two photographs, not at a plan of action."
           },
           {
-            "warn": "`git pull` will not run over uncommitted edits. Real Git stops when the incoming merge would touch a file you have edited, and names those files: *\"Your local changes to the following files would be overwritten by merge.\"* This sandbox is stricter — it stops while **anything** at all is uncommitted, so it may name a file the merge would never have touched. Either way it is protecting unsaved work rather than being broken, and either way the cure is the same: commit your changes (or stash them — Module 9) and pull again."
+            "warn": "`git pull` will not run over uncommitted edits. Real Git stops when the incoming merge would touch a file you have edited, and names those files: *\"Your local changes to the following files would be overwritten by merge.\"* This sandbox is stricter — it stops while **any tracked file** has uncommitted changes, so it may name a file the merge would never have touched. (Brand-new untracked files are fine; Git is not watching them yet.) Either way it is protecting unsaved work rather than being broken, and either way the cure is the same: commit your changes (or stash them — Module 9) and pull again."
           },
           {
             "h": "! [rejected] — the message everybody meets on day one"
@@ -179,18 +231,56 @@
             "graph": {
               "caption": "One fork, three names. Your main is on 'Pack for the rain'. The unlabelled dot is Sam's commit, which the server has. And origin/main — your memory of the server — is still back on 'Add a packing list', where you last looked.",
               "ops": [
-                { "op": "init" },
-                { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
-                { "op": "add" },
-                { "op": "commit", "message": "Start the trip plan" },
-                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
-                { "op": "add" },
-                { "op": "commit", "message": "Add a packing list" },
-                { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
-                { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" },
-                { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks\n- waterproof trousers" },
-                { "op": "add" },
-                { "op": "commit", "message": "Pack for the rain" }
+                {
+                  "op": "init"
+                },
+                {
+                  "op": "write",
+                  "path": "trip.md",
+                  "content": "# Iceland trip"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Start the trip plan"
+                },
+                {
+                  "op": "write",
+                  "path": "packing.md",
+                  "content": "- passport\n- thick socks"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Add a packing list"
+                },
+                {
+                  "op": "remote",
+                  "url": "https://github.com/you/iceland-trip.git"
+                },
+                {
+                  "op": "remoteCommit",
+                  "branch": "main",
+                  "path": "budget.md",
+                  "content": "flights 480\nhostel 210",
+                  "message": "Add a budget"
+                },
+                {
+                  "op": "write",
+                  "path": "packing.md",
+                  "content": "- passport\n- thick socks\n- waterproof trousers"
+                },
+                {
+                  "op": "add"
+                },
+                {
+                  "op": "commit",
+                  "message": "Pack for the rain"
+                }
               ]
             }
           },
@@ -241,15 +331,44 @@
         ],
         "exercise": {
           "setup": [
-            { "op": "init" },
-            { "op": "write", "path": "trip.md", "content": "# Iceland trip\n\n## Flights\nKEF, 14 March." },
-            { "op": "add" },
-            { "op": "commit", "message": "Start the trip plan" },
-            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
-            { "op": "add" },
-            { "op": "commit", "message": "Add a packing list" },
-            { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
-            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" }
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "trip.md",
+              "content": "# Iceland trip\n\n## Flights\nKEF, 14 March."
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Start the trip plan"
+            },
+            {
+              "op": "write",
+              "path": "packing.md",
+              "content": "- passport\n- thick socks"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add a packing list"
+            },
+            {
+              "op": "remote",
+              "url": "https://github.com/you/iceland-trip.git"
+            },
+            {
+              "op": "remoteCommit",
+              "branch": "main",
+              "path": "budget.md",
+              "content": "flights 480\nhostel 210",
+              "message": "Add a budget"
+            }
           ],
           "steps": [
             {
@@ -257,7 +376,12 @@
               "cmd": "git remote -v",
               "hint": "Type: git remote -v",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "remote", "label": "You listed the remotes" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "remote",
+                  "label": "You listed the remotes"
+                }
               ]
             },
             {
@@ -265,7 +389,12 @@
               "cmd": "git log --oneline",
               "hint": "Type: git log --oneline",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "log", "label": "You read the history" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "You read the history"
+                }
               ]
             },
             {
@@ -273,8 +402,15 @@
               "cmd": "echo \"- waterproof trousers\" >> packing.md\ngit commit -am \"Pack for the rain\"",
               "hint": "Two commands: echo \"- waterproof trousers\" >> packing.md — then git commit -am \"Pack for the rain\"",
               "expect": [
-                { "kind": "commitCount", "min": 3, "label": "Your third commit exists" },
-                { "kind": "cleanWorkingTree", "label": "Nothing left uncommitted" }
+                {
+                  "kind": "commitCount",
+                  "min": 3,
+                  "label": "Your third commit exists"
+                },
+                {
+                  "kind": "cleanWorkingTree",
+                  "label": "Nothing left uncommitted"
+                }
               ]
             },
             {
@@ -282,7 +418,12 @@
               "cmd": "git fetch",
               "hint": "Type: git fetch",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "fetch", "label": "You fetched from origin" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "fetch",
+                  "label": "You fetched from origin"
+                }
               ]
             },
             {
@@ -290,7 +431,12 @@
               "cmd": "git show origin/main",
               "hint": "Type: git show origin/main",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "show", "label": "You inspected the incoming commit" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "show",
+                  "label": "You inspected the incoming commit"
+                }
               ]
             },
             {
@@ -298,9 +444,20 @@
               "cmd": "git pull",
               "hint": "Type: git pull",
               "expect": [
-                { "kind": "pulledRemote", "branch": "main", "label": "Sam's work is part of your main now" },
-                { "kind": "mergeCommitAt", "label": "A merge commit joins the two histories" },
-                { "kind": "fileExists", "path": "budget.md", "label": "budget.md has arrived in your folder" }
+                {
+                  "kind": "pulledRemote",
+                  "branch": "main",
+                  "label": "Sam's work is part of your main now"
+                },
+                {
+                  "kind": "mergeCommitAt",
+                  "label": "A merge commit joins the two histories"
+                },
+                {
+                  "kind": "fileExists",
+                  "path": "budget.md",
+                  "label": "budget.md has arrived in your folder"
+                }
               ]
             },
             {
@@ -308,7 +465,12 @@
               "cmd": "git log --oneline",
               "hint": "Type: git log --oneline",
               "expect": [
-                { "kind": "commandRan", "command": "git", "sub": "log", "label": "You saw the merge in the history" }
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": "log",
+                  "label": "You saw the merge in the history"
+                }
               ]
             },
             {
@@ -316,7 +478,11 @@
               "cmd": "git push",
               "hint": "Type: git push",
               "expect": [
-                { "kind": "remoteUpToDate", "branch": "main", "label": "origin's main matches your main" }
+                {
+                  "kind": "remoteUpToDate",
+                  "branch": "main",
+                  "label": "origin's main matches your main"
+                }
               ]
             }
           ]
@@ -336,40 +502,112 @@
         ],
         "exercise": {
           "setup": [
-            { "op": "init" },
-            { "op": "write", "path": "trip.md", "content": "# Iceland trip\n\n## Flights\nKEF, 14 March." },
-            { "op": "add" },
-            { "op": "commit", "message": "Start the trip plan" },
-            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks" },
-            { "op": "add" },
-            { "op": "commit", "message": "Add a packing list" },
-            { "op": "remote", "url": "https://github.com/you/iceland-trip.git" },
-            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210", "message": "Add a budget" },
-            { "op": "remoteCommit", "branch": "main", "path": "budget.md", "content": "flights 480\nhostel 210\nfood 150", "message": "Budget: allow for food" },
-            { "op": "write", "path": "packing.md", "content": "- passport\n- thick socks\n- swimsuit (for the lagoon)" },
-            { "op": "write", "path": "gear.md", "content": "- crampons\n- head torch" }
+            {
+              "op": "init"
+            },
+            {
+              "op": "write",
+              "path": "trip.md",
+              "content": "# Iceland trip\n\n## Flights\nKEF, 14 March."
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Start the trip plan"
+            },
+            {
+              "op": "write",
+              "path": "packing.md",
+              "content": "- passport\n- thick socks"
+            },
+            {
+              "op": "add"
+            },
+            {
+              "op": "commit",
+              "message": "Add a packing list"
+            },
+            {
+              "op": "remote",
+              "url": "https://github.com/you/iceland-trip.git"
+            },
+            {
+              "op": "remoteCommit",
+              "branch": "main",
+              "path": "budget.md",
+              "content": "flights 480\nhostel 210",
+              "message": "Add a budget"
+            },
+            {
+              "op": "remoteCommit",
+              "branch": "main",
+              "path": "budget.md",
+              "content": "flights 480\nhostel 210\nfood 150",
+              "message": "Budget: allow for food"
+            },
+            {
+              "op": "write",
+              "path": "packing.md",
+              "content": "- passport\n- thick socks\n- swimsuit (for the lagoon)"
+            },
+            {
+              "op": "write",
+              "path": "gear.md",
+              "content": "- crampons\n- head torch"
+            }
           ],
           "goal": "Get your uncommitted work — the new swimsuit line in `packing.md`, and the brand-new file `gear.md` — all the way onto the remote, while keeping both of Sam's commits. Finish with: `origin`'s `main` and your `main` on the same commit; that commit holding Sam's `budget.md` (including his `food 150` line) as well as both of your changes; and a completely clean working tree — nothing modified, nothing untracked.",
           "hints": [
             "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours.",
-            "In this sandbox `git pull` stops while anything at all is uncommitted, so commit your work first: `git add .` then `git commit -m \"...\"`. (Remember `gear.md` is brand new — `git commit -am` would walk right past it.)",
+            "In this sandbox `git pull` stops while any tracked file has uncommitted changes, so commit your work first: `git add .` then `git commit -m \"...\"`. (Remember `gear.md` is brand new — `git commit -am` would walk right past it.)",
             "Now try `git push`, and read the rejection carefully. The hint at the bottom of it names the command that fixes this.",
             "The full loop: commit your work, `git pull` to merge Sam's commits into yours, then `git push` to send the combined history back."
           ],
           "expect": [
-            { "kind": "remoteUpToDate", "branch": "main", "label": "origin's main and your main are on the same commit" },
-            { "kind": "fileCommitted", "path": "gear.md", "contains": "crampons", "label": "Your new gear.md is committed" },
-            { "kind": "fileCommitted", "path": "packing.md", "contains": "swimsuit", "label": "Your packing list line is committed" },
-            { "kind": "pulledRemote", "branch": "main", "label": "Sam's two commits are part of your history now" },
-            { "kind": "fileCommitted", "path": "budget.md", "contains": "food 150", "label": "Sam's budget.md, food line and all, is in your latest commit" },
-            { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "Working tree completely clean" }
+            {
+              "kind": "remoteUpToDate",
+              "branch": "main",
+              "label": "origin's main and your main are on the same commit"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "gear.md",
+              "contains": "crampons",
+              "label": "Your new gear.md is committed"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "packing.md",
+              "contains": "swimsuit",
+              "label": "Your packing list line is committed"
+            },
+            {
+              "kind": "pulledRemote",
+              "branch": "main",
+              "label": "Sam's two commits are part of your history now"
+            },
+            {
+              "kind": "fileCommitted",
+              "path": "budget.md",
+              "contains": "food 150",
+              "label": "Sam's budget.md, food line and all, is in your latest commit"
+            },
+            {
+              "kind": "cleanWorkingTree",
+              "allowUntracked": false,
+              "label": "Working tree completely clean"
+            }
           ]
         }
       }
     ],
     "recap": {
       "body": [
-        { "h": "Module 7 recap" },
+        {
+          "h": "Module 7 recap"
+        },
         {
           "list": [
             "A **remote** is a whole other copy of the repository, somewhere else. `origin` is the nickname you gave its URL, nothing more.",
@@ -387,17 +625,49 @@
           "graph": {
             "caption": "The state worth ending every working session in: main and origin/main on the same commit, everything committed and sent.",
             "ops": [
-              { "op": "init" },
-              { "op": "write", "path": "trip.md", "content": "# Iceland trip" },
-              { "op": "add" },
-              { "op": "commit", "message": "Start the trip plan" },
-              { "op": "write", "path": "packing.md", "content": "- passport" },
-              { "op": "add" },
-              { "op": "commit", "message": "Add a packing list" },
-              { "op": "write", "path": "budget.md", "content": "flights 480" },
-              { "op": "add" },
-              { "op": "commit", "message": "Add a budget" },
-              { "op": "remote", "url": "https://github.com/you/iceland-trip.git" }
+              {
+                "op": "init"
+              },
+              {
+                "op": "write",
+                "path": "trip.md",
+                "content": "# Iceland trip"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Start the trip plan"
+              },
+              {
+                "op": "write",
+                "path": "packing.md",
+                "content": "- passport"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add a packing list"
+              },
+              {
+                "op": "write",
+                "path": "budget.md",
+                "content": "flights 480"
+              },
+              {
+                "op": "add"
+              },
+              {
+                "op": "commit",
+                "message": "Add a budget"
+              },
+              {
+                "op": "remote",
+                "url": "https://github.com/you/iceland-trip.git"
+              }
             ]
           }
         },

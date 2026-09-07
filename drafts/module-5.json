@@ -24,7 +24,7 @@
             "p": "Every commit has a unique ID: a 40-character string like `a4fd5c7e9b3f...`. A branch is **a name written next to one of those IDs**. That is the entire thing. It is a scrap of text on disk. `main` is not your project — `main` is a name pointing at one commit."
           },
           {
-            "p": "You'll rarely see all forty characters. Git prints the first seven — `b9e46c0` — because that is already enough to pick one commit out of thousands. That short form is what appears under the dots in the graph panel and at the start of every log line. Same ID, abbreviated."
+            "p": "You'll rarely see all forty characters. Git prints the first seven — `b9e46c0` — because that is already enough to pick one commit out of thousands. That short form is what appears under the dots in the graph panel, and in the one-line log view you'll meet in a moment. Plain `git log` still prints all forty. Same ID, abbreviated."
           },
           {
             "analogy": "Remember the photo album from Module 1. A branch is a **sticky note** stuck to one photo with a name written on it. `main` is a sticky note reading \"main\". Creating a new branch is writing a second sticky note and putting it on the *same photo*. You have not copied a single photograph. You have spent one sticky note."

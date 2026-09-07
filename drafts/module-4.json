@@ -18,7 +18,7 @@
             "h": "Status is a report with three shelves"
           },
           {
-            "p": "`git status` sorts the interesting files in your project into three sections. Those sections are the three areas from Module 3, printed top to bottom."
+            "p": "`git status` sorts the interesting files in your project into three sections, ordered by how close they are to being in your next commit. The top two are areas you already know from Module 3 — the staging area first, then the working directory. The third is for files Git has never been asked to record at all."
           },
           {
             "analogy": "Picture packing for a trip. **Changes to be committed** are the clothes already zipped into the suitcase. **Changes not staged for commit** are the clothes lying on the bed — chosen, but not packed. **Untracked files** are still in the wardrobe: Git has never packed them, doesn't know you want them, and will leave without them."

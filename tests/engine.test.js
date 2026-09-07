@@ -949,6 +949,51 @@ function includes(haystack, needle, name) {
   ok(!s.run('git stash list').output.includes('new body'), 'stash list shows no body text');
 }
 
+/* ---- 25. revert must never silently discard later work ---- */
+{
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "base" > r.txt'); e.run('git add .'); e.run('git commit -m "base"');
+  e.run('echo "base\nsugar" > r.txt'); e.run('git add .'); e.run('git commit -m "add sugar"');
+  e.run('echo "base\nsugar\nvanilla" > r.txt'); e.run('git add .'); e.run('git commit -m "add vanilla"');
+
+  // reverting the sugar commit would have to throw the vanilla line away
+  const before = e.fs.get('r.txt');
+  const r = e.run('git revert HEAD~1');
+  ok(r.error, 'revert refuses when the file changed after the target commit');
+  includes(r.output, 'could not revert', 'revert reports it could not proceed');
+  includes(r.output, 'CONFLICT (content): Merge conflict in r.txt', 'revert names the conflicting file');
+  ok(e.fs.get('r.txt') === before, 'the working file is untouched by the refused revert');
+  ok(e.headCommit().message === 'add vanilla', 'no revert commit was created');
+
+  // reverting the newest commit is unambiguous and still works
+  const r2 = e.run('git revert HEAD');
+  ok(!r2.error, 'reverting the tip succeeds');
+  ok(e.fs.get('r.txt') === 'base\nsugar\n', 'the tip revert restores the previous content');
+  includes(r2.output, 'Revert "add vanilla"', 'the revert commit names what it undid');
+  ok(e.ancestorsOf(e.branches.get('main')).size === 4, 'revert adds a commit rather than removing one');
+}
+{
+  // a commit that only ADDED a file, with nothing touching it since
+  const e = new GitEngine();
+  e.run('git init'); e.run('touch keep.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('echo "oops" > oops.txt'); e.run('git add .'); e.run('git commit -m "add oops"');
+  const r = e.run('git revert HEAD');
+  ok(!r.error, 'reverting a pure addition succeeds');
+  ok(!e.fs.has('oops.txt'), 'the added file is removed again');
+  ok(e.fs.has('keep.txt'), 'unrelated files are untouched');
+
+  // an unrelated later commit must not block an otherwise-clean revert
+  const u = new GitEngine();
+  u.run('git init'); u.run('echo a > a.txt'); u.run('git add .'); u.run('git commit -m one');
+  u.run('echo b > b.txt'); u.run('git add .'); u.run('git commit -m "add b"');
+  u.run('echo c > c.txt'); u.run('git add .'); u.run('git commit -m "add c"');
+  const r2 = u.run('git revert HEAD~1');
+  ok(!r2.error, 'a later commit touching OTHER files does not block the revert');
+  ok(!u.fs.has('b.txt'), 'b.txt was reverted away');
+  ok(u.fs.has('c.txt'), 'the unrelated later file survives');
+}
+
 /* ---- report ---- */
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {

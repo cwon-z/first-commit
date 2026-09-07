@@ -1347,15 +1347,36 @@ HEAD is now at ${short(id)} ${subject(commit.message)}`,
         error: true,
       };
     }
-    // apply the inverse of `commit`'s changes to the current tree
-    const newTree = { ...this.headTree() };
+    // Apply the inverse of `commit`'s changes to the current tree.
+    //
+    // A path can only be rewound if nothing has touched it since. Real git
+    // three-way merges here; rewinding the file wholesale would silently throw
+    // away every edit made after the commit being reverted — which is the exact
+    // opposite of what this command is taught as ("the safe, public undo").
+    // Rather than half-implement conflict state, refuse and change nothing.
+    const headNow = this.headTree();
+    const newTree = { ...headNow };
+    const overlapping = [];
     const paths = new Set([...Object.keys(commit.tree), ...Object.keys(parentTree)]);
     for (const p of paths) {
-      const before = parentTree[p];
-      const after = commit.tree[p];
+      const before = parentTree[p];            // what reverting restores
+      const after = commit.tree[p];            // what the commit produced
       if (before === after) continue;
+      const current = p in headNow ? headNow[p] : undefined;
+      if (current !== after) { overlapping.push(p); continue; }
       if (before == null) delete newTree[p];   // commit created it → remove
       else newTree[p] = before;                // commit changed/deleted it → restore
+    }
+    if (overlapping.length) {
+      return {
+        output: `error: could not revert ${short(id)}... ${subject(commit.message)}\n` +
+          overlapping.map((p) => `CONFLICT (content): Merge conflict in ${p}`).join('\n') +
+          `\nhint: ${overlapping.join(', ')} changed after that commit, so undoing it here would\n` +
+          'hint: discard those later edits too. Real git would stop for you to resolve the overlap;\n' +
+          'hint: this sandbox stops without changing anything, so nothing is lost.\n' +
+          'hint: revert the newer commit first, or put the line back by hand.',
+        error: true,
+      };
     }
     this.moveToTree(newTree);
     const msg = `Revert "${commit.message}"`;
