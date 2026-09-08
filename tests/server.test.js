@@ -14,6 +14,7 @@ import path from 'node:path';
 import { createServer } from '../server/index.js';
 import { mergeProgress } from '../ui/progress.js';
 import { RateLimiter, hashPassword, verifyPassword, emailLooksValid } from '../server/auth.js';
+import { sweepExpiredSessions } from '../server/api.js';
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -24,7 +25,7 @@ function ok(cond, name) {
 const eq = (a, b, name) => ok(a === b, `${name} (expected ${JSON.stringify(b)}, got ${JSON.stringify(a)})`);
 
 const dataFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fc-test-')), 'data.json');
-const { server } = await createServer({ dataFile, secureCookies: false, ownerEmails: [] });
+const { server, store } = await createServer({ dataFile, secureCookies: false, ownerEmails: [] });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -251,6 +252,19 @@ const learner = client();
   eq((await anon('/content/course.json')).status, 200, 'the course content is served');
   eq((await anon('/assets/fonts/archivo-latin-var.woff2')).status, 200, 'the fonts are served');
   eq((await anon('/admin.html')).status, 200, 'the statistics page is served (the API gates it, not the path)');
+}
+
+/* ---------------------------- session hygiene ------------------------------ */
+{
+  const live = Object.keys(store.data.sessions).length;
+  await store.write((d) => {
+    d.sessions.expired_one = { userId: 'nobody', createdAt: '2020-01-01T00:00:00.000Z', expiresAt: '2020-02-01T00:00:00.000Z' };
+    d.sessions.expired_two = { userId: 'nobody', createdAt: '2020-01-01T00:00:00.000Z', expiresAt: '2020-02-01T00:00:00.000Z' };
+  });
+  const removed = await sweepExpiredSessions(store);
+  eq(removed, 2, 'the sweep removes every expired session');
+  eq(Object.keys(store.data.sessions).length, live, 'and leaves the live ones alone');
+  eq(await sweepExpiredSessions(store), 0, 'a second sweep has nothing to do');
 }
 
 /* ------------------------- the client-side merge --------------------------- */

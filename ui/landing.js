@@ -59,6 +59,20 @@ function moduleCard(mod) {
   return li;
 }
 
+/** The header advertises the size of the course, so count it rather than
+ *  hard-coding it — a twelfth module should never leave the header lying. */
+function renderHeaderStat(course) {
+  const stat = $('#course-stat');
+  if (!stat) return;
+  const modules = (course.modules || []).filter((m) => m.status === 'ready');
+  const units = modules.reduce(
+    (n, m) => n + (m.lessons || []).filter((x) => !x.comingSoon).length + (m.recap ? 1 : 0),
+    0
+  );
+  if (!modules.length || !units) return;
+  stat.textContent = `${modules.length} modules · ${units} units · free`;
+}
+
 function renderCurriculum(course) {
   const grid = $('#module-grid');
   if (!grid) return;
@@ -96,6 +110,7 @@ fetch('./content/course.json')
     return res.json();
   })
   .then((course) => {
+    renderHeaderStat(course);
     renderCurriculum(course);
     renderVideo(course);
   })

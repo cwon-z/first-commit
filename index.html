@@ -6,7 +6,7 @@
   <meta name="description" content="First Commit — a free interactive Git course for complete beginners. Type real git commands in a safe in-browser sandbox and watch the commit graph redraw after every one.">
   <meta name="color-scheme" content="dark">
   <meta property="og:title" content="First Commit — Git, made visible">
-  <meta property="og:description" content="A free interactive Git course with a simulated terminal and a live commit-graph visualization. No installs, no account, nothing you can break.">
+  <meta property="og:description" content="A free interactive Git course with a simulated terminal and a live commit-graph visualization. No installs, no account needed, nothing you can break.">
   <title>First Commit — Git, made visible</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%2334d07a'/%3E%3Crect x='14.75' y='2' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3Crect x='14.75' y='22' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3C/svg%3E">
   <link rel="preload" href="./assets/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
@@ -17,7 +17,9 @@
   <header class="site-header">
     <span class="wordmark">First Commit</span>
     <span class="header-spacer"></span>
-    <span class="header-stat">11 modules · 45 units · free</span>
+    <!-- Counted from course.json by ui/landing.js; the text below is the
+         fallback if that fetch fails. -->
+    <span class="header-stat" id="course-stat">11 modules · 45 units · free</span>
     <a class="btn btn-solid btn-sm" href="./app.html">Open the course</a>
   </header>
 
@@ -117,7 +119,7 @@
         <div class="feature">
           <span class="f-num">03</span>
           <h3>Nothing you can break</h3>
-          <p>Reset the exercise, or the whole course. There is no repository at risk and no account to lose.</p>
+          <p>Reset the exercise, or the whole course. Nothing here can reach your real files, and no repository is at risk.</p>
         </div>
       </div>
     </section>
@@ -156,8 +158,8 @@
     <!-- =============================== CLOSING ============================ -->
     <section class="closing">
       <div class="closing-slab">
-        <h2>Nothing to install. No account. Works on phones.</h2>
-        <p>Everything runs in the page. Progress is kept on this device only, and the reset button on
+        <h2>Nothing to install. No account needed. Works on phones.</h2>
+        <p>Everything runs in the page. Your progress is saved as you go, and the reset button on
           every exercise means there is nothing here you can break.</p>
         <a class="btn btn-solid btn-lg" href="./app.html">Start module 1</a>
       </div>
@@ -167,7 +169,7 @@
   <footer class="site-footer">
     <span class="wordmark">First Commit</span>
     <span class="footer-spacer"></span>
-    <span class="footer-note">Static · no tracking · no network calls</span>
+    <span class="footer-note">No tracking · no third-party requests</span>
   </footer>
 
   <script type="module" src="./ui/landing.js"></script>

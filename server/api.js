@@ -83,6 +83,27 @@ function sanitiseProgress(input) {
 const emptyProgress = () => ({ version: 1, completedLessons: [], lastLessonId: null, updatedAt: null });
 
 /**
+ * Drop sessions whose expiry has passed.
+ *
+ * `currentUser` already discards an expired session when it meets one, but a
+ * learner who signs in once and never comes back leaves their row behind for
+ * good. Nothing breaks; the file just grows for ever. So the server also sweeps
+ * on a timer and once at start-up.
+ *
+ * @returns {Promise<number>} how many were removed
+ */
+export async function sweepExpiredSessions(store, now = Date.now()) {
+  // Collect first, delete inside the write: a session created in between is
+  // not in `dead`, so it cannot be swept by accident.
+  const dead = Object.entries(store.data.sessions)
+    .filter(([, session]) => Date.parse(session.expiresAt) < now)
+    .map(([tokenHash]) => tokenHash);
+  if (!dead.length) return 0;
+  await store.write((d) => { for (const tokenHash of dead) delete d.sessions[tokenHash]; });
+  return dead.length;
+}
+
+/**
  * @param {{ store: import('./store.js').Store, course: object, secureCookies?: boolean,
  *           ownerEmails?: string[] }} deps
  */
@@ -92,6 +113,7 @@ export function createApi({ store, course, secureCookies = false, ownerEmails = 
   const sweeper = setInterval(() => {
     loginLimiter.sweep();
     registerLimiter.sweep();
+    sweepExpiredSessions(store).catch((err) => console.error('session sweep:', err));
   }, 10 * 60 * 1000);
   sweeper.unref?.();
 

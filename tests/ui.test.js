@@ -1,4 +1,4 @@
-/* Static contract between the UI modules and the HTML shells.
+/* Static contract between the UI modules, the HTML shells and the repo wiring.
  *
  * There is no DOM in Node and no test framework here, so this checks the
  * things that silently break at runtime: a `$('#id')` whose element nobody
@@ -145,6 +145,27 @@ function idsUsedBy(source) {
     'ui/auth.js calls the API through the seam, not with its own fetch');
   ok(!read('ui', 'auth.js').includes('fetch('),
     'ui/auth.js has no fetch of its own');
+}
+
+/* ------------------- the suite actually runs everything ------------------ */
+/* CI once listed the test files by hand and quietly stopped covering a whole
+ * suite when a new one was added. Now CI runs `npm test`, and this checks that
+ * `npm test` in turn names every test file that exists. */
+{
+  const pkg = JSON.parse(read('package.json'));
+  const script = pkg.scripts.test;
+  const files = fs.readdirSync(path.join(ROOT, 'tests')).filter((f) => f.endsWith('.test.js'));
+  ok(files.length > 0, 'there are test files to run');
+  for (const file of files) {
+    ok(script.includes(`tests/${file}`), `npm test runs tests/${file}`);
+  }
+
+  const workflow = read('.github', 'workflows', 'test.yml');
+  ok(/run:\s*npm test/.test(workflow),
+    'CI runs the whole suite via npm test, so it cannot fall behind again');
+  ok(new RegExp(`node-version:.*matrix\\.node`).test(workflow) && /'18'/.test(workflow),
+    "CI still tests the Node floor declared in package.json engines");
+  ok(pkg.engines.node === '>=18', 'the declared Node floor still matches the CI matrix');
 }
 
 /* ------------------------------- report ---------------------------------- */

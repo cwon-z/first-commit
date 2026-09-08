@@ -21,7 +21,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store.js';
-import { createApi } from './api.js';
+import { createApi, sweepExpiredSessions } from './api.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -136,6 +136,9 @@ export async function createServer(opts = {}) {
 
   const store = new Store(dataFile);
   await store.load();
+  // A server that was down for a month comes back with a month of dead
+  // sessions; clear them before serving rather than on a timer 10 minutes in.
+  await sweepExpiredSessions(store);
   const course = JSON.parse(await fsp.readFile(coursePath, 'utf8'));
 
   const handleApi = createApi({

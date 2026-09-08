@@ -17,9 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Engine + validator unit tests
-        run: node tests/engine.test.js
-      - name: Course content validation
-        run: node tests/content.test.js
-      - name: UI contract checks
-        run: node tests/ui.test.js
+      # One command, so this file cannot fall behind the test suite again.
+      # `npm test` is the single source of truth for what has to pass, and
+      # tests/ui.test.js asserts that it names every test file in tests/.
+      - name: Full test suite
+        run: npm test
