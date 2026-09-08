@@ -69,36 +69,25 @@ in `docs/ui-rebuild-brief.md` §12 (A4).
 
 ## Content review
 
-`node tools/lint-course.mjs` reports these. All are advisory — **0 hard errors**
-— and they are judgement calls about writing, not bugs. Re-run the linter after
-any edit; `npm test` runs it in `--strict` mode.
+Done, and the linter is down from eleven advisory items to five — all five now
+deliberate rather than outstanding, and recorded in the README under
+*Vocabulary, decided*.
 
-- [ ] **`git help` is named but not simulated.** `m11-recap` tells the learner
-      to run `git help <command>`, which the sandbox does not implement. Either
-      say plainly that it is a real-Git command to try later, or drop it.
-      *This is the only one that could actually confuse somebody mid-course.*
+- [x] **`git help` framed as real Git.** The surrounding list was always about
+      using Git outside the sandbox; now the sentence says so.
+- [x] **Modules 1–3 were thin.** Module 2 taught the ceremony of committing
+      without ever saying what a commit contains, and module 3 promised
+      un-staging in its own summary and never taught it. Two new concept
+      lessons (`m2l1b`, `m3l1b`) and a section in `m1l2` on why a commit is a
+      snapshot rather than a stack of diffs. 45 units → 47; every length
+      outlier is gone.
+- [x] **Vocabulary.** One real fix — module 5 now says *working directory*
+      where it is teaching the idea. The rest are kept on purpose and written
+      up so they are not re-litigated each time the linter prints them.
 
-- [ ] **Vocabulary drift.** The course uses two or three words for the same
-      thing. Pick one per row and sweep:
-      | Concept | Currently |
-      |---|---|
-      | repository | `repo` (81) vs `repository` (50) |
-      | working directory | `working directory` (16), `working tree` (7), `your folder` (6) |
-      | commit | `snapshot` (26), `save point` (2) |
-      | staging area | `staging area` (23), `the stage` (1) |
-
-      Some of this is deliberate teaching — "snapshot" earns its place early —
-      so this is a read-through, not a find-and-replace.
-
-- [ ] **Module length is uneven.** Concept words per module, against a 1,263
-      mean: M1 552 · M2 249 · M3 329 · M4 1357 · M5 1347 · M6 1934 · M7 1963 ·
-      M8 1423 · M9 1775 · M10 1408 · M11 1555.
-      Modules 1–3 are thin and modules 6–7 may sprawl. The funnel on
-      `/admin.html` will tell you which of these actually costs you learners
-      once real people are using it — worth waiting for that data rather than
-      guessing.
-
----
+Still open, and better answered by data than by guessing: **which units people
+actually stop at.** The funnel on `/admin.html` will say, once real learners are
+using it. Rewriting on a hunch before then is how you fix the wrong module.
 
 ## Housekeeping
 

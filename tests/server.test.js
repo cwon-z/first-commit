@@ -15,6 +15,12 @@ import { createServer } from '../server/index.js';
 import { mergeProgress } from '../ui/progress.js';
 import { RateLimiter, hashPassword, verifyPassword, emailLooksValid } from '../server/auth.js';
 import { sweepExpiredSessions } from '../server/api.js';
+import { courseUnits } from '../server/stats.js';
+
+/* The course grows; the denominator is derived from it rather than typed in,
+   so adding a lesson does not fail a test that has nothing to do with it. */
+const UNITS = courseUnits(JSON.parse(fs.readFileSync('content/course.json', 'utf8')))
+  .filter((u) => !u.comingSoon).length;
 
 let passed = 0, failed = 0;
 const failures = [];
@@ -215,13 +221,13 @@ const learner = client();
   eq(r.status, 200, 'the owner can read the stats');
   const stats = r.body;
   eq(stats.totals.learners, 2, 'both accounts are counted');
-  eq(stats.units, 45, 'the denominator matches the shipped course');
+  eq(stats.units, UNITS, 'the denominator matches the shipped course');
   ok(stats.learners.every((l) => !('passwordHash' in l) && !('salt' in l)),
     'the stats never leak a password hash');
   const ownerRow = stats.learners.find((l) => l.email === 'owner@example.com');
   eq(ownerRow.completed, 2, "the owner's completed count is right");
-  eq(ownerRow.percent, Math.round((2 / 45) * 100), 'the percentage is computed from the real denominator');
-  ok(stats.funnel.length === 45, 'the funnel has a row per unit');
+  eq(ownerRow.percent, Math.round((2 / UNITS) * 100), 'the percentage is computed from the real denominator');
+  eq(stats.funnel.length, UNITS, 'the funnel has a row per unit');
   ok(stats.funnel[0].completed >= 1, 'the funnel counts a completion');
   ok(Array.isArray(stats.modules_) && stats.modules_.length === 11, 'every module is reported');
   eq(stats.viewerId, ownerRow.id, 'the stats say who is looking, so the page does not offer to delete you');

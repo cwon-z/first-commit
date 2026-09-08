@@ -18,7 +18,7 @@ There are two ways to run it, and the course is identical in both.
 ```bash
 npm start                          # with accounts   → http://localhost:8000
 npm run serve:static               # static only     → http://localhost:8000
-npm test                           # 2,600+ assertions, zero dependencies
+npm test                           # 2,790+ assertions, zero dependencies
 ```
 
 `npm start` adds optional sign-in, so progress is saved to an account and
@@ -78,9 +78,9 @@ first-commit/
 ├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
 │   ├── engine.test.js              # engine + validators              (246 assertions)
-│   ├── content.test.js             # course.json valid AND solvable  (2204)
-│   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (119)
-│   ├── server.test.js              # accounts, progress, stats, safety  (73)
+│   ├── content.test.js             # course.json valid AND solvable  (2262)
+│   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (130)
+│   ├── server.test.js              # accounts, progress, stats, safety (124)
 │   └── fixtures-solutions.json     # a worked solution for every challenge
 ├── tools/                # authoring tools, not shipped to learners
 │   ├── check-module.mjs  # validate one drafted module + prove its challenge solvable
@@ -293,6 +293,28 @@ was modified.
 
 Nothing else needs touching: the landing-page curriculum and the in-app sidebar
 both render from `course.json`.
+
+Lesson ids are permanent — they are URLs and progress-store keys, so a lesson
+inserted between `m2l1` and `m2l2` is `m2l1b`, not a renumbering. Order comes
+from the array, never from the id.
+
+### Vocabulary, decided
+
+`lint-course` reports competing words for the same idea. Some of that drift is
+real and some of it is teaching, so the calls below are made and should not be
+re-litigated every time the linter prints them:
+
+| It says | The call |
+|---|---|
+| `repo` (81) vs `repository` (50) | **Both, deliberately.** Module 1 introduces it as *A repository ("repo")*, because "repo" is what every real conversation and every tutorial says. Refusing the shorthand would leave a beginner unable to read anything outside this course. |
+| `snapshot` (33) vs `commit` | **Both, deliberately.** "Snapshot" is the metaphor that makes a commit make sense; "commit" is its name. The course teaches the first and then uses the second. |
+| `save point` (2) | Kept. It appears once, introducing the video-game analogy in module 1, and is never used as a bare synonym. |
+| `the stage` (1) | A false positive — it is matching *"the staged file"*. |
+| `working tree` (7) | Kept where it quotes real `git status` output, which says "working tree clean". Changing it would make the course disagree with the terminal. |
+| `your folder` (4) | Kept only where it is deliberately plain language for a beginner. Where the precise idea was being taught, it now says **working directory**. |
+
+The rule behind all of these: precise terms where the learner needs to recognise
+them later, plain words where they only need to understand the idea now.
 
 `npm test` enforces this authoring contract:
 

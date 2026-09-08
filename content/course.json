@@ -128,6 +128,18 @@
               "p": "In this course, that diagram is live: it redraws itself after every command you run, so you can *watch* your history grow. That picture — dots connected by lines — is the single most important thing to understand about Git. Everything else (branches, merges, undoing mistakes) is just moving around on it."
             },
             {
+              "h": "A snapshot, not a list of changes"
+            },
+            {
+              "p": "It is tempting to imagine Git storing your history as a stack of edits — \"line 4 changed, then line 9 was deleted\" — and replaying them to rebuild an old version. Git does not work that way. **Each commit holds the complete state of the project at that moment.**"
+            },
+            {
+              "p": "That is why moving to any point in your history is instant and exact: Git does not have to replay anything, it just puts back the snapshot it already has. It is also why you can safely jump to a commit from months ago and know you are seeing precisely what was there."
+            },
+            {
+              "p": "If you are wondering whether that wastes an enormous amount of space: it does not. A file that did not change between two commits is stored once and pointed at twice. Git is thrifty underneath and simple on the surface, which is the right way round."
+            },
+            {
               "tip": "Reassurance up front: once something is committed in Git, it is very hard to lose. Most \"disasters\" beginners fear are recoverable. We'll even practice recovering from them in Module 9."
             }
           ]
@@ -344,6 +356,112 @@
             },
             {
               "tip": "Get in the habit now: run `git status` before and after every other Git command until reading it feels boring. Boring is the goal."
+            }
+          ]
+        },
+        {
+          "id": "m2l1b",
+          "title": "What a commit actually is",
+          "type": "concept",
+          "body": [
+            {
+              "p": "You are one lesson away from making your first commit. It is worth knowing what one *is* first, because \"commit\" sounds like \"save\", and it is not quite that."
+            },
+            {
+              "p": "Pressing the shutter records **four things at once**:"
+            },
+            {
+              "list": [
+                "A **snapshot** — the exact contents of every file you staged, as they were at that moment.",
+                "A **message** — your sentence explaining why the change was made.",
+                "An **author and a timestamp** — who made it, and when.",
+                "A **parent** — the commit that came immediately before this one."
+              ]
+            },
+            {
+              "analogy": "A commit is a photograph with a caption, a date stamp, and a note on the back saying which photo came before it. The photograph is the easy part. The caption and the note on the back are what turn a pile of pictures into a story you can follow."
+            },
+            {
+              "h": "The name Git gives it"
+            },
+            {
+              "p": "Git names each commit with a long string of hexadecimal digits, its **hash**: `a3f9e21c4b8d5e6f7a0b1c2d3e4f5a6b7c8d9e0f`. The name is not random — it is calculated from the contents. Change one character in one file and you would get a completely different name."
+            },
+            {
+              "p": "You will almost never type the whole thing. The first seven characters are enough to identify a commit, and that is what Git prints when it thinks you are reading rather than scripting:"
+            },
+            {
+              "code": "git log --oneline\n# → 3f9a1c2 Add the pancake recipe\n# → 7c1d0b4 Start the notes file"
+            },
+            {
+              "tip": "You do not have to remember these names or write them down. Git has friendlier ways to say \"the latest commit\" and \"the one before that\", and you will meet them in Module 9. For now, just know that the seven characters are a commit's name."
+            },
+            {
+              "h": "The message is the half a computer cannot write"
+            },
+            {
+              "p": "Git can work out *what* changed on its own — it has both snapshots, so it can compare them. What it can never work out is **why**. That is the whole job of the message, and it is the difference between a history you can use and a history you can only stare at."
+            },
+            {
+              "p": "The audience is not your teammates. It is you, in four months, at the end of a long day, trying to work out why a line that looks obviously wrong was written that way on purpose."
+            },
+            {
+              "warn": "Messages like `update`, `fix`, `stuff` and `asdf` are the ones every beginner writes and every beginner later regrets. They are not wrong in a way Git will complain about — which is exactly why the habit sticks."
+            },
+            {
+              "h": "History is a chain you read backwards"
+            },
+            {
+              "p": "Because every commit remembers its parent, Git does not need a list of your history — it can walk it. `git log` starts at the commit you are standing on and follows the parent links back to the very first one, printing each as it goes. Newest first, because that is nearly always what you want."
+            },
+            {
+              "graph": {
+                "caption": "Three commits, oldest on the left. Each one is linked to the commit before it — that chain is the history.",
+                "ops": [
+                  {
+                    "op": "init"
+                  },
+                  {
+                    "op": "write",
+                    "path": "recipe.txt",
+                    "content": "flour, eggs, milk"
+                  },
+                  {
+                    "op": "add"
+                  },
+                  {
+                    "op": "commit",
+                    "message": "Start the pancake recipe"
+                  },
+                  {
+                    "op": "write",
+                    "path": "recipe.txt",
+                    "content": "flour, eggs, milk, butter"
+                  },
+                  {
+                    "op": "add"
+                  },
+                  {
+                    "op": "commit",
+                    "message": "Add butter to the recipe"
+                  },
+                  {
+                    "op": "write",
+                    "path": "notes.txt",
+                    "content": "serve with syrup"
+                  },
+                  {
+                    "op": "add"
+                  },
+                  {
+                    "op": "commit",
+                    "message": "Note how to serve it"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "One last reassurance before you make one. Committing **adds**; it never overwrites. The previous snapshot is still there, whole and reachable, along with every snapshot before it. That is why the rest of this course can afford to let you experiment."
             }
           ]
         },
@@ -588,6 +706,58 @@
             },
             {
               "tip": "A good commit is like a good sentence: one idea. \"Fix login typo\" and \"Add dark mode\" should be two commits, even if you did them in the same hour. Your future self, hunting a bug at midnight, will thank you."
+            }
+          ]
+        },
+        {
+          "id": "m3l1b",
+          "title": "Changing your mind before you commit",
+          "type": "concept",
+          "body": [
+            {
+              "p": "Staging is a decision, and decisions get revised. You stage three files, read the list back, and realise the third one belongs in a different commit. Nothing is lost — you just take it back out of the frame."
+            },
+            {
+              "code": "git restore --staged notes.txt\n# → notes.txt is no longer staged; your edits to it are untouched"
+            },
+            {
+              "analogy": "The photographer again. Taking something back out of shot before you press the shutter does not damage it — you are rearranging the frame, not the room. Your file on disk is exactly as you left it."
+            },
+            {
+              "p": "That last sentence is the point, and it is worth saying flatly: **`git restore --staged` changes what is staged, and nothing else.** Your edits stay. Only the answer to \"what goes in the next commit\" changes."
+            },
+            {
+              "h": "One file, two states at once"
+            },
+            {
+              "p": "Here is the situation that confuses everyone the first time. You stage a file, then keep editing it. Now `git status` lists the same file **twice** — once under \"Changes to be committed\" and once under \"Changes not staged for commit\"."
+            },
+            {
+              "code": "Changes to be committed:\n\trecipe.txt\n\nChanges not staged for commit:\n\trecipe.txt"
+            },
+            {
+              "p": "That is not a bug and not a conflict. `git add` staged the file **as it was when you ran it**. The edits you made afterwards are newer than the snapshot in the frame, so they are simply not in it yet. Run `git add recipe.txt` again and the frame catches up."
+            },
+            {
+              "tip": "This is why `git diff` and `git diff --staged` are two different commands. The first shows what you have not staged yet; the second shows exactly what a commit right now would contain. When the two disagree, that file is in both lists."
+            },
+            {
+              "h": "Un-stage, not undo"
+            },
+            {
+              "p": "Two commands with nearly the same name do very different things, and the difference is worth learning now rather than at the wrong moment:"
+            },
+            {
+              "list": [
+                "`git restore --staged <file>` — take the file out of the staging area. **Your edits survive.**",
+                "`git restore <file>` — throw away your edits to that file and go back to the last committed version. **Your edits are gone.**"
+              ]
+            },
+            {
+              "warn": "The one without `--staged` is the only genuinely destructive command in this module. It discards work that was never committed, which is the one kind of work Git cannot get back for you. Read the command twice before you press Enter."
+            },
+            {
+              "p": "That asymmetry is the rule for the whole of Git, and it is worth carrying with you: anything that has been committed is very hard to lose, and anything that has not been committed is only as safe as your last `git commit`. Module 9 is entirely about the first half of that sentence."
             }
           ]
         },
@@ -1700,7 +1870,7 @@
               }
             },
             {
-              "h": "What switching does to the files in your folder"
+              "h": "What switching does to your working directory"
             },
             {
               "p": "`git switch <name>` does two things. It moves HEAD onto that branch — and it updates the files that *differ* between the commit you were standing on and the commit you're going to."
@@ -1715,7 +1885,7 @@
               "p": "This is the moment beginners panic. You switch from `neon-theme` back to `main`, open your stylesheet, and the pink is gone. Worse, a file you created over on the other branch has disappeared from the folder entirely."
             },
             {
-              "tip": "Nothing was destroyed. Those contents are sitting inside a commit, and the branch name is your bookmark back to them. Switch to that branch and the files reappear exactly as you left them. Your folder is a **window onto one commit at a time**, not the whole album."
+              "tip": "Nothing was destroyed. Those contents are sitting inside a commit, and the branch name is your bookmark back to them. Switch to that branch and the files reappear exactly as you left them. Your working directory is a **window onto one commit at a time**, not the whole album."
             },
             {
               "p": "Two details worth knowing before they surprise you:"
@@ -6623,7 +6793,7 @@
               "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons.",
               "**Push something to a remote.** Make an account on a hosting service, create an empty repository, and connect it with the `git remote add` and `git push -u` you learned in Module 7. Seeing your own history appear on a web page makes it click.",
               "**Read someone else's log.** Clone a project you admire and run `git log --oneline`. You'll spot the good messages and the bad ones immediately now, which is proof you learned something.",
-              "**Let Git teach you the rest.** `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
+              "**Let Git teach you the rest.** In real Git on your own machine, `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
               "**Come back to the playground** any time you want to try something frightening before you try it for real. Nothing here can break."
             ]
           },
