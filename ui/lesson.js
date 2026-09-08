@@ -47,17 +47,17 @@ export function renderBlocks(container, blocks = [], helpers = {}) {
     } else if (block.analogy != null) {
       const d = document.createElement('div');
       d.className = 'lesson-callout lesson-analogy';
-      d.innerHTML = `<span class="callout-tag">analogy</span><p>${inlineMd(block.analogy)}</p>`;
+      d.innerHTML = `<span class="callout-tag">Think of it like this</span><p>${inlineMd(block.analogy)}</p>`;
       container.appendChild(d);
     } else if (block.tip != null) {
       const d = document.createElement('div');
       d.className = 'lesson-callout lesson-tip';
-      d.innerHTML = `<span class="callout-tag">tip</span><p>${inlineMd(block.tip)}</p>`;
+      d.innerHTML = `<span class="callout-tag">Tip</span><p>${inlineMd(block.tip)}</p>`;
       container.appendChild(d);
     } else if (block.warn != null) {
       const d = document.createElement('div');
       d.className = 'lesson-callout lesson-warn';
-      d.innerHTML = `<span class="callout-tag">careful</span><p>${inlineMd(block.warn)}</p>`;
+      d.innerHTML = `<span class="callout-tag">Care</span><p>${inlineMd(block.warn)}</p>`;
       container.appendChild(d);
     } else if (block.code != null) {
       const pre = document.createElement('pre');

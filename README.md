@@ -49,11 +49,15 @@ first-commit/
 │   ├── lesson.js         # content-block renderer (escaped, minimal inline md)
 │   ├── landing.js        # renders the landing curriculum + video from course.json
 │   └── progress.js       # ProgressStore interface ← ★ BACKEND SEAM
-├── css/                  # app.css (course app) + landing.css (landing page)
+├── css/
+│   ├── tokens.css        # design tokens, base reset, shared primitives, @font-face
+│   ├── app.css           # course app — three layouts over one DOM
+│   └── landing.css       # landing page
+├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
 │   ├── engine.test.js              # engine + validators              (246 assertions)
 │   ├── content.test.js             # course.json valid AND solvable  (2204)
-│   ├── ui.test.js                  # UI ↔ HTML contract, a11y          (64)
+│   ├── ui.test.js                  # UI ↔ HTML contract, a11y          (79)
 │   └── fixtures-solutions.json     # a worked solution for every challenge
 ├── tools/                # authoring tools, not shipped to learners
 │   ├── check-module.mjs  # validate one drafted module + prove its challenge solvable
@@ -67,6 +71,19 @@ first-commit/
 **Separation of concerns:** content is data (`/content`), the git simulation is a
 pure, unit-testable library (`/engine`), and the DOM lives only in `/ui`. The
 engine can be driven headlessly (that's exactly what the tests do).
+
+**The shell has two shapes**, switched by `data-mode` on `<body>`. `read` is the
+lesson reader: one centred column, no workspace. `exercise` brings up the four
+regions an exercise needs, and has two layouts of its own, set by `data-layout`:
+
+- `split` — instructions rail on the left, commit graph above the terminal on
+  the right, file state as an overlay toggled from the exercise bar.
+- `focus` — one panel at a time (steps / graph / files) above a pinned terminal,
+  with a "now" bar naming the current step. Forced below 1000px, which is what
+  makes all four regions usable on a 360px phone.
+
+Both layouts are the same DOM; only CSS and three attributes change, so nothing
+is re-rendered when the learner switches.
 
 ### The backend seam
 
@@ -240,11 +257,19 @@ Keyboard focus is visible everywhere (`:focus-visible`), the sidebar closes on
 into an `aria-live` region that updates after every command. All animation and
 programmatic scrolling backs off under `prefers-reduced-motion`.
 
+Colour is never the only carrier of meaning. Terminal output prints a glyph in a
+fixed gutter (`›` command, `!` error, `+` addition, `−` deletion) as well as
+colouring the line; file rows carry a glyph and the state spelled out; and a
+challenge condition says `met` or `waiting` next to its filled or hollow disc.
+
 ## Deployment notes
 
 - 100% static output — no bundler, no framework, no runtime backend, no CDN
   dependencies, no absolute paths (safe behind any reverse proxy / subpath).
 - ES modules require a normal web server (see Quick start).
+- Type is self-hosted from `assets/fonts/` — the latin subsets of Archivo
+  (one variable file, 200–700) and JetBrains Mono at 400/500, ~115 KB in all.
+  Nothing is fetched from Google Fonts or anywhere else.
 - The YouTube embed appears automatically once `meta.youtubeVideoId` is set in
   `content/course.json` — there is no HTML to edit.
 

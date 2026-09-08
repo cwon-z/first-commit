@@ -1,0 +1,688 @@
+/* ============================================================================
+ * first-commit — design tokens
+ * ----------------------------------------------------------------------------
+ * The single source of truth for colour, type, spacing, radius, elevation and
+ * motion. Components reference the SEMANTIC aliases at the bottom, never the
+ * raw ramps above them — so a palette change is a change to one block here.
+ *
+ * Fonts are self-hosted (latin subsets, ~115 KB total). No external requests.
+ * ========================================================================== */
+
+/* --------------------------------- fonts ---------------------------------- */
+/* Archivo ships as one variable file covering 200–700, which is why the design
+   can use extralight metrics and medium labels without four separate payloads. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 200 700;
+  font-display: swap;
+  src: url('../assets/fonts/archivo-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/jetbrains-mono-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/jetbrains-mono-latin-500.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* --------------------------------- colour --------------------------------- */
+/* Base ramp — cool near-black neutrals. The console lives almost entirely in
+   ink-900..ink-700; everything brighter is text or a signal. */
+:root {
+  --ink-1000: #050607;
+  --ink-950: #08090b;
+  --ink-900: #0b0d0f;
+  --ink-850: #101214;
+  --ink-800: #15181a;
+  --ink-750: #1a1d20;
+  --ink-700: #202427;
+  --ink-650: #272c30;
+  --ink-600: #2f3438;
+  --ink-500: #3c4247;
+  --ink-400: #565c62;
+  --ink-300: #787f85;
+  --ink-250: #8d949a;
+  --ink-225: #9aa1a7;
+  --ink-200: #a9b0b5;
+  --ink-150: #c2c8cc;
+  --ink-100: #d8dde0;
+  --ink-050: #edf0f1;
+  --ink-000: #ffffff;
+
+  /* Signal colours — used only to carry state, never for decoration. */
+  --green-600: #1f9e5a;
+  --green-500: #34d07a;
+  --green-400: #5bdd97;
+  --green-300: #8feab8;
+  --red-600: #c22f1d;
+  --red-500: #f0442e;
+  --red-400: #ff6a57;
+  --amber-600: #d96a1e;
+  --amber-500: #ff8a3d;
+  --amber-400: #ffa96b;
+  --blue-600: #1b5fd9;
+  --blue-500: #2e7bff;
+  --blue-400: #5f9cff;
+
+  /* Signal washes — flat alpha tints for chips, rows and glows. */
+  --green-a08: rgba(52, 208, 122, 0.08);
+  --green-a14: rgba(52, 208, 122, 0.14);
+  --green-a24: rgba(52, 208, 122, 0.24);
+  --red-a08: rgba(240, 68, 46, 0.08);
+  --red-a14: rgba(240, 68, 46, 0.14);
+  --red-a24: rgba(240, 68, 46, 0.24);
+  --amber-a08: rgba(255, 138, 61, 0.08);
+  --amber-a14: rgba(255, 138, 61, 0.14);
+  --amber-a24: rgba(255, 138, 61, 0.24);
+  --blue-a08: rgba(46, 123, 255, 0.08);
+  --blue-a14: rgba(46, 123, 255, 0.14);
+  --blue-a24: rgba(46, 123, 255, 0.24);
+
+  /* White alphas — the entire border and hover system is built from these. */
+  --w-03: rgba(255, 255, 255, 0.03);
+  --w-05: rgba(255, 255, 255, 0.05);
+  --w-07: rgba(255, 255, 255, 0.07);
+  --w-10: rgba(255, 255, 255, 0.1);
+  --w-14: rgba(255, 255, 255, 0.14);
+  --w-20: rgba(255, 255, 255, 0.2);
+  --w-40: rgba(255, 255, 255, 0.4);
+  --k-20: rgba(0, 0, 0, 0.2);
+  --k-40: rgba(0, 0, 0, 0.4);
+  --k-60: rgba(0, 0, 0, 0.6);
+  --k-80: rgba(0, 0, 0, 0.8);
+}
+
+/* ------------------------------- typography ------------------------------- */
+:root {
+  --font-ui: 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Size scale. Console chrome lives at 10–15px; only metrics go big. */
+  --fs-micro: 10px;
+  --fs-caption: 11px;
+  --fs-label: 12px;
+  --fs-body: 13px;
+  --fs-body-lg: 15px;
+  --fs-title: 18px;
+  --fs-h3: 22px;
+  --fs-h2: 30px;
+  --fs-h1: 44px;
+  --fs-metric: 40px;
+
+  --fw-extralight: 200;
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-caps: 0.11em;
+  --tracking-brand: 0.18em;
+}
+
+/* -------------------------------- spacing --------------------------------- */
+/* 2px-rooted scale. The console packs data, so 6px and 10px steps are real. */
+:root {
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 10px;
+  --s-6: 12px;
+  --s-7: 14px;
+  --s-8: 16px;
+  --s-9: 20px;
+  --s-10: 24px;
+  --s-11: 32px;
+  --s-12: 40px;
+  --s-13: 56px;
+  --s-14: 72px;
+
+  --row-h-sm: 28px;
+  --row-h: 34px;
+  --control-h: 32px;
+  --control-h-lg: 38px;
+  --topbar-h: 56px;
+  --rail-w: 384px;
+  --sidebar-w: 296px;
+  --page-max: 1120px;
+}
+
+/* --------------------------------- radius --------------------------------- */
+:root {
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+}
+
+/* ------------------------------- elevation -------------------------------- */
+/* Depth here is hairlines plus a soft cast shadow, never a bright drop shadow.
+   Every raised surface gets a 1px top inner highlight so it reads as lit. */
+:root {
+  --hairline: inset 0 0 0 1px var(--w-07);
+  --hairline-strong: inset 0 0 0 1px var(--w-14);
+  --lip: inset 0 1px 0 var(--w-05);
+  --shadow-panel: 0 1px 2px var(--k-20), 0 8px 24px -8px var(--k-60);
+  --shadow-card: 0 1px 1px var(--k-20), 0 4px 14px -6px var(--k-60);
+  --shadow-pop: 0 8px 32px -4px var(--k-80), 0 2px 6px var(--k-40);
+
+  --elev-panel: var(--hairline), var(--lip), var(--shadow-panel);
+  --elev-card: var(--hairline), var(--lip), var(--shadow-card);
+  --elev-pop: var(--hairline-strong), var(--lip), var(--shadow-pop);
+
+  --glass-tint: rgba(24, 28, 31, 0.62);
+  --glass-tint-strong: rgba(16, 19, 21, 0.86);
+  --glass-blur: blur(20px) saturate(120%);
+
+  --glow-online: 0 0 0 3px var(--green-a14);
+  --glow-focus: 0 0 0 2px var(--ink-900), 0 0 0 4px var(--blue-500);
+}
+
+/* --------------------------------- motion --------------------------------- */
+/* Motion is short, damped and mechanical. Nothing bounces, nothing overshoots.
+   Backgrounds and colours paint on the interaction frame; only box-shadow,
+   transform, opacity and width are allowed to animate. */
+:root {
+  --dur-instant: 80ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-map: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-hover: var(--dur-fast) var(--ease-out);
+  --t-press: var(--dur-instant) var(--ease-out);
+  --t-panel: var(--dur-base) var(--ease-out);
+  --press-scale: 0.98;
+}
+
+/* ------------------------------- semantics -------------------------------- */
+:root {
+  /* Backgrounds */
+  --bg-void: var(--ink-1000);
+  --bg-app: var(--ink-900);
+  --surface-panel: var(--ink-850);
+  --surface-card: var(--ink-800);
+  --surface-raised: var(--ink-750);
+  --surface-inset: var(--ink-950);
+  --surface-hover: var(--ink-700);
+
+  /* Borders */
+  --border-hairline: var(--w-07);
+  --border-subtle: var(--w-10);
+  --border-strong: var(--w-14);
+  --border-focus: var(--blue-500);
+
+  /* Text */
+  --text-primary: var(--ink-050);
+  --text-secondary: var(--ink-150);
+  --text-tertiary: var(--ink-225);
+  --text-disabled: var(--ink-400);
+  --text-inverse: var(--ink-1000);
+  --text-link: var(--blue-400);
+  --text-link-hover: var(--blue-500);
+
+  /* Status */
+  --status-online: var(--green-500);
+  --status-online-bg: var(--green-a14);
+  --status-offline: var(--red-500);
+  --status-offline-bg: var(--red-a14);
+  --status-delayed: var(--amber-500);
+  --status-delayed-bg: var(--amber-a14);
+  --status-info: var(--blue-500);
+  --status-info-bg: var(--blue-a14);
+  --status-idle: var(--ink-225);
+  --status-idle-bg: var(--w-07);
+
+  /* Interactive */
+  --accent: var(--ink-050);
+  --accent-contrast: var(--ink-1000);
+  --control-bg: var(--w-05);
+  --control-bg-hover: var(--w-10);
+  --control-fg: var(--ink-150);
+  --control-fg-hover: var(--ink-000);
+}
+
+/* ==========================================================================
+ * Base
+ * ====================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font: var(--fw-regular) var(--fs-body) / 1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color var(--t-hover);
+}
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--blue-a24);
+  color: var(--ink-000);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--w-10);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--w-20);
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+ * Shared primitives — the component vocabulary both surfaces draw from.
+ * ====================================================================== */
+
+/* ------------------------------- eyebrow ---------------------------------- */
+.eyebrow {
+  font: var(--fw-regular) var(--fs-micro) / 1 var(--font-mono);
+  letter-spacing: var(--tracking-caps);
+  color: var(--ink-300);
+  text-transform: uppercase;
+}
+.eyebrow-lg {
+  font-size: var(--fs-caption);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.wordmark {
+  font: var(--fw-light) var(--fs-label) / 1 var(--font-ui);
+  letter-spacing: var(--tracking-brand);
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* -------------------------------- panels ---------------------------------- */
+.panel {
+  position: relative;
+  background: var(--surface-panel);
+  box-shadow: var(--elev-panel);
+  border-radius: var(--r-lg);
+  color: var(--text-primary);
+}
+.panel-card {
+  background: var(--surface-card);
+  box-shadow: var(--elev-card);
+}
+.panel-inset {
+  background: var(--surface-inset);
+  box-shadow: var(--hairline);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  height: var(--row-h);
+  padding: 0 var(--s-7);
+  flex: none;
+  box-shadow: inset 0 -1px 0 var(--w-07);
+}
+
+/* -------------------------------- buttons --------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  height: var(--control-h);
+  padding: 0 var(--s-8);
+  border: none;
+  border-radius: var(--r-pill);
+  font: var(--fw-medium) var(--fs-label) / 1 var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--hairline), var(--lip);
+  transition: box-shadow var(--t-hover), transform var(--t-press);
+}
+.btn:hover {
+  background: var(--surface-hover);
+  box-shadow: var(--hairline-strong), var(--lip);
+}
+.btn:active {
+  transform: scale(var(--press-scale));
+}
+.btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-lg {
+  height: var(--control-h-lg);
+  padding: 0 18px;
+  font-size: var(--fs-body);
+}
+.btn-sm {
+  height: var(--row-h-sm);
+  padding: 0 var(--s-6);
+  font-size: var(--fs-caption);
+}
+.btn-block {
+  width: 100%;
+}
+
+.btn-solid {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--lip);
+}
+.btn-solid:hover {
+  background: var(--ink-000);
+  box-shadow: var(--lip);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+.btn-ghost:hover {
+  background: var(--control-bg);
+  color: var(--control-fg-hover);
+  box-shadow: none;
+}
+
+.btn-quiet {
+  background: var(--control-bg);
+  color: var(--control-fg);
+  box-shadow: none;
+}
+.btn-quiet:hover {
+  background: var(--control-bg-hover);
+  color: var(--control-fg-hover);
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: var(--status-offline-bg);
+  color: var(--red-400);
+  box-shadow: inset 0 0 0 1px var(--red-a24);
+}
+.btn-danger:hover {
+  background: var(--red-a24);
+  color: var(--red-400);
+  box-shadow: inset 0 0 0 1px var(--red-a24);
+}
+
+.btn-icon {
+  width: var(--row-h-sm);
+  height: var(--row-h-sm);
+  padding: 0;
+  border-radius: 50%;
+  font-size: var(--fs-body);
+  background: transparent;
+  color: var(--text-tertiary);
+  box-shadow: none;
+}
+.btn-icon:hover {
+  background: var(--control-bg);
+  color: var(--control-fg-hover);
+  box-shadow: none;
+}
+
+/* -------------------------------- badges ---------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font: var(--fw-medium) var(--fs-caption) / 1 var(--font-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--w-05);
+  color: var(--text-secondary);
+}
+.badge-online {
+  background: var(--status-online-bg);
+  color: var(--status-online);
+}
+.badge-idle {
+  background: var(--status-idle-bg);
+  color: var(--status-idle);
+}
+.badge-plain {
+  padding: 0;
+  background: transparent;
+}
+
+/* ------------------------------- pill tabs -------------------------------- */
+.pilltabs {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--w-03);
+  box-shadow: var(--hairline);
+  min-width: 0;
+}
+.pilltabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: var(--row-h-sm);
+  padding: 0 var(--s-6);
+  border: none;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  font: var(--fw-regular) var(--fs-caption) / 1 var(--font-ui);
+  color: var(--text-tertiary);
+  background: transparent;
+  box-shadow: none;
+  transition: box-shadow var(--t-hover);
+}
+.pilltabs button:hover {
+  color: var(--text-primary);
+}
+.pilltabs button[aria-selected='true'],
+.pilltabs button[aria-pressed='true'] {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow: var(--hairline-strong), var(--lip);
+}
+
+/* ==========================================================================
+ * Commit graph — SVG classes shared with the landing preview
+ * ====================================================================== */
+
+.cg-edge {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.cg-edge.lane-0 {
+  stroke: var(--w-20);
+}
+.cg-edge.lane-1 {
+  stroke: var(--blue-500);
+}
+.cg-edge.lane-2 {
+  stroke: var(--amber-500);
+}
+
+.cg-stem {
+  stroke: var(--w-14);
+  stroke-width: 1;
+}
+
+.node-head-ring {
+  fill: none;
+  stroke: var(--w-20);
+  stroke-width: 1;
+}
+
+.cg-node {
+  fill: var(--surface-card);
+  stroke: var(--w-20);
+  stroke-width: 1.5;
+}
+.cg-node.is-merge {
+  stroke: var(--w-40);
+}
+.cg-node.is-head {
+  fill: var(--ink-050);
+  stroke: var(--ink-050);
+}
+
+.cg-sha {
+  font: var(--fw-regular) var(--fs-micro) / 1 var(--font-mono);
+  fill: var(--ink-300);
+}
+.cg-sha.is-head {
+  fill: var(--ink-150);
+}
+
+.cg-pill rect {
+  fill: var(--w-05);
+  stroke: var(--w-14);
+  stroke-width: 1;
+}
+.cg-pill text {
+  font: var(--fw-medium) var(--fs-micro) / 1 var(--font-mono);
+  letter-spacing: 0.02em;
+  fill: var(--ink-150);
+}
+.cg-pill.kind-head rect {
+  fill: var(--ink-050);
+  stroke: var(--ink-050);
+}
+.cg-pill.kind-head text {
+  fill: var(--surface-inset);
+}
+.cg-pill.kind-remote rect {
+  stroke: var(--w-20);
+}
+.cg-pill.kind-detached rect {
+  stroke: var(--amber-500);
+}
+.cg-pill.kind-detached text {
+  fill: var(--status-delayed);
+}
+
+.cg-empty-mark {
+  fill: none;
+  stroke: var(--w-14);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.cg-empty-title {
+  font: var(--fw-light) var(--fs-body-lg) / 1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+  fill: var(--text-secondary);
+}
+.cg-empty-sub {
+  font: var(--fw-regular) var(--fs-label) / 1.4 var(--font-mono);
+  fill: var(--text-tertiary);
+}
+
+.cg-merging rect {
+  fill: var(--amber-a08);
+  stroke: var(--amber-a24);
+  stroke-width: 1;
+}
+.cg-merging .cg-merging-tag {
+  font: var(--fw-medium) var(--fs-caption) / 1 var(--font-mono);
+  fill: var(--status-delayed);
+}
+.cg-merging .cg-merging-text {
+  font: var(--fw-regular) var(--fs-label) / 1 var(--font-ui);
+  fill: var(--text-secondary);
+}
+
+/* ------------------------------- animation -------------------------------- */
+@keyframes fc-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fc-pulse {
+  from {
+    box-shadow: 0 0 0 0 var(--green-a24);
+  }
+  to {
+    box-shadow: 0 0 0 14px rgba(52, 208, 122, 0);
+  }
+}

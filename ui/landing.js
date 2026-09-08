@@ -12,13 +12,32 @@
 
 const $ = (sel) => document.querySelector(sel);
 
-function moduleCard(mod) {
-  const li = document.createElement('li');
-  li.className = mod.status === 'ready' ? 'mod ready' : 'mod';
+/** Concept / guided / challenge / recap, as the little badges under a card. */
+function unitKinds(mod) {
+  const kinds = (mod.lessons || []).map((l) => l.type || 'concept');
+  if (mod.recap && mod.status === 'ready') kinds.push('recap');
+  return kinds;
+}
 
+function moduleCard(mod) {
+  const ready = mod.status === 'ready';
+  const li = document.createElement('li');
+
+  // The whole card is the target: a learner reading the curriculum wants to
+  // start the module, not hunt for a link inside it.
+  const card = document.createElement(ready && (mod.lessons || []).length ? 'a' : 'div');
+  card.className = ready ? 'mod ready' : 'mod';
+  if (card.tagName === 'A') card.href = `./app.html#/lesson/${mod.lessons[0].id}`;
+
+  const top = document.createElement('div');
+  top.className = 'mod-top';
   const num = document.createElement('span');
   num.className = 'mod-num';
   num.textContent = String(mod.number).padStart(2, '0');
+  const tag = document.createElement('span');
+  tag.className = ready ? 'badge badge-idle mod-tag' : 'badge mod-tag soon';
+  tag.textContent = ready ? 'available' : 'coming soon';
+  top.append(num, tag);
 
   const title = document.createElement('h3');
   title.textContent = mod.title;
@@ -26,11 +45,17 @@ function moduleCard(mod) {
   const summary = document.createElement('p');
   summary.textContent = mod.summary || '';
 
-  const tag = document.createElement('span');
-  tag.className = mod.status === 'ready' ? 'mod-tag' : 'mod-tag soon';
-  tag.textContent = mod.status === 'ready' ? 'available' : 'coming soon';
+  const units = document.createElement('div');
+  units.className = 'mod-units';
+  for (const kind of unitKinds(mod)) {
+    const b = document.createElement('span');
+    b.className = 'badge';
+    b.textContent = kind;
+    units.appendChild(b);
+  }
 
-  li.append(num, title, summary, tag);
+  card.append(top, title, summary, units);
+  li.appendChild(card);
   return li;
 }
 

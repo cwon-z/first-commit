@@ -2,3 +2,7 @@
 # core.autocrlf setting, and checked out with the platform convention. Without
 # this, a contributor on a different OS produces a whole-file diff on save.
 * text=auto
+
+# Fonts are binary. `text=auto` above guesses by content and would get these
+# right anyway, but saying so removes the guess.
+*.woff2 binary

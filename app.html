@@ -4,66 +4,111 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Learn Git from zero in an interactive, in-browser sandbox with a live commit graph.">
+  <meta name="color-scheme" content="dark">
   <title>First Commit — interactive Git course</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233ddc84'/%3E%3Crect x='14.75' y='2' width='2.5' height='8' rx='1.25' fill='%233ddc84'/%3E%3Crect x='14.75' y='22' width='2.5' height='8' rx='1.25' fill='%233ddc84'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%2334d07a'/%3E%3Crect x='14.75' y='2' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3Crect x='14.75' y='22' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3C/svg%3E">
+  <link rel="preload" href="./assets/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/fonts/jetbrains-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./css/tokens.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
-<body>
+<body data-mode="read" data-layout="split" data-tab="steps">
   <header id="topbar">
-    <button id="menu-btn" aria-label="toggle lesson menu" aria-controls="sidebar" aria-expanded="false">☰</button>
-    <a class="brand" href="./index.html" title="back to landing page">
-      <span class="brand-dot" aria-hidden="true"></span>
-      <span id="brand-name">First Commit</span>
+    <button id="menu-btn" class="btn btn-icon" type="button" aria-label="Toggle course navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
+    <a class="topbar-brand" href="./index.html" title="Back to the landing page">
+      <span class="wordmark" id="brand-name">First Commit</span>
     </a>
+    <span class="topbar-div" aria-hidden="true"></span>
     <span id="crumb"></span>
-    <div class="progress-wrap" title="course progress">
+    <span class="topbar-spacer"></span>
+    <div class="progress-wrap" title="Course progress">
       <div id="progress-bar"><div id="progress-bar-fill"></div></div>
       <span id="progress-pill">0/0</span>
+    </div>
+    <div class="pilltabs" id="layout-tabs" role="group" aria-label="Workspace layout">
+      <button type="button" data-layout="split" aria-pressed="true">Split</button>
+      <button type="button" data-layout="focus" aria-pressed="false">Focus</button>
     </div>
   </header>
 
   <div id="layout">
-    <nav id="sidebar" aria-label="course modules">
+    <nav id="sidebar" aria-label="Course modules">
+      <div class="sidebar-metric">
+        <span class="eyebrow">Course progress</span>
+        <div class="metric-row">
+          <span id="progress-metric">0</span>
+          <span class="metric-pct">%</span>
+          <span id="progress-units">0/0 units</span>
+        </div>
+      </div>
       <div id="module-nav"></div>
       <div id="sidebar-foot">
-        <button id="reset-progress" class="btn btn-ghost btn-small" type="button">↺ reset my progress</button>
+        <a class="btn btn-sm btn-block" id="playground-link" href="#/playground">Playground</a>
+        <button id="reset-progress" class="btn btn-sm btn-block btn-ghost" type="button">Reset progress</button>
       </div>
     </nav>
     <div id="sidebar-scrim"></div>
 
     <main id="main">
-      <section id="lesson-pane">
-        <article id="lesson-article">
-          <p class="lesson-p" style="opacity:.6">Loading course…</p>
-        </article>
-      </section>
+      <div id="ex-toolbar">
+        <span id="ex-title"></span>
+        <span id="ex-meter">
+          <span class="tick-row" id="ex-ticks" aria-hidden="true"></span>
+          <span id="ex-progress"></span>
+        </span>
+        <span class="topbar-spacer"></span>
+        <div class="pilltabs" id="work-tabs" role="tablist" aria-label="Exercise panel">
+          <button type="button" role="tab" data-tab="steps" aria-controls="lesson-pane" aria-selected="true">Steps</button>
+          <button type="button" role="tab" data-tab="graph" aria-controls="graph-panel" aria-selected="false">Graph</button>
+          <button type="button" role="tab" data-tab="files" aria-controls="files-wrap" aria-selected="false">Files</button>
+        </div>
+        <button id="files-btn" class="btn btn-sm" type="button" aria-pressed="false">Files</button>
+        <button id="reset-btn" class="btn btn-sm btn-ghost" type="button" title="Restore this exercise's starting state">↺ reset</button>
+      </div>
 
-      <section id="workspace" class="hidden">
-        <div id="exercise-panel"></div>
-        <div id="work-grid">
-          <div id="terminal-wrap" class="panel">
-            <div class="panel-head">
-              <span class="panel-title"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp; terminal — simulated git</span>
-              <button id="reset-btn" class="btn btn-ghost btn-small" title="restore this exercise's starting state">↺ reset</button>
-            </div>
-            <div id="terminal" role="log"></div>
-          </div>
+      <div id="main-body">
+        <section id="lesson-pane">
+          <div id="read-progress" aria-hidden="true"><span id="read-progress-fill"></span></div>
+          <article id="lesson-article">
+            <p class="lesson-p">Loading course…</p>
+          </article>
+          <div id="exercise-panel"></div>
+        </section>
+
+        <section id="workspace" class="hidden">
           <div id="viz-col">
             <div id="graph-panel" class="panel">
               <div class="panel-head">
-                <span class="panel-title">commit graph</span>
+                <span class="eyebrow">Commit graph</span>
                 <span id="graph-headline"></span>
               </div>
-              <div id="graph-scroll"><svg id="graph-svg" role="img" aria-label="commit graph visualization"></svg></div>
+              <div id="graph-scroll">
+                <svg id="graph-svg" role="img" aria-label="Commit graph visualization"></svg>
+              </div>
               <p id="graph-a11y" class="sr-only" aria-live="polite"></p>
             </div>
-            <div id="files-wrap" class="panel">
-              <div class="panel-head"><span class="panel-title">file state — the three areas</span></div>
+
+            <aside id="files-wrap" class="panel" aria-label="File state">
+              <div class="panel-head">
+                <span class="eyebrow">File state — the three areas</span>
+                <span class="topbar-spacer"></span>
+                <button id="files-close" class="btn btn-icon" type="button" aria-label="Close the file state panel">✕</button>
+              </div>
               <div id="files-panel"></div>
-            </div>
+            </aside>
           </div>
-        </div>
-      </section>
+
+          <button id="now-bar" type="button">
+            <span class="eyebrow">Now</span>
+            <span id="now-text"></span>
+            <span id="now-more">more</span>
+          </button>
+
+          <div id="terminal-wrap">
+            <div id="terminal" role="log"></div>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 

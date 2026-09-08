@@ -4,6 +4,16 @@
  * Wires content (course.json) + engine (GitEngine) + UI components together.
  * Routing is hash-based (#/lesson/<id>, #/playground) so the app deploys as
  * plain static files behind any server (Caddy, nginx, python -m http.server).
+ *
+ * The shell has two shapes, chosen by `data-mode` on <body>:
+ *
+ *   read      one centred reading column; the workspace is not in play
+ *   exercise  instructions rail + graph + terminal + file state
+ *
+ * and the exercise shape has two layouts, `split` and `focus`. `focus` shows
+ * one panel at a time above a pinned terminal and is forced below 1000px —
+ * that is how four regions fit on a 360px screen without any of them shrinking
+ * to uselessness.
  * ========================================================================== */
 
 import { GitEngine } from '../engine/git-engine.js';
@@ -23,11 +33,18 @@ const S = {
   progress: null,
   entries: [],       // flattened [{module, lesson}]
   current: null,     // current entry
+  exMode: null,      // 'guided' | 'challenge' | 'playground' | null
   engine: null,
   terminal: null,
   stepIdx: 0,
   revealedHints: 0,
   completedThisView: false,
+  mode: 'read',      // 'read' | 'exercise'
+  layout: 'split',   // the learner's preference; narrow screens override it
+  tab: 'steps',      // focus-mode panel: 'steps' | 'graph' | 'files'
+  filesOpen: false,
+  confirmReset: false,
+  resetTimer: null,
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -36,8 +53,31 @@ const $ = (sel) => document.querySelector(sel);
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const scrollBehavior = () => (reducedMotion.matches ? 'auto' : 'smooth');
 
+/* Below this width a 384px instructions rail leaves nothing for the graph. */
+const wideEnough = window.matchMedia('(min-width: 1000px)');
+const effectiveLayout = () => (wideEnough.matches ? S.layout : 'focus');
+
+/* ------------------------------ shell chrome ------------------------------ */
+
+/** Push the whole of `S`'s presentation state onto <body> in one place. */
+function applyChrome() {
+  const layout = effectiveLayout();
+  document.body.dataset.mode = S.mode;
+  document.body.dataset.layout = layout;
+  document.body.dataset.tab = S.tab;
+  document.body.classList.toggle('files-open', S.filesOpen);
+  $('#files-btn').setAttribute('aria-pressed', String(S.filesOpen));
+  for (const b of document.querySelectorAll('#layout-tabs button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.layout === S.layout));
+  }
+  for (const b of document.querySelectorAll('#work-tabs button')) {
+    b.setAttribute('aria-selected', String(b.dataset.tab === S.tab));
+  }
+}
+
 function setSidebar(open) {
   $('#sidebar').classList.toggle('open', open);
+  document.body.classList.toggle('nav-open', open);
   $('#menu-btn').setAttribute('aria-expanded', String(open));
 }
 const closeSidebar = () => setSidebar(false);
@@ -59,13 +99,31 @@ async function boot() {
   const menuBtn = $('#menu-btn');
   menuBtn.addEventListener('click', () => setSidebar(!$('#sidebar').classList.contains('open')));
   $('#sidebar-scrim').addEventListener('click', closeSidebar);
+  $('#playground-link').addEventListener('click', closeSidebar);
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && $('#sidebar').classList.contains('open')) {
+    if (ev.key !== 'Escape') return;
+    if ($('#sidebar').classList.contains('open')) {
       closeSidebar();
       menuBtn.focus();
+    } else if ($('#success-banner')) {
+      dismissSuccess();
     }
   });
   $('#reset-progress').addEventListener('click', resetProgress);
+
+  for (const b of document.querySelectorAll('#layout-tabs button')) {
+    b.addEventListener('click', () => { S.layout = b.dataset.layout; applyChrome(); });
+  }
+  for (const b of document.querySelectorAll('#work-tabs button')) {
+    b.addEventListener('click', () => { S.tab = b.dataset.tab; applyChrome(); });
+  }
+  $('#files-btn').addEventListener('click', () => { S.filesOpen = !S.filesOpen; applyChrome(); });
+  $('#files-close').addEventListener('click', () => { S.filesOpen = false; applyChrome(); });
+  $('#now-bar').addEventListener('click', () => { S.tab = 'steps'; applyChrome(); });
+  wideEnough.addEventListener('change', applyChrome);
+  $('#lesson-pane').addEventListener('scroll', updateReadProgress, { passive: true });
+
+  applyChrome();
   route();
 }
 
@@ -95,6 +153,14 @@ function playableEntries() {
 
 /* -------------------------------- sidebar -------------------------------- */
 
+/** Concept · guided · challenge · recap each get their own mark, so the shape
+ *  of a module is readable before any of it is opened. */
+function lessonMark(entry) {
+  if (entry.lesson.comingSoon) return '◌';
+  if (isDone(entry.lesson.id)) return '✓';
+  return { guided: '›', challenge: '◇', recap: '≡' }[entry.lesson.type] || '·';
+}
+
 function buildSidebar() {
   S.entries = flatten();
   const nav = $('#module-nav');
@@ -103,42 +169,41 @@ function buildSidebar() {
   const wasOpen = new Map();
   nav.querySelectorAll('.nav-module').forEach((d) => wasOpen.set(d.dataset.mod, d.open));
   nav.innerHTML = '';
+
   for (const mod of S.course.modules) {
+    const modEntries = S.entries.filter((e) => e.module.id === mod.id);
+    const modDone = modEntries
+      .filter((e) => !e.lesson.comingSoon)
+      .every((e) => isDone(e.lesson.id));
+
     const details = document.createElement('details');
-    details.className = 'nav-module';
+    details.className = 'nav-module' + (modDone ? ' mod-done' : '');
     details.dataset.mod = mod.id;
     details.open = wasOpen.has(mod.id) ? wasOpen.get(mod.id) : mod.status === 'ready';
 
     const summary = document.createElement('summary');
-    const modDone = S.entries
-      .filter((e) => e.module.id === mod.id && !e.lesson.comingSoon)
-      .every((e) => isDone(e.lesson.id));
-    summary.innerHTML = `<span class="nav-mod-num">${String(mod.number).padStart(2, '0')}</span>
-      <span class="nav-mod-title"></span>
-      <span class="nav-mod-badge"></span>`;
+    summary.innerHTML = '<span class="nav-mod-num"></span><span class="nav-mod-title"></span>' +
+      '<span class="nav-mod-badge"></span><span class="nav-caret" aria-hidden="true">▸</span>';
+    summary.querySelector('.nav-mod-num').textContent = String(mod.number).padStart(2, '0');
     summary.querySelector('.nav-mod-title').textContent = mod.title;
     const badge = summary.querySelector('.nav-mod-badge');
     if (mod.status !== 'ready') { badge.textContent = 'soon'; badge.classList.add('badge-soon'); }
-    else if (modDone) { badge.textContent = '✓'; badge.classList.add('badge-done'); }
+    else if (modDone) { badge.textContent = '✓'; badge.title = 'Module complete'; }
     details.appendChild(summary);
 
     const ul = document.createElement('ul');
     ul.className = 'nav-lessons';
-    for (const entry of S.entries.filter((e) => e.module.id === mod.id)) {
+    for (const entry of modEntries) {
       const li = document.createElement('li');
       const a = document.createElement('a');
       a.href = `#/lesson/${entry.lesson.id}`;
       a.dataset.lesson = entry.lesson.id;
       a.className = 'nav-lesson';
       if (entry.lesson.comingSoon) a.classList.add('nav-soon');
-      const icon = entry.lesson.comingSoon ? '◌'
-        : isDone(entry.lesson.id) ? '✓'
-        : entry.lesson.type === 'challenge' ? '⚑'
-        : entry.lesson.type === 'guided' ? '▸' : '·';
-      a.innerHTML = `<span class="nav-icon"></span><span class="nav-title"></span>`;
-      a.querySelector('.nav-icon').textContent = icon;
-      a.querySelector('.nav-title').textContent = entry.lesson.title;
       if (isDone(entry.lesson.id)) a.classList.add('done');
+      a.innerHTML = '<span class="nav-icon" aria-hidden="true"></span><span class="nav-title"></span>';
+      a.querySelector('.nav-icon').textContent = lessonMark(entry);
+      a.querySelector('.nav-title').textContent = entry.lesson.title;
       a.addEventListener('click', closeSidebar);
       li.appendChild(a);
       ul.appendChild(li);
@@ -146,13 +211,6 @@ function buildSidebar() {
     details.appendChild(ul);
     nav.appendChild(details);
   }
-
-  const pg = document.createElement('a');
-  pg.href = '#/playground';
-  pg.className = 'nav-playground';
-  pg.innerHTML = '<span class="nav-icon">∞</span> Playground — free sandbox';
-  pg.addEventListener('click', closeSidebar);
-  nav.appendChild(pg);
 
   updateProgressPill();
 }
@@ -163,6 +221,8 @@ function updateProgressPill() {
   const pct = playable.length ? Math.round((done / playable.length) * 100) : 0;
   $('#progress-pill').textContent = `${done}/${playable.length} · ${pct}%`;
   $('#progress-bar-fill').style.width = pct + '%';
+  $('#progress-metric').textContent = String(pct);
+  $('#progress-units').textContent = `${done}/${playable.length} units`;
 }
 
 function markActive(lessonId) {
@@ -174,24 +234,45 @@ function markActive(lessonId) {
   });
 }
 
+/** Destructive, so it asks twice — the second tap inside four seconds fires. */
 async function resetProgress() {
+  const btn = $('#reset-progress');
   const done = S.progress.completedLessons.length;
   if (!done) {
-    window.alert('No progress saved yet — nothing to reset.');
+    btn.textContent = 'Nothing saved yet';
+    window.clearTimeout(S.resetTimer);
+    S.resetTimer = window.setTimeout(() => { btn.textContent = 'Reset progress'; }, 2400);
     return;
   }
-  const msg = `Reset your course progress?\n\nThis clears ${done} completed ` +
-    `lesson${done === 1 ? '' : 's'} stored in this browser. It cannot be undone.`;
-  if (!window.confirm(msg)) return;
+  if (!S.confirmReset) {
+    S.confirmReset = true;
+    btn.textContent = `Tap again to erase ${done} completed`;
+    btn.classList.add('btn-danger');
+    btn.classList.remove('btn-ghost');
+    window.clearTimeout(S.resetTimer);
+    S.resetTimer = window.setTimeout(cancelResetConfirm, 4000);
+    return;
+  }
+  cancelResetConfirm();
   await store.clear();
   S.progress = await store.load();
   buildSidebar();
   if (S.current) show(S.current); else route();
 }
 
+function cancelResetConfirm() {
+  const btn = $('#reset-progress');
+  window.clearTimeout(S.resetTimer);
+  S.confirmReset = false;
+  btn.textContent = 'Reset progress';
+  btn.classList.remove('btn-danger');
+  btn.classList.add('btn-ghost');
+}
+
 /* -------------------------------- routing -------------------------------- */
 
 function route() {
+  dismissSuccess();
   const hash = location.hash || '';
   const m = hash.match(/^#\/lesson\/([\w-]+)/);
   if (m) {
@@ -219,9 +300,58 @@ function graphFromOps(ops) {
   return wrap;
 }
 
+const KICKERS = {
+  concept: 'Concept',
+  guided: 'Guided exercise',
+  challenge: 'Challenge',
+  recap: 'Recap',
+};
+
+/** Rough reading length, so a learner can tell a 3-minute page from a 10. */
+function wordCount(blocks = []) {
+  let n = 0;
+  for (const b of blocks) {
+    const text = b.p ?? b.h ?? b.analogy ?? b.tip ?? b.warn ?? b.code ??
+      (Array.isArray(b.list) ? b.list.join(' ') : null) ??
+      (b.graph && b.graph.caption) ?? '';
+    if (text) n += String(text).trim().split(/\s+/).length;
+  }
+  return n;
+}
+
+function lessonHead(entry) {
+  const { module: mod, lesson } = entry;
+  const head = document.createElement('div');
+  head.className = 'lesson-head';
+
+  const kicker = document.createElement('p');
+  kicker.className = 'lesson-kicker';
+  kicker.textContent = `Module ${String(mod.number).padStart(2, '0')} · ` +
+    (KICKERS[lesson.type] || 'Lesson');
+
+  const h1 = document.createElement('h1');
+  h1.className = 'lesson-title';
+  h1.textContent = lesson.title;
+
+  head.append(kicker, h1);
+
+  const words = wordCount(lesson.body);
+  if (words) {
+    const meta = document.createElement('p');
+    meta.className = 'lesson-meta';
+    meta.innerHTML = '<span></span><span aria-hidden="true">·</span><span></span>';
+    const [w, , m] = meta.querySelectorAll('span');
+    w.textContent = `${words} words`;
+    m.textContent = `${Math.max(1, Math.round(words / 200))} min read`;
+    head.appendChild(meta);
+  }
+  return head;
+}
+
 function show(entry) {
   S.current = entry;
   S.completedThisView = false;
+  dismissSuccess();
   // Never resume onto a lesson that isn't written yet — that's a dead end.
   if (!entry.lesson.comingSoon) {
     S.progress.lastLessonId = entry.lesson.id;
@@ -233,14 +363,7 @@ function show(entry) {
   $('#crumb').textContent = `Module ${mod.number} · ${mod.title}`;
   const article = $('#lesson-article');
   article.innerHTML = '';
-
-  const kicker = document.createElement('div');
-  kicker.className = 'lesson-kicker';
-  kicker.textContent = { concept: 'Concept', guided: 'Guided exercise', challenge: 'Challenge', recap: 'Recap' }[lesson.type] || 'Lesson';
-  const h1 = document.createElement('h2');
-  h1.className = 'lesson-title';
-  h1.textContent = lesson.title;
-  article.append(kicker, h1);
+  article.appendChild(lessonHead(entry));
 
   if (lesson.comingSoon) {
     renderComingSoon(article, mod);
@@ -250,46 +373,57 @@ function show(entry) {
 
   renderBlocks(article, lesson.body || [], { graphFromOps });
 
-  if (lesson.type === 'concept' || lesson.type === 'recap') {
+  if (lesson.type === 'guided' || lesson.type === 'challenge') {
+    setupWorkspace(entry, lesson.type);
+  } else {
     hideWorkspace();
     article.appendChild(continueControls(entry, lesson.type === 'recap' ? 'Finish module' : 'Got it — continue'));
-  } else if (lesson.type === 'guided') {
-    setupWorkspace(entry, 'guided');
-  } else if (lesson.type === 'challenge') {
-    setupWorkspace(entry, 'challenge');
   }
+
   $('#lesson-pane').scrollTop = 0;
+  updateReadProgress();
 }
 
 function renderComingSoon(article, mod) {
   const d = document.createElement('div');
   d.className = 'coming-soon-card';
-  d.innerHTML = `<p class="cs-emoji">🚧</p>
-    <p class="cs-text">This lesson is being filmed and written. The module will cover:</p>
+  d.innerHTML = `<p class="cs-emoji" aria-hidden="true">🚧</p>
+    <p class="cs-text">This lesson is being written. The module will cover:</p>
     <p class="cs-summary"></p>
     <p class="cs-note">The sandbox already supports these commands — try them in the <a href="#/playground">Playground</a>.</p>`;
   d.querySelector('.cs-summary').textContent = mod.summary;
   article.appendChild(d);
 }
 
+function nextEntry(entry) {
+  const playable = playableEntries();
+  const idx = playable.findIndex((e) => e.lesson.id === entry.lesson.id);
+  return playable[idx + 1] || null;
+}
+
 function continueControls(entry, label) {
   const wrap = document.createElement('div');
   wrap.className = 'lesson-actions';
   const btn = document.createElement('button');
-  btn.className = 'btn btn-primary';
-  btn.textContent = isDone(entry.lesson.id) ? 'Continue →' : label + ' →';
+  btn.type = 'button';
+  btn.className = 'btn btn-solid btn-lg';
+  btn.textContent = (isDone(entry.lesson.id) ? 'Continue' : label) + ' →';
   btn.addEventListener('click', () => {
     completeLesson(entry.lesson.id, false);
     gotoNext(entry);
   });
   wrap.appendChild(btn);
+
+  const next = nextEntry(entry);
+  const hint = document.createElement('span');
+  hint.className = 'next-hint';
+  hint.textContent = next ? `Next: ${next.lesson.title}` : 'That was the last unit — nice work.';
+  wrap.appendChild(hint);
   return wrap;
 }
 
 function gotoNext(entry) {
-  const playable = playableEntries();
-  const idx = playable.findIndex((e) => e.lesson.id === entry.lesson.id);
-  const next = playable[idx + 1];
+  const next = nextEntry(entry);
   if (next) location.hash = `#/lesson/${next.lesson.id}`;
 }
 
@@ -306,26 +440,94 @@ function completeLesson(lessonId, celebrate = true) {
   }
 }
 
+/** The moment an exercise is solved — the emotional peak of a module, so it
+ *  takes over the workspace rather than scrolling past in the rail. */
 function showSuccessBanner() {
+  dismissSuccess();
+  const entry = S.current;
+  const lesson = entry ? entry.lesson : null;
+  const mod = entry ? entry.module : null;
+  const next = entry ? nextEntry(entry) : null;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'success-banner';
+  overlay.innerHTML = `<div class="sb-inner" role="dialog" aria-modal="true" aria-labelledby="sb-title">
+      <div class="sb-head">
+        <span class="sb-check" aria-hidden="true">✓</span>
+        <span class="sb-kicker"></span>
+      </div>
+      <h2 class="sb-title" id="sb-title"></h2>
+      <p class="sb-sub"></p>
+      <ul class="sb-list"></ul>
+      <div class="sb-actions">
+        <button class="btn btn-solid btn-lg" id="sb-next" type="button"></button>
+        <button class="btn btn-ghost btn-lg sb-stay" type="button">Keep playing here</button>
+      </div>
+    </div>`;
+
+  overlay.querySelector('.sb-kicker').textContent = mod
+    ? `Module ${String(mod.number).padStart(2, '0')} · ${(KICKERS[lesson.type] || 'Exercise').toUpperCase()} COMPLETE`
+    : 'EXERCISE COMPLETE';
+  overlay.querySelector('.sb-title').textContent = lesson ? lesson.title : 'Exercise complete';
+  overlay.querySelector('.sb-sub').textContent =
+    'Your repository is in the state the exercise asked for — checked against the repo itself, not the commands you typed.';
+
+  const list = overlay.querySelector('.sb-list');
+  for (const label of achievements(entry)) {
+    const li = document.createElement('li');
+    li.textContent = label;
+    list.appendChild(li);
+  }
+
+  const nextBtn = overlay.querySelector('#sb-next');
+  nextBtn.textContent = next ? 'Continue →' : 'Back to the course →';
+  nextBtn.addEventListener('click', () => { dismissSuccess(); gotoNext(S.current); });
+  overlay.querySelector('.sb-stay').addEventListener('click', dismissSuccess);
+
+  $('#main').appendChild(overlay);
+  nextBtn.focus({ preventScroll: true });
+}
+
+/** What the learner actually did, pulled from the exercise definition. */
+function achievements(entry) {
+  const ex = entry && entry.lesson.exercise;
+  if (!ex) return [];
+  if (ex.expect) return ex.expect.map((c) => c.label || c.kind).slice(0, 6);
+  if (ex.steps) return ex.steps.map((s) => stripMd(s.say)).slice(0, 6);
+  return [];
+}
+
+/** Plain text from a `say` string — the success list is not a rich surface. */
+function stripMd(s) {
+  return String(s || '').replace(/[`*]/g, '');
+}
+
+function dismissSuccess() {
   const old = $('#success-banner');
   if (old) old.remove();
-  const banner = document.createElement('div');
-  banner.id = 'success-banner';
-  banner.innerHTML = `<div class="sb-inner">
-      <span class="sb-check">✓</span>
-      <div><strong>Exercise complete!</strong><br><span class="sb-sub">Repo state verified — nicely done.</span></div>
-      <button class="btn btn-primary" id="sb-next">Continue →</button>
-    </div>`;
-  $('#lesson-article').appendChild(banner);
-  banner.querySelector('#sb-next').addEventListener('click', () => gotoNext(S.current));
-  banner.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' });
+}
+
+/* --------------------------- reading progress ----------------------------- */
+
+function updateReadProgress() {
+  const pane = $('#lesson-pane');
+  const fill = $('#read-progress-fill');
+  if (!pane || !fill) return;
+  const span = pane.scrollHeight - pane.clientHeight;
+  const pct = span > 8 ? Math.min(100, Math.round((pane.scrollTop / span) * 100)) : 0;
+  fill.style.width = pct + '%';
 }
 
 /* ------------------------------- workspace ------------------------------- */
 
 function hideWorkspace() {
+  S.mode = 'read';
+  S.exMode = null;
+  S.filesOpen = false;
   $('#workspace').classList.add('hidden');
+  $('#exercise-panel').innerHTML = '';
   if (S.terminal) { S.terminal.destroy(); S.terminal = null; }
+  applyChrome();
 }
 
 function promptText() {
@@ -341,6 +543,10 @@ function promptText() {
 
 function setupWorkspace(entry, mode) {
   const ex = entry.lesson.exercise || { setup: [] };
+  S.mode = 'exercise';
+  S.exMode = mode;
+  S.tab = 'steps';
+  S.filesOpen = false;
   $('#workspace').classList.remove('hidden');
   S.engine = new GitEngine();
   S.engine.applySetup(ex.setup || []);
@@ -350,7 +556,8 @@ function setupWorkspace(entry, mode) {
   S.stepIdx = 0;
   S.revealedHints = 0;
 
-  // exercise panel
+  $('#ex-title').textContent = entry.lesson.title;
+
   const panel = $('#exercise-panel');
   panel.innerHTML = '';
   if (mode === 'guided') renderGuidedPanel(panel, entry);
@@ -370,12 +577,22 @@ function setupWorkspace(entry, mode) {
   S.terminal.print("Type 'help' for available commands." + (mode !== 'playground' ? " Type 'hint' if you're stuck." : ''), 'dim');
   S.terminal.printBlank();
 
-  $('#reset-btn').onclick = () => {
-    setupWorkspace(entry, mode);
-  };
+  $('#reset-btn').onclick = () => { setupWorkspace(entry, mode); };
 
+  applyChrome();
   updateVisuals();
   if (window.matchMedia('(min-width: 900px)').matches) S.terminal.focus();
+}
+
+/** Run a command as though the learner had typed it (step "run it for me"). */
+function runLine(line) {
+  if (!S.terminal || !S.current) return;
+  S.terminal.echo(line);
+  S.terminal.history.push(line);
+  handleCommand(line, S.current, S.exMode);
+  S.terminal.refreshPrompt();
+  S.terminal.scrollToEnd();
+  S.terminal.focus();
 }
 
 function handleCommand(line, entry, mode) {
@@ -401,12 +618,25 @@ function handleCommand(line, entry, mode) {
 function updateVisuals() {
   const graph = S.engine.getGraph();
   const svg = $('#graph-svg');
-  renderGraph(svg, graph);
-  scrollGraphToHead($('#graph-scroll'), svg);
-  renderFiles($('#files-panel'), S.engine.getFileState());
+  const drawn = renderGraph(svg, graph);
+  const scroller = $('#graph-scroll');
+  scroller.classList.toggle('is-empty', !!drawn.empty);
+  scrollGraphToHead(scroller, svg);
+  const files = S.engine.getFileState();
+  renderFiles($('#files-panel'), files);
   const head = S.engine.headCommit();
   $('#graph-headline').textContent = head ? `HEAD: ${head.message}` : '';
   $('#graph-a11y').textContent = graphSummary(graph);
+  updateFilesBadge(files);
+  updateNowBar();
+}
+
+/** The Files control carries the number of files that are not clean, so the
+ *  panel does not have to be open for a change to be noticed. */
+function updateFilesBadge(files) {
+  const busy = [...files.working, ...files.index]
+    .filter((f) => f.state !== 'clean' && f.state !== 'ignored').length;
+  $('#files-btn').textContent = busy ? `Files ${busy}` : 'Files';
 }
 
 /**
@@ -446,44 +676,87 @@ function graphSummary(g) {
     (g.merging ? ' A merge is in progress.' : '');
 }
 
+/* ---------------------------- exercise progress --------------------------- */
+
+/** The tick row in the exercise bar: one mark per step or per condition. */
+function renderTicks(states) {
+  const row = $('#ex-ticks');
+  row.innerHTML = '';
+  for (const state of states) {
+    const t = document.createElement('span');
+    t.className = 'tick' + (state ? ' tick-' + state : '');
+    row.appendChild(t);
+  }
+}
+
+/** The one-line "what am I meant to be doing" bar, used in focus mode where
+ *  the instructions are behind a tab. */
+function updateNowBar() {
+  const text = $('#now-text');
+  if (S.exMode === 'guided' && S.current) {
+    const steps = S.current.lesson.exercise.steps;
+    const step = steps[Math.min(S.stepIdx, steps.length - 1)];
+    text.textContent = S.stepIdx >= steps.length
+      ? 'All steps done.'
+      : stripMd(step.say);
+  } else if (S.exMode === 'challenge' && S.current) {
+    text.textContent = $('#ex-progress').textContent || 'Work towards the goal.';
+  } else {
+    text.textContent = 'Free sandbox — nothing to solve.';
+  }
+}
+
 /* ------------------------------ guided mode ------------------------------ */
 
 function renderGuidedPanel(panel, entry) {
   const steps = entry.lesson.exercise.steps;
-  const wrap = document.createElement('div');
-  wrap.className = 'guided-steps';
-  const head = document.createElement('div');
-  head.className = 'ex-head';
-  head.innerHTML = `<span class="ex-tag ex-tag-guided">guided</span><span class="ex-progress" id="guided-progress"></span>`;
-  wrap.appendChild(head);
   const ol = document.createElement('ol');
   ol.className = 'step-list';
   ol.id = 'step-list';
+
   steps.forEach((step, i) => {
     const li = document.createElement('li');
     li.className = 'step';
     li.dataset.idx = i;
     li.innerHTML = `
-      <div class="step-marker"></div>
+      <span class="step-marker" aria-hidden="true"></span>
       <div class="step-body">
         <div class="step-say"></div>
         ${step.cmd ? '<pre class="step-cmd"><code></code></pre>' : ''}
-        <button class="step-hint-btn hidden-btn" type="button">show hint</button>
-        <div class="step-hint" hidden></div>
+        <div class="step-tools"></div>
+        <p class="step-hint" hidden></p>
       </div>`;
     li.querySelector('.step-say').innerHTML = inlineMd(step.say);
-    if (step.cmd) li.querySelector('.step-cmd code').textContent = step.cmd;
-    const hintBtn = li.querySelector('.step-hint-btn');
-    const hintEl = li.querySelector('.step-hint');
-    hintEl.textContent = step.hint || '';
+
+    const tools = li.querySelector('.step-tools');
+    if (step.cmd) {
+      li.querySelector('.step-cmd code').textContent = step.cmd;
+      const run = document.createElement('button');
+      run.type = 'button';
+      run.className = 'btn btn-sm';
+      run.textContent = '▸ Run it for me';
+      run.addEventListener('click', () => runLine(String(step.cmd).split('\n')[0]));
+      tools.appendChild(run);
+    }
     if (step.hint) {
-      hintBtn.classList.remove('hidden-btn');
-      hintBtn.addEventListener('click', () => { hintEl.hidden = !hintEl.hidden; hintBtn.textContent = hintEl.hidden ? 'show hint' : 'hide hint'; });
+      const hintEl = li.querySelector('.step-hint');
+      hintEl.textContent = step.hint;
+      const hintBtn = document.createElement('button');
+      hintBtn.type = 'button';
+      hintBtn.className = 'btn btn-sm btn-ghost';
+      hintBtn.textContent = 'Stuck?';
+      hintBtn.setAttribute('aria-expanded', 'false');
+      hintBtn.addEventListener('click', () => {
+        hintEl.hidden = !hintEl.hidden;
+        hintBtn.textContent = hintEl.hidden ? 'Stuck?' : 'Hide hint';
+        hintBtn.setAttribute('aria-expanded', String(!hintEl.hidden));
+      });
+      tools.appendChild(hintBtn);
     }
     ol.appendChild(li);
   });
-  wrap.appendChild(ol);
-  panel.appendChild(wrap);
+
+  panel.appendChild(ol);
   refreshGuidedUI(entry);
 }
 
@@ -496,10 +769,11 @@ function refreshGuidedUI(entry) {
     li.classList.toggle('step-future', i > S.stepIdx);
     li.querySelector('.step-marker').textContent = i < S.stepIdx ? '✓' : String(i + 1);
   });
-  const prog = $('#guided-progress');
-  if (prog) prog.textContent = `step ${Math.min(S.stepIdx + 1, steps.length)} of ${steps.length}`;
+  renderTicks(steps.map((s, i) => (i < S.stepIdx ? 'done' : i === S.stepIdx ? 'now' : '')));
+  $('#ex-progress').textContent = `Step ${Math.min(S.stepIdx + 1, steps.length)} of ${steps.length}`;
   const current = document.querySelector('#step-list .step-current');
   if (current) current.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' });
+  updateNowBar();
 }
 
 function checkGuided(entry) {
@@ -515,7 +789,7 @@ function revealHint(entry, mode) {
   if (mode === 'guided') {
     const step = entry.lesson.exercise.steps[S.stepIdx];
     if (step && step.hint) S.terminal.print('hint: ' + step.hint, 'dim');
-    else S.terminal.print('hint: follow the current step in the panel above.', 'dim');
+    else S.terminal.print('hint: follow the current step in the panel.', 'dim');
   } else if (mode === 'challenge') {
     const hints = entry.lesson.exercise.hints || [];
     if (S.revealedHints < hints.length) {
@@ -531,21 +805,27 @@ function revealHint(entry, mode) {
 
 /* ----------------------------- challenge mode ----------------------------- */
 
+function railSection(eyebrow) {
+  const wrap = document.createElement('div');
+  wrap.className = 'rail-section';
+  const label = document.createElement('span');
+  label.className = 'eyebrow';
+  label.textContent = eyebrow;
+  wrap.appendChild(label);
+  return wrap;
+}
+
 function renderChallengePanel(panel, entry) {
   const ex = entry.lesson.exercise;
-  const wrap = document.createElement('div');
-  wrap.className = 'challenge-panel';
-  const head = document.createElement('div');
-  head.className = 'ex-head';
-  head.innerHTML = `<span class="ex-tag ex-tag-challenge">challenge</span><span class="ex-progress" id="challenge-progress"></span>`;
-  wrap.appendChild(head);
 
-  const goal = document.createElement('div');
-  goal.className = 'challenge-goal';
-  goal.innerHTML = `<div class="goal-label">Your mission</div><p></p>`;
-  goal.querySelector('p').innerHTML = inlineMd(ex.goal);
-  wrap.appendChild(goal);
+  const goalWrap = railSection('The goal');
+  const goal = document.createElement('p');
+  goal.className = 'rail-goal';
+  goal.innerHTML = inlineMd(ex.goal);
+  goalWrap.appendChild(goal);
+  panel.appendChild(goalWrap);
 
+  const checksWrap = railSection('Conditions');
   const list = document.createElement('ul');
   list.className = 'check-list';
   list.id = 'check-list';
@@ -553,19 +833,21 @@ function renderChallengePanel(panel, entry) {
     const li = document.createElement('li');
     li.className = 'check-item';
     li.dataset.idx = i;
-    li.innerHTML = `<span class="check-box"></span><span class="check-label"></span>`;
+    li.innerHTML = '<span class="check-box" aria-hidden="true"></span>' +
+      '<span class="check-label"></span><span class="check-state"></span>';
     li.querySelector('.check-label').textContent = check.label || check.kind;
     list.appendChild(li);
   });
-  wrap.appendChild(list);
+  checksWrap.appendChild(list);
+  panel.appendChild(checksWrap);
 
   if (ex.hints && ex.hints.length) {
     const hintWrap = document.createElement('div');
     hintWrap.className = 'challenge-hints';
     hintWrap.id = 'challenge-hints';
-    wrap.appendChild(hintWrap);
+    panel.appendChild(hintWrap);
   }
-  panel.appendChild(wrap);
+
   refreshHintButtons(entry);
   refreshChecklist(entry);
 }
@@ -578,30 +860,39 @@ function refreshHintButtons(entry) {
   hints.slice(0, S.revealedHints).forEach((h, i) => {
     const d = document.createElement('div');
     d.className = 'hint-revealed';
-    d.innerHTML = `<span class="hint-num">hint ${i + 1}</span> <span class="hint-text"></span>`;
+    d.innerHTML = '<span class="hint-num"></span><span class="hint-text"></span>';
+    d.querySelector('.hint-num').textContent = `Hint ${i + 1}`;
     d.querySelector('.hint-text').textContent = h;
     hintWrap.appendChild(d);
   });
-  if (S.revealedHints < hints.length) {
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-ghost btn-hint';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-sm btn-quiet';
+  if (S.revealedHints >= hints.length) {
+    btn.textContent = 'No hints left';
+    btn.disabled = true;
+  } else {
     btn.textContent = S.revealedHints === 0
-      ? `Stuck? Reveal a hint (${hints.length} available)`
-      : `Reveal another hint (${hints.length - S.revealedHints} left)`;
+      ? `Reveal a hint (${hints.length} available)`
+      : `Reveal another (${hints.length - S.revealedHints} left)`;
     btn.addEventListener('click', () => { S.revealedHints++; refreshHintButtons(entry); });
-    hintWrap.appendChild(btn);
   }
+  hintWrap.appendChild(btn);
 }
 
 function refreshChecklist(entry) {
   const res = runChecks(S.engine, entry.lesson.exercise.expect);
   document.querySelectorAll('#check-list .check-item').forEach((li) => {
     const i = Number(li.dataset.idx);
-    li.classList.toggle('check-pass', res[i].passed);
+    const passed = res[i].passed;
+    li.classList.toggle('check-pass', passed);
+    li.querySelector('.check-box').textContent = passed ? '✓' : '';
+    li.querySelector('.check-state').textContent = passed ? 'met' : 'waiting';
   });
   const passedCount = res.filter((r) => r.passed).length;
-  const prog = $('#challenge-progress');
-  if (prog) prog.textContent = `${passedCount}/${res.length} goals`;
+  renderTicks(res.map((r) => (r.passed ? 'done' : '')));
+  $('#ex-progress').textContent = `${passedCount} of ${res.length} conditions met`;
+  updateNowBar();
   return res;
 }
 
@@ -612,36 +903,74 @@ function checkChallenge(entry) {
 
 /* ------------------------------- playground ------------------------------- */
 
+const EXPERIMENTS = [
+  ['Put the folder under Git and take a first snapshot', 'git init'],
+  ['See what Git currently thinks about your files', 'git status'],
+  ['Stage everything in the folder', 'git add .'],
+  ['Record a snapshot with a message', 'git commit -m "first"'],
+  ['Read the history one line per commit', 'git log --oneline'],
+  ['Branch off and keep working somewhere else', 'git switch -c experiment'],
+  ['Bring a branch back into main', 'git merge experiment'],
+  ['Find out where HEAD has been', 'git reflog'],
+];
+
 function showPlayground() {
   S.current = null;
   markActive('');
   $('#crumb').textContent = 'Playground';
   const article = $('#lesson-article');
-  article.innerHTML = `
-    <div class="lesson-kicker">Sandbox</div>
-    <h2 class="lesson-title">Playground</h2>
-    <p class="lesson-p">A free sandbox with every supported command and no goals. Experiment fearlessly —
-    the graph and file panels update live, and the <strong>Reset</strong> button gives you a fresh folder.
-    A simulated remote is available: <code>git remote add origin https://github.com/you/demo.git</code>, then push away.</p>`;
+  article.innerHTML = '';
 
-  const entry = { module: { number: '∞', title: 'Playground' }, lesson: { id: 'playground', exercise: { setup: [
-    { op: 'write', path: 'readme.md', content: '# playground\nAnything goes here.' },
-  ] } } };
+  const head = document.createElement('div');
+  head.className = 'lesson-head';
+  head.innerHTML = '<p class="lesson-kicker">Sandbox</p><h1 class="lesson-title">Playground</h1>';
+  article.appendChild(head);
+
+  const entry = {
+    module: { number: '∞', title: 'Playground' },
+    lesson: {
+      id: 'playground',
+      title: 'Playground',
+      type: 'playground',
+      exercise: {
+        setup: [{ op: 'write', path: 'readme.md', content: '# playground\nAnything goes here.' }],
+      },
+    },
+  };
+  S.current = entry;
   setupWorkspace(entry, 'playground');
+  $('#ex-title').textContent = 'Playground — free sandbox';
 }
 
 function renderPlaygroundPanel(panel) {
-  panel.innerHTML = `<div class="ex-head"><span class="ex-tag ex-tag-playground">free play</span>
-    <span class="ex-progress">no goals — just you and the graph</span></div>
-    <div class="playground-ideas">
-      <div class="goal-label">Ideas to try</div>
-      <ul class="lesson-list">
-        <li><code>git init</code> → make commits → <code>git log --oneline</code></li>
-        <li><code>git switch -c experiment</code> → commit → <code>git switch main</code> → <code>git merge experiment</code></li>
-        <li>Edit the same line on two branches, merge, and resolve your first conflict</li>
-        <li><code>git reset --hard HEAD~1</code> then <code>git reflog</code> to see where HEAD has been</li>
-      </ul>
-    </div>`;
+  const intro = railSection('How this works');
+  const p = document.createElement('p');
+  p.className = 'rail-p';
+  p.textContent = 'No goals and no checklist. Nothing here is graded, and reset puts the ' +
+    'folder back to one file. A simulated remote is available too — add one with ' +
+    'git remote add origin, then push.';
+  intro.appendChild(p);
+  panel.appendChild(intro);
+
+  const ideas = railSection('Ideas to try');
+  panel.appendChild(ideas);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'experiments';
+  for (const [title, cmd] of EXPERIMENTS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'experiment';
+    btn.innerHTML = '<span></span><code></code>';
+    btn.querySelector('span').textContent = title;
+    btn.querySelector('code').textContent = cmd;
+    btn.addEventListener('click', () => runLine(cmd));
+    wrap.appendChild(btn);
+  }
+  panel.appendChild(wrap);
+
+  renderTicks([]);
+  $('#ex-progress').textContent = '';
 }
 
 /* --------------------------------- start --------------------------------- */
@@ -650,14 +979,17 @@ if (typeof document !== 'undefined' && document.getElementById('lesson-article')
   boot().catch((err) => {
     const el = document.getElementById('lesson-article');
     if (el) {
+      el.innerHTML = `<div class="lesson-head">
+          <p class="lesson-kicker">Problem</p>
+          <h1 class="lesson-title">The course content could not be loaded</h1>
+        </div>
+        <p class="lesson-p">This almost always means the page was opened straight from disk
+        (a <code>file://</code> address), which browsers do not allow to read
+        <code>content/course.json</code>. Serve the folder with any static server instead —
+        <code>python -m http.server</code> or Caddy's <code>file_server</code> will do.</p>`;
       const detail = document.createElement('p');
-      detail.className = 'lesson-p';
-      detail.style.opacity = '.7';
+      detail.className = 'load-error';
       detail.textContent = String(err && err.message ? err.message : err);
-      el.innerHTML = '<h2 class="lesson-title">Failed to load course</h2><p class="lesson-p">' +
-        'The course content could not be loaded. If you opened this file directly (file://), ' +
-        'please serve the folder with any static server instead, e.g. <code>python -m http.server</code> ' +
-        'or Caddy <code>file_server</code>.</p>';
       el.appendChild(detail);
     }
     console.error(err);

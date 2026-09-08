@@ -28,8 +28,8 @@ const landingCss = read('css', 'landing.css');
 
 /* Elements app.js builds itself — they are never in the HTML shell. */
 const RUNTIME_IDS = new Set([
-  'step-list', 'guided-progress',          // renderGuidedPanel
-  'check-list', 'challenge-progress',      // renderChallengePanel
+  'step-list',                             // renderGuidedPanel
+  'check-list',                            // renderChallengePanel
   'challenge-hints',                       // refreshHintButtons
   'success-banner', 'sb-next',             // showSuccessBanner
 ]);

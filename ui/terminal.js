@@ -1,11 +1,28 @@
 /* ============================================================================
  * first-commit — terminal component
  * ----------------------------------------------------------------------------
- * A DOM terminal emulator: monospace output, blinking cursor, command history
- * (↑/↓), tab-completion, and git-aware output colorization. It knows nothing
- * about git itself — it hands the typed line to `onCommand` and prints
- * whatever comes back.
+ * A DOM terminal emulator: monospace output, command history (↑/↓), tab
+ * completion, and git-aware output colourisation. It knows nothing about git
+ * itself — it hands the typed line to `onCommand` and prints whatever comes
+ * back.
+ *
+ * Each output line gets a glyph in a fixed left column as well as a colour, so
+ * "this was an error" survives greyscale, low vision and a screen reader.
  * ========================================================================== */
+
+/** output class → the glyph printed in the gutter. '' means no marker. */
+const GLYPHS = {
+  plain: '',
+  dim: '',
+  bold: '',
+  cmdline: '›',
+  err: '!',
+  green: '+',
+  red: '−',
+  cyan: '',
+  yellow: '',
+  sha: '·',
+};
 
 export class Terminal {
   /**
@@ -23,6 +40,26 @@ export class Terminal {
 
     root.classList.add('terminal');
     root.innerHTML = '';
+
+    /* ---- chrome ---- */
+    this.head = document.createElement('div');
+    this.head.className = 'term-head';
+    const label = document.createElement('span');
+    label.className = 'eyebrow';
+    label.textContent = 'Terminal';
+    const spacer = document.createElement('span');
+    spacer.className = 'term-head-spacer';
+    const lamp = document.createElement('span');
+    lamp.className = 'term-lamp';
+    lamp.innerHTML = '<i aria-hidden="true"></i>';
+    lamp.append('focused');
+    this.clearBtn = document.createElement('button');
+    this.clearBtn.type = 'button';
+    this.clearBtn.className = 'btn btn-quiet btn-sm';
+    this.clearBtn.textContent = 'clear';
+    this.clearBtn.setAttribute('aria-label', 'Clear the terminal');
+    this.head.append(label, spacer, lamp, this.clearBtn);
+
     this.out = document.createElement('div');
     this.out.className = 'term-out';
     this.out.setAttribute('aria-live', 'polite');
@@ -37,25 +74,37 @@ export class Terminal {
     this.input.autocomplete = 'off';
     this.input.autocapitalize = 'off';
     this.input.spellcheck = false;
-    this.input.setAttribute('aria-label', 'terminal input');
+    this.input.placeholder = 'type a command, then Enter';
+    this.input.setAttribute('aria-label', 'Git command input');
     this.inputLine.append(this.promptEl, this.input);
 
-    root.append(this.out, this.inputLine);
+    root.append(this.head, this.out, this.inputLine);
     this.refreshPrompt();
 
     // `root` outlives this instance — a new Terminal is built on every lesson
-    // change and every reset — so keep the handler around to unbind in destroy().
+    // change and every reset — so keep the handlers around to unbind in destroy().
     this.onRootMouseUp = () => {
       // don't steal focus if the user is selecting text to copy
       if (!window.getSelection()?.toString()) this.input.focus();
     };
+    this.onClearClick = (ev) => { ev.stopPropagation(); this.clear(); };
+    this.onFocus = () => this.root.classList.add('is-focused');
+    this.onBlur = () => this.root.classList.remove('is-focused');
+
     root.addEventListener('mouseup', this.onRootMouseUp);
+    this.clearBtn.addEventListener('click', this.onClearClick);
+    this.input.addEventListener('focus', this.onFocus);
+    this.input.addEventListener('blur', this.onBlur);
     this.input.addEventListener('keydown', (ev) => this.onKey(ev));
   }
 
   /** Unbind everything attached to the persistent root element. */
   destroy() {
     this.root.removeEventListener('mouseup', this.onRootMouseUp);
+    this.clearBtn.removeEventListener('click', this.onClearClick);
+    this.input.removeEventListener('focus', this.onFocus);
+    this.input.removeEventListener('blur', this.onBlur);
+    this.root.classList.remove('is-focused');
   }
 
   refreshPrompt() {
@@ -140,27 +189,37 @@ export class Terminal {
     }
   }
 
+  /** One output row: gutter glyph + text, both classed by kind. */
+  row(kind) {
+    const div = document.createElement('div');
+    div.className = 'term-line term-' + kind;
+    const glyph = document.createElement('span');
+    glyph.className = 'term-glyph';
+    glyph.setAttribute('aria-hidden', 'true');
+    glyph.textContent = GLYPHS[kind] ?? '';
+    const body = document.createElement('span');
+    body.className = 'term-text';
+    div.append(glyph, body);
+    this.out.appendChild(div);
+    return body;
+  }
+
   /** Echo the typed command with its prompt. */
   echo(line) {
-    const row = document.createElement('div');
-    row.className = 'term-line term-cmdline';
+    const body = this.row('cmdline');
     const p = document.createElement('span');
     p.className = 'term-prompt';
     p.textContent = this.promptText() + ' ';
     const cmd = document.createElement('span');
-    cmd.className = 'term-cmd';
     cmd.textContent = line;
-    row.append(p, cmd);
-    this.out.appendChild(row);
+    body.append(p, cmd);
   }
 
-  /** Print multi-line output with git-aware colorization. */
+  /** Print multi-line output with git-aware colourisation. */
   print(text, forceClass = null) {
     if (text == null || text === '') return;
     let section = null; // status section state machine
     for (const line of String(text).split('\n')) {
-      const div = document.createElement('div');
-      div.className = 'term-line';
       let cls = forceClass;
       if (!cls) {
         if (/^Changes to be committed:/.test(line)) { section = 'staged'; cls = 'plain'; }
@@ -178,31 +237,27 @@ export class Terminal {
         else if (/^(hint:|  \(use |\(real git)/.test(line)) cls = 'dim';
         else if (/^commit [0-9a-f]{40}/.test(line)) cls = 'yellow';
         else if (/^(Author:|Date:|Merge:)/.test(line)) cls = 'plain';
-        else if (/^[0-9a-f]{7} (\(|HEAD@)/.test(line) || /^[0-9a-f]{7} /.test(line)) cls = 'yellowsha';
+        else if (/^[0-9a-f]{7} (\(|HEAD@)/.test(line) || /^[0-9a-f]{7} /.test(line)) cls = 'sha';
         else cls = 'plain';
       }
-      if (cls === 'yellowsha') {
-        // color just the leading sha
+      if (cls === 'sha') {
+        // colour just the leading sha, keep the message in body ink
+        const body = this.row('sha');
         const sha = document.createElement('span');
-        sha.className = 'term-yellow';
+        sha.className = 'term-shatext';
         sha.textContent = line.slice(0, 7);
-        const restSpan = document.createElement('span');
-        restSpan.textContent = line.slice(7);
-        div.append(sha, restSpan);
+        const rest = document.createElement('span');
+        rest.textContent = line.slice(7);
+        body.append(sha, rest);
       } else {
-        div.textContent = line === '' ? ' ' : line;
-        div.classList.add('term-' + cls);
+        this.row(cls).textContent = line === '' ? ' ' : line;
       }
-      this.out.appendChild(div);
     }
     this.scrollToEnd();
   }
 
   printBlank() {
-    const div = document.createElement('div');
-    div.className = 'term-line';
-    div.textContent = ' ';
-    this.out.appendChild(div);
+    this.row('plain').textContent = ' ';
   }
 
   clear() {
@@ -210,7 +265,7 @@ export class Terminal {
   }
 
   scrollToEnd() {
-    this.root.scrollTop = this.root.scrollHeight;
+    this.out.scrollTop = this.out.scrollHeight;
   }
 
   focus() {
