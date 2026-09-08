@@ -667,6 +667,18 @@ button {
   fill: var(--text-secondary);
 }
 
+/* --------------------------------- icons ---------------------------------- */
+/* Sized in em so an icon always matches the type it sits beside. */
+.icon {
+  flex: none;
+  display: inline-block;
+  vertical-align: -0.125em;
+}
+.icon-play {
+  fill: currentColor;
+  stroke: none;
+}
+
 /* ------------------------------- animation -------------------------------- */
 @keyframes fc-in {
   from {

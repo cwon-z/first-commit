@@ -54,7 +54,8 @@ function idsUsedBy(source) {
 /* ------------------- every referenced element exists --------------------- */
 {
   const staticIds = idsIn(appHtml);
-  const uiFiles = ['app.js', 'terminal.js', 'graph.js', 'filetree.js', 'lesson.js', 'progress.js'];
+  const uiFiles = ['app.js', 'terminal.js', 'graph.js', 'filetree.js', 'lesson.js',
+    'progress.js', 'states.js', 'icons.js'];
   for (const file of uiFiles) {
     for (const id of idsUsedBy(read('ui', file))) {
       ok(staticIds.has(id) || RUNTIME_IDS.has(id),

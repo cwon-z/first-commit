@@ -12,7 +12,7 @@
     "test": "node tests/engine.test.js && node tests/content.test.js && node tests/ui.test.js && node tools/lint-course.mjs --strict",
     "test:engine": "node tests/engine.test.js",
     "test:content": "node tests/content.test.js",
-    "serve": "python3 -m http.server 8000",
+    "serve": "python3 -m http.server 8000 || python -m http.server 8000",
     "test:ui": "node tests/ui.test.js",
     "lint:course": "node tools/lint-course.mjs"
   }

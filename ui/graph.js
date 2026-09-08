@@ -14,7 +14,7 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const X_STEP = 78;       // horizontal distance between consecutive commits
+const X_STEP = 78;       // minimum horizontal distance between commits
 const LANE_STEP = 52;    // vertical distance between branch lanes
 const NODE_R = 7;
 const HEAD_RING_R = 12;
@@ -104,6 +104,18 @@ export function renderGraph(svg, graph) {
   }
   const xStart = Math.round(widest / 2) + 14;
 
+  // Two neighbouring commits that both carry a ref collide at the default
+  // pitch — "origin/main" and "HEAD → main" are each wider than 78px. Widen
+  // the step just enough for the widest adjacent pair, and only then.
+  const stackWidth = (list) => Math.max(...list.map((r) => refWidth(r.label)));
+  let xStep = X_STEP;
+  for (let i = 1; i < graph.commits.length; i++) {
+    const a = refs.get(graph.commits[i - 1].id);
+    const b = refs.get(graph.commits[i].id);
+    if (!a || !b) continue;
+    xStep = Math.max(xStep, Math.ceil((stackWidth(a) + stackWidth(b)) / 2 + 10));
+  }
+
   /* ---- lane assignment: one lane per branch hint, main pinned to lane 0 --- */
   const laneMap = new Map([['main', 0]]);
   let nextLane = 1;
@@ -115,7 +127,7 @@ export function renderGraph(svg, graph) {
 
   const pos = new Map(); // id -> {x, y, lane}
   graph.commits.forEach((c, i) => {
-    pos.set(c.id, { x: xStart + i * X_STEP, y: 0, lane: laneFor(c.branchHint) });
+    pos.set(c.id, { x: xStart + i * xStep, y: 0, lane: laneFor(c.branchHint) });
   });
   const usedLanes = Math.max(1, ...[...pos.values()].map((p) => p.lane + 1));
 
@@ -127,7 +139,7 @@ export function renderGraph(svg, graph) {
   let height = topPad + (usedLanes - 1) * LANE_STEP + 34;
   const width = Math.max(
     graph.merging ? 420 : 0,
-    xStart + (graph.commits.length - 1) * X_STEP + Math.round(widest / 2) + 16
+    xStart + (graph.commits.length - 1) * xStep + Math.round(widest / 2) + 16
   );
   for (const p of pos.values()) p.y = topPad + p.lane * LANE_STEP;
 

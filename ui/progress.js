@@ -45,6 +45,43 @@ export class ProgressStore {
   async clear() { throw new Error('ProgressStore.clear not implemented'); }
 }
 
+/* ---------------------------------------------------------------------------
+ * View preferences
+ *
+ * Not progress, and deliberately not part of the progress document: which
+ * workspace layout a learner prefers is a property of the device they are on,
+ * not of the account that would one day sync their completions. It lives here
+ * anyway so that this module stays the ONE place that talks to storage.
+ * ------------------------------------------------------------------------- */
+
+export const DEFAULT_PREFS = { layout: 'split' };
+
+/** Synchronous by design — the shell reads it while painting the first frame. */
+export class LocalStoragePrefsStore {
+  constructor(key = 'first-commit.prefs.v1') {
+    this.key = key;
+    this.memoryFallback = { ...DEFAULT_PREFS };
+  }
+
+  load() {
+    try {
+      const raw = window.localStorage.getItem(this.key);
+      if (!raw) return { ...this.memoryFallback };
+      return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    } catch {
+      return { ...this.memoryFallback };
+    }
+  }
+
+  save(prefs) {
+    const doc = { ...DEFAULT_PREFS, ...prefs };
+    this.memoryFallback = doc;
+    try {
+      window.localStorage.setItem(this.key, JSON.stringify(doc));
+    } catch { /* private mode, quota, blocked — the in-memory copy still holds */ }
+  }
+}
+
 /** v1: browser localStorage. Safe when storage is unavailable (private mode). */
 export class LocalStorageProgressStore extends ProgressStore {
   constructor(key = 'first-commit.progress.v1') {

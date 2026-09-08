@@ -344,6 +344,28 @@ Required in `app.html`:
 | `#graph-a11y` | Visually hidden live region narrating the graph |
 | `#files-panel` | File-state panel is rendered into this |
 
+Added by the rebuild, same contract — the shell owns them, `ui/app.js` fills them:
+
+| ID | Holds |
+|---|---|
+| `#ex-title` | Current exercise title, in the exercise bar |
+| `#ex-ticks` | One tick per guided step / challenge condition |
+| `#ex-progress` | `Step 4 of 9` or `3 of 6 conditions met` (replaces the two removed IDs) |
+| `#progress-metric` | Course completion as a bare number, e.g. `27` |
+| `#progress-units` | `12/45 units` |
+| `#read-progress-fill` | Reading position bar whose `width` is set as a percentage |
+| `#files-count` | Number of files not clean, shown on the Files control |
+| `#now-text` | One-line "what am I meant to be doing", focus mode only |
+| `#layout-tabs` | Split / focus buttons; `data-layout` on each, `aria-pressed` |
+| `#work-tabs` | Steps / graph / files tabs; `data-tab` on each, `aria-selected` |
+| `#files-btn` / `#files-close` | Open and close the file-state overlay in split mode |
+| `#now-bar` | Clicking it returns to the steps tab |
+| `#playground-link` / `#states-link` | Sidebar routes to `#/playground` and `#/states` |
+
+Presentation state lives on `<body>` as `data-mode` (`read` / `exercise`),
+`data-layout` (`split` / `focus`) and `data-tab`, plus a `files-open` class.
+Everything in §4.3 is CSS off those four; no view is re-rendered to change shape.
+
 Required in `index.html`:
 
 | ID | Holds |
@@ -353,8 +375,13 @@ Required in `index.html`:
 | `#video-frame` | Placeholder, replaced by an iframe when configured |
 
 **R21 · LOCKED** — These IDs are created at runtime by `ui/app.js` and must not
-be duplicated in the shell: `#step-list`, `#guided-progress`, `#check-list`,
-`#challenge-progress`, `#challenge-hints`, `#success-banner`, `#sb-next`.
+be duplicated in the shell: `#step-list`, `#check-list`, `#challenge-hints`,
+`#success-banner`, `#sb-next`.
+
+> **Amended in the rebuild.** `#guided-progress` and `#challenge-progress` are
+> gone. Both are now the single `#ex-progress` in the exercise bar, which the
+> shell owns, so it moves from this list to the R20 table above.
+> `tests/ui.test.js` was updated with the change.
 
 **R22 · OPEN** — If a different structure serves the design better, propose the
 ID changes and the matching JavaScript edits will be made. Renaming without the

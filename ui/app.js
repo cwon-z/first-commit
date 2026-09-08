@@ -22,11 +22,16 @@ import { Terminal } from './terminal.js';
 import { renderGraph } from './graph.js';
 import { renderFiles } from './filetree.js';
 import { renderBlocks, inlineMd } from './lesson.js';
-import { LocalStorageProgressStore } from './progress.js';
+import { LocalStorageProgressStore, LocalStoragePrefsStore } from './progress.js';
+import { renderStates } from './states.js';
+import { icon } from './icons.js';
 
 /* ★ BACKEND SEAM: swap this single line for a RestProgressStore(baseUrl, token)
  *   when accounts/server-side progress arrive. See ui/progress.js.            */
 const store = new LocalStorageProgressStore();
+
+/* View preferences share that seam so nothing else touches storage. */
+const prefs = new LocalStoragePrefsStore();
 
 const S = {
   course: null,
@@ -40,7 +45,7 @@ const S = {
   revealedHints: 0,
   completedThisView: false,
   mode: 'read',      // 'read' | 'exercise'
-  layout: 'split',   // the learner's preference; narrow screens override it
+  layout: prefs.load().layout, // the learner's preference; narrow screens override it
   tab: 'steps',      // focus-mode panel: 'steps' | 'graph' | 'files'
   filesOpen: false,
   confirmReset: false,
@@ -100,6 +105,7 @@ async function boot() {
   menuBtn.addEventListener('click', () => setSidebar(!$('#sidebar').classList.contains('open')));
   $('#sidebar-scrim').addEventListener('click', closeSidebar);
   $('#playground-link').addEventListener('click', closeSidebar);
+  $('#states-link').addEventListener('click', closeSidebar);
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
     if ($('#sidebar').classList.contains('open')) {
@@ -112,7 +118,11 @@ async function boot() {
   $('#reset-progress').addEventListener('click', resetProgress);
 
   for (const b of document.querySelectorAll('#layout-tabs button')) {
-    b.addEventListener('click', () => { S.layout = b.dataset.layout; applyChrome(); });
+    b.addEventListener('click', () => {
+      S.layout = b.dataset.layout;
+      prefs.save({ ...prefs.load(), layout: S.layout });
+      applyChrome();
+    });
   }
   for (const b of document.querySelectorAll('#work-tabs button')) {
     b.addEventListener('click', () => { S.tab = b.dataset.tab; applyChrome(); });
@@ -280,6 +290,7 @@ function route() {
     if (entry) { show(entry); return; }
   }
   if (hash.startsWith('#/playground')) { showPlayground(); return; }
+  if (hash.startsWith('#/states')) { showStates(); return; }
   // default: resume where the learner left off, else first incomplete lesson
   const resume = S.progress.lastLessonId && S.entries.find((e) => e.lesson.id === S.progress.lastLessonId);
   const firstIncomplete = playableEntries().find((e) => !isDone(e.lesson.id));
@@ -335,7 +346,9 @@ function lessonHead(entry) {
 
   head.append(kicker, h1);
 
-  const words = wordCount(lesson.body);
+  // A lesson that isn't written yet has a body, but nobody is going to read it
+  // here — quoting a word count for a page that shows a placeholder is a lie.
+  const words = lesson.comingSoon ? 0 : wordCount(lesson.body);
   if (words) {
     const meta = document.createElement('p');
     meta.className = 'lesson-meta';
@@ -362,6 +375,7 @@ function show(entry) {
   const { module: mod, lesson } = entry;
   $('#crumb').textContent = `Module ${mod.number} · ${mod.title}`;
   const article = $('#lesson-article');
+  article.classList.remove('states-page');
   article.innerHTML = '';
   article.appendChild(lessonHead(entry));
 
@@ -407,7 +421,7 @@ function continueControls(entry, label) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn btn-solid btn-lg';
-  btn.textContent = (isDone(entry.lesson.id) ? 'Continue' : label) + ' →';
+  btn.append(isDone(entry.lesson.id) ? 'Continue' : label, icon('arrow-right'));
   btn.addEventListener('click', () => {
     completeLesson(entry.lesson.id, false);
     gotoNext(entry);
@@ -480,7 +494,7 @@ function showSuccessBanner() {
   }
 
   const nextBtn = overlay.querySelector('#sb-next');
-  nextBtn.textContent = next ? 'Continue →' : 'Back to the course →';
+  nextBtn.append(next ? 'Continue' : 'Back to the course', icon('arrow-right'));
   nextBtn.addEventListener('click', () => { dismissSuccess(); gotoNext(S.current); });
   overlay.querySelector('.sb-stay').addEventListener('click', dismissSuccess);
 
@@ -636,7 +650,7 @@ function updateVisuals() {
 function updateFilesBadge(files) {
   const busy = [...files.working, ...files.index]
     .filter((f) => f.state !== 'clean' && f.state !== 'ignored').length;
-  $('#files-btn').textContent = busy ? `Files ${busy}` : 'Files';
+  $('#files-count').textContent = busy ? String(busy) : '';
 }
 
 /**
@@ -734,7 +748,7 @@ function renderGuidedPanel(panel, entry) {
       const run = document.createElement('button');
       run.type = 'button';
       run.className = 'btn btn-sm';
-      run.textContent = '▸ Run it for me';
+      run.append(icon('play'), 'Run it for me');
       run.addEventListener('click', () => runLine(String(step.cmd).split('\n')[0]));
       tools.appendChild(run);
     }
@@ -868,13 +882,14 @@ function refreshHintButtons(entry) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn btn-sm btn-quiet';
+  btn.appendChild(icon('lightbulb'));
   if (S.revealedHints >= hints.length) {
-    btn.textContent = 'No hints left';
+    btn.append('No hints left');
     btn.disabled = true;
   } else {
-    btn.textContent = S.revealedHints === 0
+    btn.append(S.revealedHints === 0
       ? `Reveal a hint (${hints.length} available)`
-      : `Reveal another (${hints.length - S.revealedHints} left)`;
+      : `Reveal another (${hints.length - S.revealedHints} left)`);
     btn.addEventListener('click', () => { S.revealedHints++; refreshHintButtons(entry); });
   }
   hintWrap.appendChild(btn);
@@ -919,6 +934,7 @@ function showPlayground() {
   markActive('');
   $('#crumb').textContent = 'Playground';
   const article = $('#lesson-article');
+  article.classList.remove('states-page');
   article.innerHTML = '';
 
   const head = document.createElement('div');
@@ -940,6 +956,22 @@ function showPlayground() {
   S.current = entry;
   setupWorkspace(entry, 'playground');
   $('#ex-title').textContent = 'Playground — free sandbox';
+}
+
+/* ------------------------------ state reference --------------------------- */
+
+/** Not a lesson: the §5 review checklist, rendered from live components. */
+function showStates() {
+  S.current = null;
+  markActive('');
+  hideWorkspace();
+  $('#crumb').textContent = 'State reference';
+  const article = $('#lesson-article');
+  article.classList.add('states-page');
+  article.innerHTML = '';
+  renderStates(article);
+  $('#lesson-pane').scrollTop = 0;
+  updateReadProgress();
 }
 
 function renderPlaygroundPanel(panel) {

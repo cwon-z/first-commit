@@ -14,7 +14,7 @@
 </head>
 <body data-mode="read" data-layout="split" data-tab="steps">
   <header id="topbar">
-    <button id="menu-btn" class="btn btn-icon" type="button" aria-label="Toggle course navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
+    <button id="menu-btn" class="btn btn-icon" type="button" aria-label="Toggle course navigation" aria-controls="sidebar" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
     <a class="topbar-brand" href="./index.html" title="Back to the landing page">
       <span class="wordmark" id="brand-name">First Commit</span>
     </a>
@@ -44,6 +44,7 @@
       <div id="module-nav"></div>
       <div id="sidebar-foot">
         <a class="btn btn-sm btn-block" id="playground-link" href="#/playground">Playground</a>
+        <a class="btn btn-sm btn-block btn-ghost" id="states-link" href="#/states">State reference</a>
         <button id="reset-progress" class="btn btn-sm btn-block btn-ghost" type="button">Reset progress</button>
       </div>
     </nav>
@@ -62,8 +63,8 @@
           <button type="button" role="tab" data-tab="graph" aria-controls="graph-panel" aria-selected="false">Graph</button>
           <button type="button" role="tab" data-tab="files" aria-controls="files-wrap" aria-selected="false">Files</button>
         </div>
-        <button id="files-btn" class="btn btn-sm" type="button" aria-pressed="false">Files</button>
-        <button id="reset-btn" class="btn btn-sm btn-ghost" type="button" title="Restore this exercise's starting state">↺ reset</button>
+        <button id="files-btn" class="btn btn-sm" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3.5h5l4.5 4.5V17H9z"/><path d="M14 3.5V8h4.5"/><path d="M5.5 8v12.5H16"/></svg>Files<span id="files-count"></span></button>
+        <button id="reset-btn" class="btn btn-sm btn-ghost" type="button" title="Restore this exercise's starting state"><svg class="icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.5 11a7.5 7.5 0 1 1 1.9 5.6"/><path d="M4 5.5V11h5.5"/></svg>reset</button>
       </div>
 
       <div id="main-body">
@@ -92,7 +93,7 @@
               <div class="panel-head">
                 <span class="eyebrow">File state — the three areas</span>
                 <span class="topbar-spacer"></span>
-                <button id="files-close" class="btn btn-icon" type="button" aria-label="Close the file state panel">✕</button>
+                <button id="files-close" class="btn btn-icon" type="button" aria-label="Close the file state panel"><svg class="icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>
               </div>
               <div id="files-panel"></div>
             </aside>
