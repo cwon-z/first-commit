@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="dark">
+  <title>First Commit — course statistics</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%2334d07a'/%3E%3Crect x='14.75' y='2' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3Crect x='14.75' y='22' width='2.5' height='8' rx='1.25' fill='%2334d07a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./css/tokens.css">
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <span class="wordmark">First Commit</span>
+    <span class="topbar-div" aria-hidden="true"></span>
+    <span class="admin-crumb">Course statistics</span>
+    <span class="header-spacer"></span>
+    <span id="admin-generated"></span>
+    <button id="admin-refresh" class="btn btn-sm" type="button">Refresh</button>
+    <a class="btn btn-sm btn-ghost" href="./app.html">Back to the course</a>
+  </header>
+
+  <main id="admin-main">
+    <!-- Shown until the API says who is asking: signed out, not the owner, or
+         no server at all each get their own message rather than a blank page. -->
+    <section id="admin-gate" class="admin-gate">
+      <p class="eyebrow">Checking</p>
+      <h1 class="admin-title">Loading statistics…</h1>
+    </section>
+
+    <div id="admin-body" hidden>
+      <section class="admin-section">
+        <div class="tile-grid" id="admin-tiles"></div>
+      </section>
+
+      <section class="admin-section">
+        <div class="section-head">
+          <h2 class="admin-h">Modules</h2>
+          <span class="section-note" id="admin-modules-note"></span>
+        </div>
+        <div id="admin-modules" class="module-bars"></div>
+      </section>
+
+      <section class="admin-section">
+        <div class="section-head">
+          <h2 class="admin-h">Where the course loses people</h2>
+          <span class="section-note">Each row is one unit, in order. The drop column is the number of learners who finished the previous unit but not this one.</span>
+        </div>
+        <div id="admin-funnel" class="table-scroll"></div>
+      </section>
+
+      <section class="admin-section">
+        <div class="section-head">
+          <h2 class="admin-h">Learners</h2>
+          <label class="admin-search">
+            <span class="sr-only">Filter learners</span>
+            <input id="admin-search" type="search" placeholder="Filter by name or email" autocomplete="off">
+          </label>
+        </div>
+        <div id="admin-learners" class="table-scroll"></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="./ui/admin.js"></script>
+</body>
+</html>

@@ -134,6 +134,25 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* A save that failed is worth interrupting for — this is the one place the
+   top bar raises its voice. */
+#save-note {
+  flex: none;
+  padding: 0 var(--s-5);
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-sm);
+  background: var(--amber-a14);
+  color: var(--status-delayed);
+  font: var(--fw-medium) var(--fs-caption) / 1 var(--font-mono);
+  white-space: nowrap;
+}
+
+#account {
+  flex: none;
+}
+
 /* ==========================================================================
  * Shell
  * ====================================================================== */
@@ -1744,6 +1763,17 @@ body[data-mode='exercise'][data-layout='focus'] #terminal-wrap {
 @media (max-width: 599px) {
   #crumb {
     display: none;
+  }
+  #save-note {
+    /* the word alone still carries it when there is no room for the sentence */
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    line-height: 20px;
+  }
+  .account-menu > summary {
+    max-width: 120px;
   }
   #ex-toolbar {
     padding: 0 var(--s-5);

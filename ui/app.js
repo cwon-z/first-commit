@@ -22,13 +22,18 @@ import { Terminal } from './terminal.js';
 import { renderGraph } from './graph.js';
 import { renderFiles } from './filetree.js';
 import { renderBlocks, inlineMd } from './lesson.js';
-import { LocalStorageProgressStore, LocalStoragePrefsStore } from './progress.js';
+import {
+  LocalStorageProgressStore, LocalStoragePrefsStore, RestProgressStore,
+  probeSession, chooseStore, mergeProgress,
+} from './progress.js';
+import { mountAccountControl } from './auth.js';
 import { renderStates } from './states.js';
 import { icon } from './icons.js';
 
-/* ★ BACKEND SEAM: swap this single line for a RestProgressStore(baseUrl, token)
- *   when accounts/server-side progress arrive. See ui/progress.js.            */
-const store = new LocalStorageProgressStore();
+/* ★ BACKEND SEAM. Which store this is depends on whether the optional server is
+ *   there and whether anyone is signed in — decided once in boot(), swapped on
+ *   sign-in and sign-out, and never asked about again. See ui/progress.js.   */
+let store = new LocalStorageProgressStore();
 
 /* View preferences share that seam so nothing else touches storage. */
 const prefs = new LocalStoragePrefsStore();
@@ -44,6 +49,7 @@ const S = {
   stepIdx: 0,
   revealedHints: 0,
   completedThisView: false,
+  session: null,     // null when the app is served statically, with no API
   mode: 'read',      // 'read' | 'exercise'
   layout: prefs.load().layout, // the learner's preference; narrow screens override it
   tab: 'steps',      // focus-mode panel: 'steps' | 'graph' | 'files'
@@ -80,6 +86,24 @@ function applyChrome() {
   }
 }
 
+/**
+ * Persist, and surface a failure. The local store effectively cannot fail, but
+ * the REST one can — and progress that quietly stopped saving is the worst
+ * possible bug in a course somebody is spending hours on.
+ */
+function saveProgress() {
+  return Promise.resolve(store.save(S.progress))
+    .then(() => { $('#save-note').hidden = true; })
+    .catch((err) => {
+      console.warn('progress save failed:', err);
+      const note = $('#save-note');
+      note.textContent = err && err.status === 401
+        ? 'Signed out — progress not saved'
+        : 'Offline — progress not saved';
+      note.hidden = false;
+    });
+}
+
 function setSidebar(open) {
   $('#sidebar').classList.toggle('open', open);
   document.body.classList.toggle('nav-open', open);
@@ -95,6 +119,11 @@ async function boot() {
     throw new Error(`GET content/course.json → HTTP ${res.status} ${res.statusText}`);
   }
   S.course = await res.json();
+
+  // No server → probeSession resolves null and everything below is unchanged;
+  // this is what keeps the static deployment working exactly as it did.
+  S.session = await probeSession();
+  store = chooseStore(S.session);
   S.progress = await store.load();
   document.title = `${S.course.meta.brand} — interactive Git course`;
   $('#brand-name').textContent = S.course.meta.brand;
@@ -133,8 +162,37 @@ async function boot() {
   wideEnough.addEventListener('change', applyChrome);
   $('#lesson-pane').addEventListener('scroll', updateReadProgress, { passive: true });
 
+  if (S.session) {
+    mountAccountControl($('#account'), { session: S.session, onChange: onAccountChange });
+  }
+
   applyChrome();
   route();
+}
+
+/**
+ * Sign-in and sign-out swap the store underneath the app.
+ *
+ * On sign-in the guest's local progress is merged up rather than discarded —
+ * somebody who worked through three modules before making an account would
+ * quite reasonably never come back if that work vanished the moment they
+ * signed up.
+ */
+async function onAccountChange(user) {
+  if (user) {
+    const local = await new LocalStorageProgressStore().load();
+    store = new RestProgressStore();
+    const remote = await store.load();
+    const merged = mergeProgress(local, remote);
+    S.progress = merged;
+    if (merged.completedLessons.length > remote.completedLessons.length) await saveProgress();
+  } else {
+    store = new LocalStorageProgressStore();
+    S.progress = await store.load();
+  }
+  $('#save-note').hidden = true;
+  buildSidebar();
+  if (S.current) show(S.current); else route();
 }
 
 /* ------------------------------ lesson index ----------------------------- */
@@ -368,7 +426,7 @@ function show(entry) {
   // Never resume onto a lesson that isn't written yet — that's a dead end.
   if (!entry.lesson.comingSoon) {
     S.progress.lastLessonId = entry.lesson.id;
-    store.save(S.progress);
+    saveProgress();
   }
   markActive(entry.lesson.id);
 
@@ -444,7 +502,7 @@ function gotoNext(entry) {
 function completeLesson(lessonId, celebrate = true) {
   if (!isDone(lessonId)) {
     S.progress.completedLessons.push(lessonId);
-    store.save(S.progress);
+    saveProgress();
     buildSidebar();
     markActive(lessonId);
   }

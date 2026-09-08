@@ -9,13 +9,13 @@
  * implement the same interface against your REST API and swap the instance
  * created in app.js — no UI changes required.
  *
- * Example future implementation:
+ * Two implementations ship:
  *
- *   export class RestProgressStore extends ProgressStore {
- *     constructor(baseUrl, authToken) { ... }
- *     async load()  { return (await fetch(`${this.baseUrl}/api/progress`, ...)).json(); }
- *     async save(p) { await fetch(`${this.baseUrl}/api/progress`, { method: 'PUT', body: JSON.stringify(p), ... }); }
- *   }
+ *   LocalStorageProgressStore  this device only, no account, always available
+ *   RestProgressStore          the signed-in account, via the optional server
+ *
+ * `chooseStore()` at the bottom picks between them, and the app never asks
+ * which one it got.
  *
  * The progress document schema (versioned so the backend can migrate):
  *   {
@@ -128,4 +128,99 @@ export class LocalStorageProgressStore extends ProgressStore {
       try { window.localStorage.removeItem(this.key); } catch { /* noop */ }
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * v2: the optional server
+ *
+ * Identical interface, so app.js cannot tell the difference. Reads and writes
+ * go to the signed-in account, which is what makes progress follow a learner
+ * from their phone to their laptop.
+ * ------------------------------------------------------------------------- */
+
+/** Custom header the API demands on writes; a cross-site form cannot set it. */
+export const REQUEST_HEADER = 'x-first-commit';
+
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/**
+ * Relative by design (`./api/…`), so the app still works served from a
+ * subdirectory. `credentials: same-origin` carries the session cookie.
+ */
+export async function apiFetch(endpoint, options = {}) {
+  const res = await fetch(`./api/${endpoint}`, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      [REQUEST_HEADER]: '1',
+      ...(options.body ? { 'content-type': 'application/json' } : null),
+      ...options.headers,
+    },
+  });
+  let body = null;
+  try { body = await res.json(); } catch { /* empty or not JSON */ }
+  if (!res.ok) throw new ApiError(body?.error || `HTTP ${res.status}`, res.status);
+  return body;
+}
+
+export class RestProgressStore extends ProgressStore {
+  async load() {
+    const body = await apiFetch('progress');
+    return { ...emptyProgress(), ...body.progress };
+  }
+
+  async save(progress) {
+    const doc = { ...progress, version: PROGRESS_SCHEMA_VERSION };
+    await apiFetch('progress', { method: 'PUT', body: JSON.stringify({ progress: doc }) });
+  }
+
+  async clear() {
+    await apiFetch('progress', { method: 'DELETE' });
+  }
+}
+
+/**
+ * Ask the server who we are. Resolves to null when there is no server at all —
+ * which is the normal case for the static deployment, not an error.
+ */
+export async function probeSession() {
+  try {
+    return await apiFetch('auth/me');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Signed in → the account. Otherwise → this device.
+ *
+ * A guest still gets saved progress; signing in later merges it up rather than
+ * throwing it away, which is why `mergeProgress` exists.
+ */
+export function chooseStore(session) {
+  return session && session.user ? new RestProgressStore() : new LocalStorageProgressStore();
+}
+
+/**
+ * Union of two progress documents. Completing a lesson is not something that
+ * can be undone by syncing, so a lesson finished in either place stays finished;
+ * only the "where was I" pointer has to pick a winner, and the newer one wins.
+ */
+export function mergeProgress(a, b) {
+  const left = { ...emptyProgress(), ...a };
+  const right = { ...emptyProgress(), ...b };
+  const newer = (Date.parse(right.updatedAt || 0) || 0) >= (Date.parse(left.updatedAt || 0) || 0)
+    ? right : left;
+  return {
+    version: PROGRESS_SCHEMA_VERSION,
+    completedLessons: [...new Set([...left.completedLessons, ...right.completedLessons])],
+    lastLessonId: newer.lastLessonId || left.lastLessonId || right.lastLessonId,
+    updatedAt: newer.updatedAt,
+  };
 }

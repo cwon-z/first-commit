@@ -7,3 +7,7 @@ Thumbs.db
 .vscode/
 .idea/
 drafts/.candidates/
+
+# The server's data file: real accounts and real progress. Never committed.
+data/
+*.json.tmp

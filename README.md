@@ -5,18 +5,25 @@ Learners type real git commands into a **simulated in-browser terminal** (no rea
 git binary, no WASM — the repo state machine is pure JS) and watch a **live
 commit-graph visualization** update after every command.
 
-No dependencies, no build step, no backend. `node_modules/` never appears.
+No dependencies and no build step. Accounts and course statistics are an
+optional, equally dependency-free extra — the course itself still runs as plain
+static files. `node_modules/` never appears.
 
 ## Quick start
 
-Any static file server works.
+There are two ways to run it, and the course is identical in both.
 
 ```bash
-# from this folder:
-python3 -m http.server 8000        # then open http://localhost:8000
-npm run serve                      # same thing
-npm test                           # 2,400+ assertions, zero dependencies
+npm start                          # with accounts   → http://localhost:8000
+npm run serve:static               # static only     → http://localhost:8000
+npm test                           # 2,600+ assertions, zero dependencies
 ```
+
+`npm start` adds optional sign-in, so progress is saved to an account and
+follows a learner between devices, and gives the course owner a statistics
+page. `npm run serve:static` is the plain file server: no accounts, progress
+kept in each browser. Either way there is no build step and nothing to install
+— the server is Node's own `http` module and nothing else.
 
 Caddy:
 
@@ -41,6 +48,12 @@ first-commit/
 ├── engine/
 │   ├── git-engine.js     # simulated git state machine — pure JS, zero DOM deps
 │   └── validators.js     # state-based exercise validation + the step cascade
+├── server/               # OPTIONAL accounts backend — zero dependencies
+│   ├── index.js          # http server: static allowlist + JSON API + CSP
+│   ├── api.js            # register / login / progress / stats routes
+│   ├── auth.js           # scrypt hashing, sessions, rate limiting
+│   ├── store.js          # one JSON document, written atomically
+│   └── stats.js          # progress documents → the owner's numbers
 ├── ui/
 │   ├── app.js            # controller: routing, exercise orchestration
 │   ├── terminal.js       # terminal emulator (history, tab-completion, colorizing)
@@ -48,16 +61,22 @@ first-commit/
 │   ├── filetree.js       # working dir / staging / HEAD file-state panel
 │   ├── lesson.js         # content-block renderer (escaped, minimal inline md)
 │   ├── landing.js        # renders the landing curriculum + video from course.json
+│   ├── states.js         # the #/states gallery: every UI state, live
+│   ├── icons.js          # the seven inline SVG marks the interface uses
+│   ├── auth.js           # sign-in dialog + the top-bar account control
+│   ├── admin.js          # the course-statistics page
 │   └── progress.js       # ProgressStore interface ← ★ BACKEND SEAM
 ├── css/
 │   ├── tokens.css        # design tokens, base reset, shared primitives, @font-face
 │   ├── app.css           # course app — three layouts over one DOM
-│   └── landing.css       # landing page
+│   ├── landing.css       # landing page
+│   └── admin.css         # course statistics
 ├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
 │   ├── engine.test.js              # engine + validators              (246 assertions)
 │   ├── content.test.js             # course.json valid AND solvable  (2204)
-│   ├── ui.test.js                  # UI ↔ HTML contract, a11y          (79)
+│   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (119)
+│   ├── server.test.js              # accounts, progress, stats, safety  (73)
 │   └── fixtures-solutions.json     # a worked solution for every challenge
 ├── tools/                # authoring tools, not shipped to learners
 │   ├── check-module.mjs  # validate one drafted module + prove its challenge solvable
@@ -65,7 +84,8 @@ first-commit/
 │   ├── lint-course.mjs   # cross-module coherence: ordering, xrefs, vocabulary
 │   └── course-to-md.mjs  # render the course as readable Markdown for proof-reading
 ├── index.html            # landing page
-└── app.html              # course app shell
+├── app.html              # course app shell
+└── admin.html            # course statistics (owner only)
 ```
 
 **Separation of concerns:** content is data (`/content`), the git simulation is a
@@ -87,18 +107,60 @@ is re-rendered when the learner switches.
 
 ### The backend seam
 
-v1 stores progress in `localStorage`. The UI talks only to the `ProgressStore`
-interface in `ui/progress.js`; the swap point is one line at the top of
-`ui/app.js`:
-
-```js
-const store = new LocalStorageProgressStore();
-// later: const store = new RestProgressStore('https://api.example.com', token);
-```
+The UI talks only to the `ProgressStore` interface in `ui/progress.js`. Two
+implementations ship — `LocalStorageProgressStore` (this device) and
+`RestProgressStore` (the signed-in account) — and `chooseStore()` picks one at
+boot from whether there is a server and whether anyone is signed in. Nothing
+above the seam knows which it got, and `tests/ui.test.js` asserts that no other
+module in `ui/` so much as mentions `localStorage`.
 
 The progress document is versioned JSON (`{version, completedLessons,
-lastLessonId, updatedAt}`) so a future backend can migrate cleanly. Nothing else
-in the UI knows where progress lives.
+lastLessonId, updatedAt}`), which is also exactly what the API stores, so
+replacing this server with a different one is a matter of matching four routes.
+
+## Accounts
+
+Optional, and optional all the way through: without the server the control
+never appears, and with it a learner can finish the whole course as a guest.
+What an account buys is progress that survives a new laptop.
+
+```bash
+npm start                                  # http://localhost:8000
+PORT=3000 FC_DATA=./data/fc.json npm start
+FC_OWNER_EMAILS=you@example.com npm start  # grant ownership by address
+FC_SECURE_COOKIES=1 npm start              # behind HTTPS
+```
+
+**The first account created owns the course.** Ownership is what opens
+`/admin.html`; every account after it is a learner. Set `FC_OWNER_EMAILS` if you
+would rather name the owners up front.
+
+Signing in merges rather than replaces: whatever a guest finished on that device
+is unioned into the account, because losing three modules of work at the moment
+you sign up is how you lose the learner too.
+
+| | |
+|---|---|
+| Storage | One JSON document, written atomically. `data/` is git-ignored. |
+| Passwords | scrypt, per-user salt, constant-time compare. Ten characters minimum. |
+| Sessions | Opaque random tokens; only their SHA-256 is stored. HttpOnly, SameSite=Lax, 30 days. |
+| CSRF | SameSite plus a custom header no cross-origin form can set. |
+| Guessing | Rate-limited per address *and* client, so nobody can lock a learner out on purpose. |
+| Enumeration | "Wrong password" and "no such account" return the same message. |
+| Served files | An allowlist. `data/`, `tests/`, `drafts/` and `server/` are not reachable over HTTP — the accounts file and the challenge solutions both live there. |
+
+### Course statistics — `/admin.html`
+
+The owner's view, computed server-side from the same progress documents the
+learners write, so it cannot disagree with what a learner sees:
+
+- Learners, active this week, average completion, how many have finished.
+- Per module, the share of learners who completed every unit in it.
+- **Where the course loses people** — every unit in order, how many finished it,
+  and the drop from the unit before. This is the one that changes what you write
+  next.
+- Every learner: completion, which module they are on, what they last opened,
+  when they were last seen.
 
 ## The simulated git engine
 
@@ -247,7 +309,14 @@ npm run lint:course   # cross-module coherence report (full detail)
   relative paths, and that the accessibility guarantees (focus ring, `.sr-only`,
   reduced-motion block, the graph's live region) are still in place.
 
-CI runs all three on Node 18, 20 and 22 (`.github/workflows/test.yml`).
+- **server.test.js** boots the real server against a scratch file and talks to
+  it over HTTP. It asserts the things that are silent when they break: that a
+  near-miss password fails, that sign-out really ends the session, that one
+  learner cannot read or overwrite another's progress, that a learner cannot
+  open the statistics, and that the accounts file and the challenge solutions
+  are not reachable over HTTP.
+
+CI runs all four on Node 18, 20 and 22 (`.github/workflows/test.yml`).
 
 ## Accessibility
 
@@ -264,8 +333,9 @@ challenge condition says `met` or `waiting` next to its filled or hollow disc.
 
 ## Deployment notes
 
-- 100% static output — no bundler, no framework, no runtime backend, no CDN
-  dependencies, no absolute paths (safe behind any reverse proxy / subpath).
+- 100% static output — no bundler, no framework, no CDN dependencies, no
+  absolute paths (safe behind any reverse proxy / subpath). The accounts backend
+  is optional and equally dependency-free; without it the course is unchanged.
 - ES modules require a normal web server (see Quick start).
 - Type is self-hosted from `assets/fonts/` — the latin subsets of Archivo
   (one variable file, 200–700) and JetBrains Mono at 400/500, ~115 KB in all.

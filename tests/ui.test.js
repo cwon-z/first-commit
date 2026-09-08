@@ -23,8 +23,10 @@ function ok(cond, name) {
 
 const appHtml = read('app.html');
 const indexHtml = read('index.html');
+const adminHtml = read('admin.html');
 const appCss = read('css', 'app.css');
 const landingCss = read('css', 'landing.css');
+const adminCss = read('css', 'admin.css');
 
 /* Elements app.js builds itself — they are never in the HTML shell. */
 const RUNTIME_IDS = new Set([
@@ -55,7 +57,7 @@ function idsUsedBy(source) {
 {
   const staticIds = idsIn(appHtml);
   const uiFiles = ['app.js', 'terminal.js', 'graph.js', 'filetree.js', 'lesson.js',
-    'progress.js', 'states.js', 'icons.js'];
+    'progress.js', 'states.js', 'icons.js', 'auth.js'];
   for (const file of uiFiles) {
     for (const id of idsUsedBy(read('ui', file))) {
       ok(staticIds.has(id) || RUNTIME_IDS.has(id),
@@ -67,22 +69,35 @@ function idsUsedBy(source) {
   for (const id of idsUsedBy(read('ui', 'landing.js'))) {
     ok(landingIds.has(id), `ui/landing.js references #${id}, which index.html defines`);
   }
+
+  const adminIds = idsIn(adminHtml);
+  for (const id of idsUsedBy(read('ui', 'admin.js'))) {
+    ok(adminIds.has(id), `ui/admin.js references #${id}, which admin.html defines`);
+  }
 }
 
 /* ---------------------- the shells load their modules -------------------- */
 {
   ok(/<script type="module" src="\.\/ui\/app\.js">/.test(appHtml), 'app.html loads ui/app.js as a module');
   ok(/<script type="module" src="\.\/ui\/landing\.js">/.test(indexHtml), 'index.html loads ui/landing.js as a module');
+  ok(/<script type="module" src="\.\/ui\/admin\.js">/.test(adminHtml), 'admin.html loads ui/admin.js as a module');
   ok(appHtml.includes('./css/app.css'), 'app.html loads css/app.css');
   ok(indexHtml.includes('./css/landing.css'), 'index.html loads css/landing.css');
+  ok(adminHtml.includes('./css/admin.css'), 'admin.html loads css/admin.css');
+  for (const [name, html] of [['app.html', appHtml], ['index.html', indexHtml], ['admin.html', adminHtml]]) {
+    ok(html.includes('./css/tokens.css'), `${name} loads the shared token layer`);
+  }
+  // The statistics page reads every learner's progress; it must never be indexed.
+  ok(/<meta name="robots" content="noindex/.test(adminHtml), 'admin.html asks not to be indexed');
   // Relative paths only — the app has to survive being served from a subpath.
   ok(!/(?:src|href)="\/[^/]/.test(appHtml), 'app.html uses no absolute paths');
   ok(!/(?:src|href)="\/[^/]/.test(indexHtml), 'index.html uses no absolute paths');
+  ok(!/(?:src|href)="\/[^/]/.test(adminHtml), 'admin.html uses no absolute paths');
 }
 
 /* ------------- every local asset a shell references really exists --------- */
 {
-  for (const [name, html] of [['app.html', appHtml], ['index.html', indexHtml]]) {
+  for (const [name, html] of [['app.html', appHtml], ['index.html', indexHtml], ['admin.html', adminHtml]]) {
     const refs = [...html.matchAll(/(?:src|href)="(\.\/[^"]+)"/g)].map((m) => m[1]);
     ok(refs.length > 0, `${name} references local assets`);
     for (const ref of refs) {
@@ -101,7 +116,7 @@ function idsUsedBy(source) {
   ok(/id="graph-a11y"[^>]*class="sr-only"/.test(appHtml), 'the graph live region is visually hidden');
   ok(read('ui', 'app.js').includes('aria-current'), 'the active lesson link is marked aria-current');
 
-  for (const [name, css] of [['app.css', appCss], ['landing.css', landingCss]]) {
+  for (const [name, css] of [['app.css', appCss], ['landing.css', landingCss], ['admin.css', adminCss]]) {
     ok(css.includes(':focus-visible'), `${name} defines a visible keyboard focus style`);
     ok(css.includes('.sr-only'), `${name} defines the screen-reader-only utility`);
     ok(css.includes('@media (prefers-reduced-motion: reduce)'), `${name} honours reduced motion`);
@@ -119,6 +134,17 @@ function idsUsedBy(source) {
   ok(app.includes('S.terminal.destroy()'), 'app.js tears the terminal down before rebuilding it');
   ok(app.includes('advanceSteps'), 'app.js uses the shared guided-step cascade');
   ok(app.includes('scrollGraphToHead'), 'app.js keeps HEAD in view in both axes of the graph');
+
+  // R2: ui/progress.js is the only module allowed to touch storage or the API.
+  for (const file of ['app.js', 'terminal.js', 'graph.js', 'filetree.js', 'lesson.js',
+    'landing.js', 'states.js', 'icons.js', 'admin.js']) {
+    ok(!read('ui', file).includes('localStorage'),
+      `ui/${file} goes through the progress seam rather than localStorage`);
+  }
+  ok(read('ui', 'auth.js').includes("from './progress.js'"),
+    'ui/auth.js calls the API through the seam, not with its own fetch');
+  ok(!read('ui', 'auth.js').includes('fetch('),
+    'ui/auth.js has no fetch of its own');
 }
 
 /* ------------------------------- report ---------------------------------- */
