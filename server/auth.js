@@ -48,6 +48,24 @@ export function newSessionToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+/* --------------------------- single-use tokens ---------------------------- */
+/* Email verification and password reset. Same shape as a session — random,
+ * stored only as a hash — but short-lived and consumed on first use, because
+ * one of them can change a password. */
+
+export const TOKEN_TTL = {
+  verify: 24 * 60 * 60 * 1000,   // a day: people confirm addresses when they get to it
+  reset: 60 * 60 * 1000,         // an hour: it is the one thing that changes a password
+};
+
+export const newToken = () => crypto.randomBytes(32).toString('base64url');
+
+/** A token is only valid if it exists, is the right kind, and has not expired. */
+export function tokenIsValid(record, kind, now = Date.now()) {
+  if (!record || record.kind !== kind) return false;
+  return Date.parse(record.expiresAt) > now;
+}
+
 /* ------------------------------- validation ------------------------------- */
 
 /** Deliberately loose. Address validity is proven by delivery, not by regex,
@@ -140,6 +158,7 @@ export function publicUser(user) {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    emailVerified: user.emailVerified !== false,
     createdAt: user.createdAt,
     lastSeenAt: user.lastSeenAt,
   };

@@ -8,11 +8,20 @@
  * no packages, and an optional backend that dragged in a framework would make
  * that promise false for anyone who ran it.
  *
- *   npm start                 http://localhost:8000
- *   PORT=3000 npm start
- *   FC_DATA=./data/fc.json    where the JSON document lives
- *   FC_OWNER_EMAILS=a@b.com   accounts that get the owner role on sign-up
- *   FC_SECURE_COOKIES=1       set behind HTTPS
+ *   npm start                    http://localhost:8000
+ *   PORT=3000                    port to listen on
+ *   FC_DATA=./data/fc.json       where the JSON document lives
+ *   FC_OWNER_EMAILS=a@b.com      who owns the course. SET THIS IN PRODUCTION:
+ *                                without it the first stranger to register
+ *                                becomes the owner.
+ *   FC_BASE_URL=https://x.com    public origin, used to build email links
+ *   FC_SMTP_URL=smtps://u:p@h    send real email; omit to write to data/outbox
+ *   FC_MAIL_FROM=course@x.com    envelope sender
+ *   FC_REQUIRE_VERIFICATION=1    unconfirmed accounts cannot save progress
+ *   FC_SECURE_COOKIES=1          set behind HTTPS
+ *
+ * Every one of these is configuration, not a secret in the repository. That is
+ * what lets this be a public mirror of what is deployed.
  * ========================================================================== */
 
 import http from 'node:http';
@@ -21,7 +30,8 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store.js';
-import { createApi, sweepExpiredSessions } from './api.js';
+import { createApi, sweepExpiredSessions, sweepExpiredTokens } from './api.js';
+import { createTransport } from './mail.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -139,14 +149,33 @@ export async function createServer(opts = {}) {
   // A server that was down for a month comes back with a month of dead
   // sessions; clear them before serving rather than on a timer 10 minutes in.
   await sweepExpiredSessions(store);
+  await sweepExpiredTokens(store);
   const course = JSON.parse(await fsp.readFile(coursePath, 'utf8'));
+
+  const ownerEmails = opts.ownerEmails
+    ?? String(process.env.FC_OWNER_EMAILS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const port = Number(opts.port ?? process.env.PORT) || 8000;
+  const baseUrl = (opts.baseUrl ?? process.env.FC_BASE_URL ?? `http://localhost:${port}`)
+    .replace(/[/]+$/, '');
+  const smtpUrl = opts.smtpUrl ?? process.env.FC_SMTP_URL ?? '';
+
+  const mailer = opts.mailer ?? createTransport({
+    smtpUrl,
+    outbox: path.join(path.dirname(dataFile), 'outbox'),
+  });
 
   const handleApi = createApi({
     store,
     course,
+    mailer,
+    baseUrl,
+    brand: course.meta?.brand || 'First Commit',
+    mailFrom: opts.mailFrom ?? process.env.FC_MAIL_FROM ?? 'first-commit@localhost',
+    requireVerification: opts.requireVerification
+      ?? process.env.FC_REQUIRE_VERIFICATION === '1',
     secureCookies: opts.secureCookies ?? process.env.FC_SECURE_COOKIES === '1',
-    ownerEmails: opts.ownerEmails
-      ?? String(process.env.FC_OWNER_EMAILS || '').split(',').map((s) => s.trim()).filter(Boolean),
+    ownerEmails,
+    limits: opts.limits,
   });
 
   const server = http.createServer(async (req, res) => {
@@ -166,21 +195,35 @@ export async function createServer(opts = {}) {
     }
   });
 
-  return { server, store, dataFile };
+  return { server, store, dataFile, mailer, baseUrl, ownerEmails, port };
 }
 
 /* --------------------------------- CLI ----------------------------------- */
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const port = Number(process.env.PORT) || 8000;
-  const { server, store, dataFile } = await createServer();
+  const { server, store, dataFile, mailer, baseUrl, ownerEmails, port } = await createServer();
   server.listen(port, () => {
-    console.log(`first-commit  →  http://localhost:${port}`);
+    console.log(`first-commit  →  ${baseUrl}`);
     console.log(`data          →  ${dataFile}`);
-    if (store.isEmpty()) {
-      console.log('\nNo accounts yet. The first account you create becomes the course owner');
-      console.log('and is the only one that can open /admin.html.');
+    console.log(`mail          →  ${mailer.name === 'smtp' ? `smtp ${mailer.host}` : 'written to data/outbox (no SMTP configured)'}`);
+
+    /* The one configuration mistake that actually hands the course away.
+       Without FC_OWNER_EMAILS the first registration wins, so on a public
+       host the window between `npm start` and your own sign-up is a race
+       anybody who finds the URL can win. */
+    if (!ownerEmails.length) {
+      if (store.isEmpty()) {
+        console.warn('\n  ⚠  UNCLAIMED. No owner is configured and no account exists, so the');
+        console.warn('     first person to register becomes the course owner and can read');
+        console.warn('     everyone\'s progress.');
+        console.warn('     On anything reachable from the internet, stop and set');
+        console.warn('     FC_OWNER_EMAILS=you@example.com before going further.\n');
+      } else {
+        console.log('\nowner         →  claimed by the first account (FC_OWNER_EMAILS is not set)');
+      }
+    } else {
+      console.log(`owner         →  ${ownerEmails.join(', ')}`);
     }
   });
 }

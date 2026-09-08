@@ -139,6 +139,71 @@ function renderFunnel(stats) {
   ], rows));
 }
 
+/**
+ * Destructive controls, armed by a first click and fired by a second.
+ * A confirm() would be read by nobody; a button that visibly changes into the
+ * consequence is harder to hit by accident.
+ */
+function armedButton(label, armedLabel, run) {
+  const btn = el('button', 'btn btn-sm btn-ghost row-action', label);
+  btn.type = 'button';
+  let armed = false;
+  let timer = null;
+  const disarm = () => {
+    armed = false;
+    window.clearTimeout(timer);
+    btn.textContent = label;
+    btn.classList.replace('btn-danger', 'btn-ghost');
+  };
+  btn.addEventListener('click', async () => {
+    if (!armed) {
+      armed = true;
+      btn.textContent = armedLabel;
+      btn.classList.replace('btn-ghost', 'btn-danger');
+      timer = window.setTimeout(disarm, 5000);
+      return;
+    }
+    disarm();
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+    try {
+      await run();
+      await loadStats();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = err.message || 'Failed';
+    }
+  });
+  return btn;
+}
+
+function learnerActions(learner, isSelf) {
+  const wrap = el('span', 'row-actions');
+  if (isSelf) {
+    wrap.appendChild(el('span', 'muted', 'you'));
+    return wrap;
+  }
+  if (learner.emailVerified === false && current && current.canSendEmail) {
+    const resend = el('button', 'btn btn-sm btn-ghost row-action', 'Resend');
+    resend.type = 'button';
+    resend.title = 'Send the confirmation email again';
+    resend.addEventListener('click', async () => {
+      resend.disabled = true;
+      resend.textContent = 'Sending…';
+      try { await apiFetch(`admin/users/${learner.id}/resend-verification`, { method: 'POST' }); resend.textContent = 'Sent'; }
+      catch (err) { resend.textContent = err.message || 'Failed'; }
+    });
+    wrap.appendChild(resend);
+  }
+  wrap.append(
+    armedButton('Reset', 'Erase progress?', () =>
+      apiFetch(`admin/users/${learner.id}/reset-progress`, { method: 'POST' })),
+    armedButton('Delete', 'Delete account?', () =>
+      apiFetch(`admin/users/${learner.id}`, { method: 'DELETE' })),
+  );
+  return wrap;
+}
+
 function moduleSpark(learner) {
   const wrap = el('span', 'spark');
   for (const m of learner.modules) {
@@ -168,7 +233,10 @@ function renderLearners(stats, filter) {
     const who = el('span', 'who');
     who.append(el('span', 'who-name', l.displayName || l.email));
     who.appendChild(el('span', 'who-email', l.email));
-    if (l.role === 'owner') who.appendChild(el('span', 'badge badge-idle', 'owner'));
+    const tags = el('span', 'who-tags');
+    if (l.role === 'owner') tags.appendChild(el('span', 'badge badge-idle', 'owner'));
+    if (l.emailVerified === false) tags.appendChild(el('span', 'badge badge-unverified', 'unconfirmed'));
+    if (tags.childNodes.length) who.appendChild(tags);
 
     const bar = el('span', 'row-bar');
     const fill = el('span', 'bar-fill');
@@ -183,6 +251,7 @@ function renderLearners(stats, filter) {
       { node: moduleSpark(l) },
       { text: l.lastLessonTitle || '—', className: 'muted' },
       { text: ago(l.lastSeenAt), className: 'muted align-right' },
+      { node: learnerActions(l, l.id === (current && current.viewerId)), className: 'align-right' },
     ];
   });
 
@@ -194,6 +263,7 @@ function renderLearners(stats, filter) {
     { label: 'Modules', width: '140px' },
     { label: 'Last opened' },
     { label: 'Last seen', align: 'right', width: '120px' },
+    { label: 'Actions', align: 'right', width: '190px' },
   ], rows));
 }
 

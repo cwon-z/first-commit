@@ -17,14 +17,38 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const empty = () => ({
   version: SCHEMA_VERSION,
   users: {},      // id -> user record (including the password hash)
   progress: {},   // userId -> progress document
   sessions: {},   // sha256(token) -> { userId, createdAt, expiresAt }
+  tokens: {},     // sha256(token) -> { kind, userId, createdAt, expiresAt }
 });
+
+/**
+ * Bring an older document forward. Refusing to start would be safe but useless
+ * — it would strand a running course on an upgrade — so every version this
+ * server has ever written has a path to the current one.
+ *
+ * v1 → v2  adds the single-use token table (email verification, password
+ *          reset) and an `emailVerified` flag. Accounts that predate
+ *          verification are marked verified: they were created when the
+ *          server did not ask, and locking them out now would punish people
+ *          for our change.
+ */
+function migrate(doc) {
+  const out = { ...empty(), ...doc };
+  if (!doc.version || doc.version < 2) {
+    out.tokens = out.tokens || {};
+    for (const user of Object.values(out.users)) {
+      if (user.emailVerified === undefined) user.emailVerified = true;
+    }
+  }
+  out.version = SCHEMA_VERSION;
+  return out;
+}
 
 export class Store {
   /** @param {string} file path to the JSON document */
@@ -39,13 +63,15 @@ export class Store {
     try {
       const raw = await fs.readFile(this.file, 'utf8');
       const parsed = JSON.parse(raw);
-      if (parsed.version !== SCHEMA_VERSION) {
+      if (parsed.version > SCHEMA_VERSION) {
         throw new Error(
-          `${this.file}: schema version ${parsed.version}, expected ${SCHEMA_VERSION}. ` +
-          'Refusing to start rather than silently discarding data — migrate the file first.'
+          `${this.file}: schema version ${parsed.version}, but this server writes ${SCHEMA_VERSION}. ` +
+          'It was written by a newer build — refusing to start rather than downgrading your data.'
         );
       }
-      this.data = { ...empty(), ...parsed };
+      const migrated = parsed.version !== SCHEMA_VERSION;
+      this.data = migrate(parsed);
+      if (migrated) await this.flush();
     } catch (err) {
       if (err.code !== 'ENOENT') throw err;
       this.data = empty();          // first run: an empty course is normal
@@ -96,6 +122,14 @@ export class Store {
 
   session(tokenHash) {
     return this.data.sessions[tokenHash] || null;
+  }
+
+  token(tokenHash) {
+    return this.data.tokens[tokenHash] || null;
+  }
+
+  owners() {
+    return this.listUsers().filter((u) => u.role === 'owner');
   }
 
   /** True while nobody has registered — the first account claims ownership. */

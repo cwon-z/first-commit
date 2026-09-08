@@ -76,6 +76,7 @@ export function buildStats(store, course) {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      emailVerified: user.emailVerified !== false,
       createdAt: user.createdAt,
       lastSeenAt: user.lastSeenAt,
       updatedAt: progress?.updatedAt || null,

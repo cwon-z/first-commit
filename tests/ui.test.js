@@ -34,6 +34,7 @@ const RUNTIME_IDS = new Set([
   'check-list',                            // renderChallengePanel
   'challenge-hints',                       // refreshHintButtons
   'success-banner', 'sb-next',             // showSuccessBanner
+  'toast',                                 // toast
 ]);
 
 function idsIn(html) {

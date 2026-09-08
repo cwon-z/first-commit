@@ -26,7 +26,7 @@ import {
   LocalStorageProgressStore, LocalStoragePrefsStore, RestProgressStore,
   probeSession, chooseStore, mergeProgress,
 } from './progress.js';
-import { mountAccountControl } from './auth.js';
+import { mountAccountControl, openAuthDialog, confirmEmail } from './auth.js';
 import { renderStates } from './states.js';
 import { icon } from './icons.js';
 
@@ -50,6 +50,7 @@ const S = {
   revealedHints: 0,
   completedThisView: false,
   session: null,     // null when the app is served statically, with no API
+  account: null,     // the mounted top-bar control, when there is a server
   mode: 'read',      // 'read' | 'exercise'
   layout: prefs.load().layout, // the learner's preference; narrow screens override it
   tab: 'steps',      // focus-mode panel: 'steps' | 'graph' | 'files'
@@ -163,7 +164,7 @@ async function boot() {
   $('#lesson-pane').addEventListener('scroll', updateReadProgress, { passive: true });
 
   if (S.session) {
-    mountAccountControl($('#account'), { session: S.session, onChange: onAccountChange });
+    S.account = mountAccountControl($('#account'), { session: S.session, onChange: onAccountChange });
   }
 
   applyChrome();
@@ -342,6 +343,12 @@ function cancelResetConfirm() {
 function route() {
   dismissSuccess();
   const hash = location.hash || '';
+
+  // Links from email. Handled here and then wiped from the address bar, so a
+  // single-use token is not left sitting in history or a shared screenshot.
+  const mail = hash.match(/^#[/](verify|reset)[/]([A-Za-z0-9_.~-]+)$/);
+  if (mail) { handleMailLink(mail[1], mail[2]); return; }
+
   const m = hash.match(/^#\/lesson\/([\w-]+)/);
   if (m) {
     const entry = S.entries.find((e) => e.lesson.id === m[1]);
@@ -354,6 +361,55 @@ function route() {
   const firstIncomplete = playableEntries().find((e) => !isDone(e.lesson.id));
   const target = resume || firstIncomplete || S.entries[0];
   location.hash = `#/lesson/${target.lesson.id}`;
+}
+
+/**
+ * A verification or reset link was opened. Both consume a one-time token, so
+ * the URL is replaced before anything else happens — a reload must not try to
+ * spend a token that is already gone.
+ */
+async function handleMailLink(kind, token) {
+  history.replaceState(null, '', location.pathname + location.search);
+
+  if (!S.session) {
+    // Static build: there is no server to talk to, so say so rather than
+    // failing silently on a link that looks like it should work.
+    toast('This copy of the course has no accounts server, so that link cannot be used here.');
+    route();
+    return;
+  }
+
+  if (kind === 'verify') {
+    try {
+      const body = await confirmEmail(token);
+      if (S.account) S.account.set(body.user);
+      toast('Email confirmed — thank you.');
+    } catch (err) {
+      toast(err.message || 'That confirmation link did not work.');
+    }
+    route();
+    return;
+  }
+
+  const user = await openAuthDialog({ ...(S.session.config || {}), mode: 'reset', token });
+  if (user) {
+    if (S.account) S.account.set(user);
+    await onAccountChange(user);
+    toast('Password changed, and you are signed in.');
+  }
+  route();
+}
+
+/** A brief, unintrusive message. Announced, because some of these matter. */
+function toast(message) {
+  const old = $('#toast');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'toast';
+  el.setAttribute('role', 'status');
+  el.textContent = message;
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 6000);
 }
 
 /* ------------------------------ lesson views ------------------------------ */

@@ -14,6 +14,22 @@ page. See the last four commits.
 
 ---
 
+## Settled
+
+- [x] **Password reset** — self-service, single-use links, one hour, and using
+      one signs every other device out.
+- [x] **Email verification** — on by default when mail is configured;
+      `FC_REQUIRE_VERIFICATION=1` makes it mandatory.
+- [x] **Admin write actions** — reset a learner, delete an account, resend a
+      confirmation, from the statistics page.
+- [x] **Privacy** — [PRIVACY.md](PRIVACY.md), plus self-service export and
+      deletion.
+- [x] **Ownership** — `FC_OWNER_EMAILS` closes the first-to-register hole.
+- [x] **Repository layout** — one public repo. Secrets are environment
+      variables, never files. See the README.
+- [x] **Backups** — handled on your server, out of this repository's scope.
+- [x] **The two scratch files** — now git-ignored rather than untracked.
+
 ## Waiting on a person
 
 These cannot be closed from a terminal. Both are listed as acceptance criteria
@@ -39,51 +55,17 @@ in `docs/ui-rebuild-brief.md` §12 (A4).
 
 ## Waiting on a decision
 
-Each of these changes the product, so they want your call rather than mine.
+- [ ] **Push.** `main` is ahead of `origin/main`. Nothing has been pushed yet.
 
-- [ ] **Password reset.** There is none. A forgotten password today means
-      editing `data/first-commit.json` by hand. This is the only gap on this
-      list that is load-bearing the moment anyone outside your household signs
-      up.
-      *Options:* owner-initiated reset from `/admin.html` (no email needed,
-      ~small); or emailed reset links, which means SMTP config and a dependency
-      decision (~medium, and the first thing to make the server non-trivial to
-      run).
+- [ ] **A real mail relay.** `FC_SMTP_URL` is unset, so verification and reset
+      links are written to `data/outbox/` and printed to the console rather than
+      sent. That is fine for people you know and not fine for strangers. The
+      SMTP client is written but has never spoken to a real relay — first
+      deployment is its first test.
 
-- [ ] **Email verification.** Also absent. Fine for a private course, not fine
-      if sign-up is open to the internet — nothing stops somebody registering
-      an address that is not theirs. Tied to the decision above.
-
-- [ ] **Admin write actions.** `/admin.html` is read-only by design (you asked
-      to *view* stats). You currently cannot reset a learner's progress or
-      delete an account, including test accounts. The routes would sit beside
-      `admin/stats` in `server/api.js`. **Small.**
-
-- [ ] **Privacy, export and deletion.** The server now stores real email
-      addresses. There is no privacy note, no "download my progress", no
-      "delete my account". Worth deciding before anyone outside your household
-      uses it. **Small each.**
-
-- [ ] **Backups for `data/first-commit.json`.** It is the only copy of
-      everyone's progress and it is git-ignored, so nothing rotates or copies
-      it. A cron'd `cp` is probably enough; decide where. **Small.**
-
-- [ ] **The video slot.** `meta.youtubeVideoId` in `content/course.json` is
-      still `""`, so the landing page shows the placeholder and the "Watch it
-      once through · 12 minutes" heading promises something that does not
-      exist. Either record it, or soften the heading until you do.
-
-- [ ] **Two untracked files at the repo root.**
-      - `First Commit - offline.html` (1.4 MB) — the Claude Design canvas export
-        the interface was built from. Commit it as the design source of record,
-        or delete it? It is the only copy of the design intent, but it is large
-        and not readable as source.
-      - `test.html` — empty, predates the recent work. Almost certainly delete.
-
-- [ ] **Push.** `main` is ahead of `origin/main` by four commits. Nothing has
-      been pushed.
-
----
+- [ ] **The video.** `meta.youtubeVideoId` is empty, so the whole video section
+      is now hidden rather than showing a placeholder. Set the id when the video
+      exists and the section comes back on its own.
 
 ## Content review
 

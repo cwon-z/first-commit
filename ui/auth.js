@@ -1,11 +1,14 @@
 /* ============================================================================
  * first-commit — accounts, client side
  * ----------------------------------------------------------------------------
- * The account control in the top bar and the dialog behind it.
+ * The account control in the top bar, and the one dialog behind it. That dialog
+ * has four faces — sign in, create an account, ask for a reset link, choose a
+ * new password — because they share a shape and it is less to learn than four
+ * screens.
  *
  * Signing in is optional and stays optional: without a server the control never
  * appears, and with one a learner can work as a guest all the way through. What
- * an account buys is progress that follows you to another device — so that is
+ * an account buys is progress that follows you to another device, so that is
  * what the dialog says, rather than demanding a sign-up before the first lesson.
  * ========================================================================== */
 
@@ -20,9 +23,23 @@ export const signUp = (email, password, displayName) =>
 
 export const signOut = () => apiFetch('auth/logout', { method: 'POST' });
 
+export const confirmEmail = (token) =>
+  apiFetch('auth/verify', { method: 'POST', body: JSON.stringify({ token }) });
+
+export const resendVerification = () =>
+  apiFetch('auth/resend-verification', { method: 'POST', body: JSON.stringify({}) });
+
+export const requestReset = (email) =>
+  apiFetch('auth/forgot', { method: 'POST', body: JSON.stringify({ email }) });
+
+export const setNewPassword = (token, password) =>
+  apiFetch('auth/reset', { method: 'POST', body: JSON.stringify({ token, password }) });
+
+export const deleteAccount = () => apiFetch('account', { method: 'DELETE' });
+
 /* --------------------------------- dialog --------------------------------- */
 
-function field(form, { label, type, name, autocomplete, hint }) {
+function field(form, { label, type, name, autocomplete, hint, required = true }) {
   const wrap = document.createElement('label');
   wrap.className = 'auth-field';
   const text = document.createElement('span');
@@ -31,7 +48,7 @@ function field(form, { label, type, name, autocomplete, hint }) {
   const input = document.createElement('input');
   input.type = type;
   input.name = name;
-  input.required = true;
+  input.required = required;
   input.autocomplete = autocomplete;
   input.className = 'auth-input';
   if (type === 'email') input.inputMode = 'email';
@@ -46,8 +63,41 @@ function field(form, { label, type, name, autocomplete, hint }) {
   return input;
 }
 
+const COPY = {
+  signup: {
+    kicker: 'Create an account',
+    title: 'Save your progress',
+    blurb: 'An account keeps your progress on the server, so you can pick the course up on ' +
+      'another device. Everything you have finished so far comes with you.',
+    submit: 'Create account',
+    swap: 'I already have an account',
+  },
+  signin: {
+    kicker: 'Welcome back',
+    title: 'Sign in',
+    blurb: 'Your finished lessons will load from the server.',
+    submit: 'Sign in',
+    swap: 'Create an account',
+  },
+  forgot: {
+    kicker: 'Password reset',
+    title: 'Send me a link',
+    blurb: 'Give the address you signed up with and a link to choose a new password is on its way.',
+    submit: 'Send the link',
+    swap: 'Back to signing in',
+  },
+  reset: {
+    kicker: 'Password reset',
+    title: 'Choose a new password',
+    blurb: 'This link works once. Every other device signed in to your account will be signed out.',
+    submit: 'Save the password',
+    swap: '',
+  },
+};
+
 /**
- * @param {{ mode?: 'signin'|'signup', minPassword?: number, needsOwner?: boolean }} opts
+ * @param {{ mode?: 'signin'|'signup'|'forgot'|'reset', minPassword?: number,
+ *           needsOwner?: boolean, canSendEmail?: boolean, token?: string }} opts
  * @returns {Promise<object|null>} the signed-in user, or null if dismissed
  */
 export function openAuthDialog(opts = {}) {
@@ -76,6 +126,11 @@ export function openAuthDialog(opts = {}) {
     form.className = 'auth-form';
     form.noValidate = true;
 
+    const note = document.createElement('p');
+    note.className = 'auth-note';
+    note.setAttribute('role', 'status');
+    note.hidden = true;
+
     const error = document.createElement('p');
     error.className = 'auth-error';
     error.setAttribute('role', 'alert');
@@ -89,6 +144,11 @@ export function openAuthDialog(opts = {}) {
     swap.type = 'button';
     swap.className = 'btn btn-ghost btn-sm auth-swap';
 
+    const forgot = document.createElement('button');
+    forgot.type = 'button';
+    forgot.className = 'btn btn-ghost btn-sm';
+    forgot.textContent = 'Forgot your password?';
+
     const guest = document.createElement('button');
     guest.type = 'button';
     guest.className = 'btn btn-ghost btn-sm';
@@ -98,7 +158,7 @@ export function openAuthDialog(opts = {}) {
     actions.className = 'auth-actions';
     actions.append(submit, swap);
 
-    card.append(kicker, title, blurb, form, error, actions, guest);
+    card.append(kicker, title, blurb, form, note, error, actions, forgot, guest);
     overlay.appendChild(card);
 
     let nameInput = null;
@@ -106,46 +166,53 @@ export function openAuthDialog(opts = {}) {
     let passwordInput = null;
 
     function build() {
+      const copy = COPY[mode];
       form.innerHTML = '';
-      const signup = mode === 'signup';
-      kicker.textContent = signup ? 'Create an account' : 'Welcome back';
-      title.textContent = signup
-        ? (opts.needsOwner ? 'Set up the course' : 'Save your progress')
-        : 'Sign in';
-      blurb.textContent = opts.needsOwner && signup
-        ? 'Nobody has signed up yet, so this first account becomes the course owner — the only one that can see the statistics page.'
-        : signup
-          ? 'An account keeps your progress on the server, so you can pick the course up on another device. Everything you have finished so far comes with you.'
-          : 'Your finished lessons will load from the server.';
+      nameInput = emailInput = passwordInput = null;
 
-      if (signup) {
+      kicker.textContent = copy.kicker;
+      title.textContent = mode === 'signup' && opts.needsOwner ? 'Set up the course' : copy.title;
+      blurb.textContent = mode === 'signup' && opts.needsOwner
+        ? 'Nobody has signed up yet, so this first account becomes the course owner — the only one that can see the statistics page.'
+        : copy.blurb;
+
+      if (mode === 'signup') {
         nameInput = field(form, {
           label: 'Name', type: 'text', name: 'displayName', autocomplete: 'nickname',
-          hint: 'Shown only to you and the course owner.',
+          hint: 'Shown only to you and the course owner.', required: false,
         });
-        nameInput.required = false;
       }
-      emailInput = field(form, { label: 'Email', type: 'email', name: 'email', autocomplete: 'username' });
-      passwordInput = field(form, {
-        label: 'Password',
-        type: 'password',
-        name: 'password',
-        autocomplete: signup ? 'new-password' : 'current-password',
-        hint: signup ? `At least ${minPassword} characters.` : null,
-      });
+      if (mode !== 'reset') {
+        emailInput = field(form, { label: 'Email', type: 'email', name: 'email', autocomplete: 'username' });
+      }
+      if (mode === 'signin' || mode === 'signup' || mode === 'reset') {
+        passwordInput = field(form, {
+          label: mode === 'reset' ? 'New password' : 'Password',
+          type: 'password',
+          name: 'password',
+          autocomplete: mode === 'signin' ? 'current-password' : 'new-password',
+          hint: mode === 'signin' ? null : `At least ${minPassword} characters.`,
+        });
+      }
 
-      submit.textContent = signup ? 'Create account' : 'Sign in';
-      swap.textContent = signup ? 'I already have an account' : 'Create an account';
-      swap.hidden = !!opts.needsOwner;
+      submit.textContent = copy.submit;
+      submit.disabled = false;
+      swap.textContent = copy.swap;
+      swap.hidden = !copy.swap || (mode === 'signup' && !!opts.needsOwner);
+      // Only offered where it makes sense, and only when the server can send it.
+      forgot.hidden = mode !== 'signin' || opts.canSendEmail === false;
+      guest.hidden = mode === 'reset';
+      note.hidden = true;
       error.hidden = true;
-      (signup ? nameInput : emailInput).focus();
+      (nameInput || emailInput || passwordInput).focus();
     }
 
     function fail(message) {
       error.textContent = message;
       error.hidden = false;
+      note.hidden = true;
       submit.disabled = false;
-      submit.textContent = mode === 'signup' ? 'Create account' : 'Sign in';
+      submit.textContent = COPY[mode].submit;
     }
 
     function close(user) {
@@ -159,7 +226,7 @@ export function openAuthDialog(opts = {}) {
       if (ev.key !== 'Tab') return;
       // Keep focus inside the dialog: it is modal, and tabbing out to a page
       // that is behind a scrim strands keyboard users.
-      const focusable = card.querySelectorAll('input, button');
+      const focusable = [...card.querySelectorAll('input, button')].filter((el) => !el.hidden && !el.disabled);
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -173,18 +240,29 @@ export function openAuthDialog(opts = {}) {
       submit.disabled = true;
       submit.textContent = 'Working…';
       try {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        const body = mode === 'signup'
-          ? await signUp(email, password, nameInput ? nameInput.value : '')
-          : await signIn(email, password);
-        close(body.user);
+        const email = emailInput ? emailInput.value.trim() : '';
+        const password = passwordInput ? passwordInput.value : '';
+        if (mode === 'signup') { close((await signUp(email, password, nameInput ? nameInput.value : '')).user); return; }
+        if (mode === 'signin') { close((await signIn(email, password)).user); return; }
+        if (mode === 'reset') { close((await setNewPassword(opts.token, password)).user); return; }
+
+        // forgot: the answer is deliberately the same whether or not the
+        // address has an account, so the dialog stays open showing it.
+        const body = await requestReset(email);
+        note.textContent = body.message || 'If that address has an account, a reset link is on its way.';
+        note.hidden = false;
+        submit.disabled = true;
+        submit.textContent = 'Sent';
       } catch (err) {
         fail(err.message || 'That did not work. Try again.');
       }
     });
 
-    swap.addEventListener('click', () => { mode = mode === 'signup' ? 'signin' : 'signup'; build(); });
+    swap.addEventListener('click', () => {
+      mode = mode === 'signup' ? 'signin' : mode === 'forgot' ? 'signin' : 'signup';
+      build();
+    });
+    forgot.addEventListener('click', () => { mode = 'forgot'; build(); });
     guest.addEventListener('click', () => close(null));
     overlay.addEventListener('mousedown', (ev) => { if (ev.target === overlay) close(null); });
     document.addEventListener('keydown', onKey, true);
@@ -195,6 +273,14 @@ export function openAuthDialog(opts = {}) {
 }
 
 /* ---------------------------- the topbar control -------------------------- */
+
+function panelButton(label, className = 'btn btn-sm btn-block') {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = className;
+  b.textContent = label;
+  return b;
+}
 
 /**
  * @param {HTMLElement} host      container in the shell (empty in the markup)
@@ -228,6 +314,12 @@ export function mountAccountControl(host, { session, onChange }) {
     const summary = document.createElement('summary');
     summary.className = 'btn btn-sm account-summary';
     summary.append(icon('user'), user.displayName || user.email);
+    if (user.emailVerified === false) {
+      const dot = document.createElement('span');
+      dot.className = 'account-flag';
+      dot.title = 'Email not confirmed';
+      summary.appendChild(dot);
+    }
     menu.appendChild(summary);
 
     const panel = document.createElement('div');
@@ -243,6 +335,26 @@ export function mountAccountControl(host, { session, onChange }) {
       : 'Progress saved to your account';
     panel.append(who, role);
 
+    if (user.emailVerified === false) {
+      const warn = document.createElement('div');
+      warn.className = 'account-unverified';
+      warn.textContent = config.canSendEmail
+        ? 'Confirm your email to be able to reset your password later.'
+        : 'Email is not confirmed, and this server cannot send mail.';
+      panel.appendChild(warn);
+
+      if (config.canSendEmail) {
+        const resend = panelButton('Send the link again');
+        resend.addEventListener('click', async () => {
+          resend.disabled = true;
+          resend.textContent = 'Sending…';
+          try { await resendVerification(); resend.textContent = 'Sent — check your inbox'; }
+          catch { resend.textContent = 'Could not send it'; }
+        });
+        panel.appendChild(resend);
+      }
+    }
+
     if (user.role === 'owner') {
       const stats = document.createElement('a');
       stats.className = 'btn btn-sm btn-block';
@@ -251,10 +363,14 @@ export function mountAccountControl(host, { session, onChange }) {
       panel.appendChild(stats);
     }
 
-    const out = document.createElement('button');
-    out.type = 'button';
-    out.className = 'btn btn-sm btn-block btn-ghost';
-    out.textContent = 'Sign out';
+    const data = document.createElement('a');
+    data.className = 'btn btn-sm btn-block btn-ghost';
+    data.href = './api/account/export';
+    data.setAttribute('download', 'first-commit-account.json');
+    data.textContent = 'Download my data';
+    panel.appendChild(data);
+
+    const out = panelButton('Sign out', 'btn btn-sm btn-block btn-ghost');
     out.addEventListener('click', async () => {
       await signOut().catch(() => {});
       user = null;
@@ -263,6 +379,34 @@ export function mountAccountControl(host, { session, onChange }) {
       await onChange(null);
     });
     panel.appendChild(out);
+
+    // Destructive, so it asks twice — the same two-tap pattern as resetting
+    // progress, rather than a confirm() nobody reads.
+    let armed = false;
+    const del = panelButton('Delete my account', 'btn btn-sm btn-block btn-ghost');
+    del.addEventListener('click', async () => {
+      if (!armed) {
+        armed = true;
+        del.textContent = 'Tap again — this erases everything';
+        del.classList.replace('btn-ghost', 'btn-danger');
+        window.setTimeout(() => {
+          if (!armed) return;
+          armed = false;
+          del.textContent = 'Delete my account';
+          del.classList.replace('btn-danger', 'btn-ghost');
+        }, 5000);
+        return;
+      }
+      try {
+        await deleteAccount();
+        user = null;
+        render();
+        await onChange(null);
+      } catch (err) {
+        del.textContent = err.message || 'Could not delete it';
+      }
+    });
+    panel.appendChild(del);
 
     menu.appendChild(panel);
     // Clicking anywhere else closes it, the way a menu is expected to behave.
@@ -273,5 +417,8 @@ export function mountAccountControl(host, { session, onChange }) {
   };
 
   render();
-  return { get user() { return user; } };
+  return {
+    get user() { return user; },
+    set(next) { user = next; render(); },
+  };
 }

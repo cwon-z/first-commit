@@ -80,11 +80,22 @@ function renderCurriculum(course) {
   for (const mod of course.modules || []) grid.appendChild(moduleCard(mod));
 }
 
-/** Swap the placeholder for a real embed once meta.youtubeVideoId is set. */
+/**
+ * Swap the placeholder for a real embed once meta.youtubeVideoId is set — and
+ * until then, take the whole section off the page. A heading that promises a
+ * twelve-minute walkthrough over an empty box is worse than no heading: it
+ * reads as something broken rather than something coming.
+ */
 function renderVideo(course) {
   const id = ((course.meta && course.meta.youtubeVideoId) || '').trim();
   const frame = $('#video-frame');
-  if (!id || !frame) return;
+  const section = $('#video');
+  if (!id) {
+    if (section) section.hidden = true;
+    return;
+  }
+  if (section) section.hidden = false;
+  if (!frame) return;
   // Only ever treat this as a bare YouTube id — never interpolate a raw URL.
   if (!/^[\w-]{6,20}$/.test(id)) {
     console.warn('landing: ignoring malformed meta.youtubeVideoId', id);

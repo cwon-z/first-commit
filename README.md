@@ -41,6 +41,7 @@ yourdomain.com {
 
 - `index.html` — public landing page (hero, curriculum, YouTube embed slot)
 - `app.html` — the course application
+- `admin.html` — course statistics, for the owner
 
 ## Architecture
 
@@ -52,9 +53,10 @@ first-commit/
 │   └── validators.js     # state-based exercise validation + the step cascade
 ├── server/               # OPTIONAL accounts backend — zero dependencies
 │   ├── index.js          # http server: static allowlist + JSON API + CSP
-│   ├── api.js            # register / login / progress / stats routes
-│   ├── auth.js           # scrypt hashing, sessions, rate limiting
-│   ├── store.js          # one JSON document, written atomically
+│   ├── api.js            # auth / progress / account / admin routes
+│   ├── auth.js           # scrypt hashing, sessions, tokens, rate limiting
+│   ├── mail.js           # file + SMTP transports, and the two messages
+│   ├── store.js          # one JSON document, written atomically, migrated
 │   └── stats.js          # progress documents → the owner's numbers
 ├── ui/
 │   ├── app.js            # controller: routing, exercise orchestration
@@ -127,15 +129,46 @@ never appears, and with it a learner can finish the whole course as a guest.
 What an account buys is progress that survives a new laptop.
 
 ```bash
-npm start                                  # http://localhost:8000
-PORT=3000 FC_DATA=./data/fc.json npm start
-FC_OWNER_EMAILS=you@example.com npm start  # grant ownership by address
-FC_SECURE_COOKIES=1 npm start              # behind HTTPS
+npm start                                    # http://localhost:8000
+PORT=3000                                    # port to listen on
+FC_DATA=./data/fc.json                       # where the JSON document lives
+FC_OWNER_EMAILS=you@example.com              # who owns the course
+FC_BASE_URL=https://course.example.com       # public origin, for email links
+FC_SMTP_URL=smtps://user:pass@smtp.host:465  # send real email
+FC_MAIL_FROM=course@example.com              # envelope sender
+FC_REQUIRE_VERIFICATION=1                    # unconfirmed accounts cannot save
+FC_SECURE_COOKIES=1                          # behind HTTPS
 ```
 
-**The first account created owns the course.** Ownership is what opens
-`/admin.html`; every account after it is a learner. Set `FC_OWNER_EMAILS` if you
-would rather name the owners up front.
+### Set FC_OWNER_EMAILS before you deploy
+
+Ownership is what opens `/admin.html` and everyone's progress with it.
+
+- **With `FC_OWNER_EMAILS` set**, ownership comes from that list and nowhere
+  else. Strangers who register are learners, however early they arrive.
+- **Without it**, the first account to register takes ownership. That is
+  convenient on a laptop and a real hole on a public host: between starting the
+  server and signing up yourself, whoever finds the URL first becomes the owner.
+
+The server prints a loud warning while an instance is unclaimed. Do not ignore
+it on anything reachable from the internet.
+
+### Email
+
+`FC_SMTP_URL` is the only thing standing between you and working verification
+and password reset. Without it nothing is lost — messages are written to
+`data/outbox/` and the link is printed to the console, which is enough to run a
+course for people you know. With it, sign-up confirmation and self-service
+password reset work the way people expect.
+
+Only two messages are ever sent: confirm your address, and reset your password.
+
+### Privacy
+
+[PRIVACY.md](PRIVACY.md) records what is stored, for how long, who can see it,
+and how to get rid of it. Learners can export everything the server holds about
+them and delete their account from the account menu; the owner can reset or
+delete a learner from the statistics page.
 
 Signing in merges rather than replaces: whatever a guest finished on that device
 is unioned into the account, because losing three modules of work at the moment
@@ -150,6 +183,8 @@ you sign up is how you lose the learner too.
 | Guessing | Rate-limited per address *and* client, so nobody can lock a learner out on purpose. |
 | Enumeration | "Wrong password" and "no such account" return the same message. |
 | Served files | An allowlist. `data/`, `tests/`, `drafts/` and `server/` are not reachable over HTTP — the accounts file and the challenge solutions both live there. |
+| Reset links | Single-use, one hour, and using one signs out every other device. |
+| Ownership | From `FC_OWNER_EMAILS` when set; otherwise first-to-register, with a warning. |
 
 ### Course statistics — `/admin.html`
 

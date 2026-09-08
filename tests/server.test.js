@@ -25,7 +25,23 @@ function ok(cond, name) {
 const eq = (a, b, name) => ok(a === b, `${name} (expected ${JSON.stringify(b)}, got ${JSON.stringify(a)})`);
 
 const dataFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fc-test-')), 'data.json');
-const { server, store } = await createServer({ dataFile, secureCookies: false, ownerEmails: [] });
+
+/* A mailer that keeps what it was asked to send, so the tests can follow a
+   verification or reset link the way a person would. */
+const outbox = [];
+const mailer = { name: 'test', async send(message) { outbox.push(message); return { transport: 'test' }; } };
+const lastLinkTo = (email) => {
+  const message = [...outbox].reverse().find((m) => m.to === email);
+  return message && (message.text.match(/https?:[^\s]+/) || [])[0];
+};
+const tokenIn = (link) => (link || '').split('/').pop();
+
+const { server, store } = await createServer({
+  dataFile, secureCookies: false, ownerEmails: [], mailer, baseUrl: 'http://test.local',
+  // The suite registers far more accounts from one address than a person would;
+  // the limiter itself is covered by its own unit test above.
+  limits: { register: 500 },
+});
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -208,6 +224,9 @@ const learner = client();
   ok(stats.funnel.length === 45, 'the funnel has a row per unit');
   ok(stats.funnel[0].completed >= 1, 'the funnel counts a completion');
   ok(Array.isArray(stats.modules_) && stats.modules_.length === 11, 'every module is reported');
+  eq(stats.viewerId, ownerRow.id, 'the stats say who is looking, so the page does not offer to delete you');
+  eq(stats.canSendEmail, true, 'and whether resending a confirmation is possible');
+  eq(ownerRow.emailVerified, false, 'confirmation state is reported per learner');
 }
 
 /* -------------------------------- sign-out -------------------------------- */
@@ -254,6 +273,120 @@ const learner = client();
   eq((await anon('/admin.html')).status, 200, 'the statistics page is served (the API gates it, not the path)');
 }
 
+/* ---------------------------- email verification --------------------------- */
+{
+  const client_ = client();
+  const reg = await post(client_, '/api/auth/register', {
+    email: 'verify-me@example.com', password: 'a-really-long-password', displayName: 'Vee',
+  });
+  eq(reg.status, 201, 'a new account is created');
+  eq(reg.body.user.emailVerified, false, 'and starts unverified when mail is configured');
+
+  const link = lastLinkTo('verify-me@example.com');
+  ok(link && link.startsWith('http://test.local/app.html#/verify/'), 'a confirmation link is sent');
+
+  const wrong = await post(client_, '/api/auth/verify', { token: 'not-a-real-token' });
+  eq(wrong.status, 400, 'a bogus token is refused');
+
+  const done = await post(client_, '/api/auth/verify', { token: tokenIn(link) });
+  eq(done.status, 200, 'the link confirms the address');
+  eq(done.body.user.emailVerified, true, 'and the account is marked verified');
+
+  const again = await post(client_, '/api/auth/verify', { token: tokenIn(link) });
+  eq(again.status, 400, 'the same link cannot be used twice');
+}
+
+/* ---------------------------- password reset ------------------------------- */
+{
+  const before = outbox.length;
+  const unknown = await post(client(), '/api/auth/forgot', { email: 'nobody-here@example.com' });
+  eq(unknown.status, 200, 'asking to reset an unknown address still answers 200');
+  eq(outbox.length, before, 'and sends nothing');
+
+  const asked = await post(client(), '/api/auth/forgot', { email: 'grace-reset@example.com' });
+  eq(asked.status, 200, 'asking about a real address answers the same way');
+
+  // now make that account exist and ask properly
+  const owner2 = client();
+  await post(owner2, '/api/auth/register', { email: 'grace-reset@example.com', password: 'the-first-password' });
+  const signedIn = client();
+  await post(signedIn, '/api/auth/login', { email: 'grace-reset@example.com', password: 'the-first-password' });
+  ok((await signedIn('/api/auth/me')).body.user, 'the old password works before the reset');
+
+  await post(client(), '/api/auth/forgot', { email: 'grace-reset@example.com' });
+  const link = lastLinkTo('grace-reset@example.com');
+  ok(link && link.includes('#/reset/'), 'a reset link is sent');
+
+  const tooShort = await post(client(), '/api/auth/reset', { token: tokenIn(link), password: 'short' });
+  eq(tooShort.status, 400, 'the new password still has to be long enough');
+
+  const fresh = client();
+  const reset = await post(fresh, '/api/auth/reset', { token: tokenIn(link), password: 'the-second-password' });
+  eq(reset.status, 200, 'the link sets a new password');
+  eq(reset.body.user.emailVerified, true, 'and using it proves the address');
+
+  eq((await post(client(), '/api/auth/login', { email: 'grace-reset@example.com', password: 'the-first-password' })).status,
+    401, 'the old password stops working');
+  eq((await post(client(), '/api/auth/login', { email: 'grace-reset@example.com', password: 'the-second-password' })).status,
+    200, 'the new password works');
+  eq((await signedIn('/api/auth/me')).body.user, null,
+    'every other session is dropped — the usual reason to reset is that someone else has one');
+  eq((await post(client(), '/api/auth/reset', { token: tokenIn(link), password: 'a-third-password-x' })).status,
+    400, 'the reset link cannot be replayed');
+}
+
+/* ------------------------ your own account data ---------------------------- */
+{
+  const me = client();
+  await post(me, '/api/auth/register', { email: 'exporter@example.com', password: 'a-really-long-password' });
+  await me('/api/progress', { method: 'PUT', headers: H, body: { progress: { completedLessons: ['m1l1'], lastLessonId: 'm1l1' } } });
+
+  const dump = await me('/api/account/export');
+  eq(dump.status, 200, 'you can export your own data');
+  eq(dump.body.account.email, 'exporter@example.com', 'the export names the account');
+  eq(dump.body.progress.completedLessons.length, 1, 'and carries the progress');
+  ok(!JSON.stringify(dump.body).includes('passwordHash'), 'the export contains no password hash');
+  ok(!JSON.stringify(dump.body).includes('salt'), 'and no salt');
+
+  const gone = await me('/api/account', { method: 'DELETE', headers: H });
+  eq(gone.status, 200, 'you can delete your own account');
+  eq((await me('/api/auth/me')).body.user, null, 'and the session ends with it');
+  eq((await post(client(), '/api/auth/login', { email: 'exporter@example.com', password: 'a-really-long-password' })).status,
+    401, 'the account is really gone');
+
+  const soleOwner = await owner('/api/account', { method: 'DELETE', headers: H });
+  eq(soleOwner.status, 409, 'the only owner cannot delete themselves and orphan the course');
+}
+
+/* --------------------------- admin write actions --------------------------- */
+{
+  const victim = client();
+  await post(victim, '/api/auth/register', { email: 'resetme@example.com', password: 'a-really-long-password' });
+  await victim('/api/progress', { method: 'PUT', headers: H, body: { progress: { completedLessons: ['m1l1', 'm1l2'], lastLessonId: 'm1l2' } } });
+  const victimId = (await victim('/api/auth/me')).body.user.id;
+
+  eq((await learner(`/api/admin/users/${victimId}/reset-progress`, { method: 'POST', headers: H })).status,
+    403, 'a learner cannot reset somebody else');
+
+  const cleared = await owner(`/api/admin/users/${victimId}/reset-progress`, { method: 'POST', headers: H });
+  eq(cleared.status, 200, 'the owner can reset a learner');
+  eq((await victim('/api/progress')).body.progress.completedLessons.length, 0, 'and the progress is really gone');
+
+  eq((await owner('/api/admin/users/does-not-exist/reset-progress', { method: 'POST', headers: H })).status,
+    404, 'resetting a stranger is a 404');
+
+  const ownerId = (await owner('/api/auth/me')).body.user.id;
+  eq((await owner(`/api/admin/users/${ownerId}`, { method: 'DELETE', headers: H })).status,
+    409, 'the owner cannot delete themselves from the admin page');
+
+  eq((await learner(`/api/admin/users/${victimId}`, { method: 'DELETE', headers: H })).status,
+    403, 'a learner cannot delete anybody');
+
+  const deleted = await owner(`/api/admin/users/${victimId}`, { method: 'DELETE', headers: H });
+  eq(deleted.status, 200, 'the owner can delete a learner');
+  eq((await victim('/api/auth/me')).body.user, null, "and that learner's session dies with the account");
+}
+
 /* ---------------------------- session hygiene ------------------------------ */
 {
   const live = Object.keys(store.data.sessions).length;
@@ -275,6 +408,63 @@ const learner = client();
   eq(merged.completedLessons.length, 3, 'merging keeps every finished lesson from both sides');
   eq(merged.lastLessonId, 'm2l1', 'the newer document wins the "where was I" pointer');
   eq(mergeProgress(remote, local).completedLessons.length, 3, 'merging is symmetric in what it keeps');
+}
+
+/* --------------------- who owns the course, on a fresh box ----------------- */
+/* The bootstrap rule is the one configuration mistake that hands the course to
+   a stranger, so it gets its own server. */
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fc-owner-'));
+  const configured = await createServer({
+    dataFile: path.join(dir, 'data.json'),
+    ownerEmails: ['boss@example.com'],
+    mailer: { name: 'null', async send() {} },
+    limits: { register: 500 },
+  });
+  await new Promise((r) => configured.server.listen(0, '127.0.0.1', r));
+  const at = `http://127.0.0.1:${configured.server.address().port}`;
+  const call = (endpoint, body) => fetch(at + endpoint, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...H }, body: JSON.stringify(body),
+  }).then(async (r) => ({ status: r.status, body: await r.json() }));
+
+  const squatter = await call('/api/auth/register', { email: 'first@example.com', password: 'a-really-long-password' });
+  eq(squatter.status, 201, 'a stranger may still register');
+  eq(squatter.body.user.role, 'learner',
+    'but does NOT become owner just by being first, once FC_OWNER_EMAILS is set');
+
+  const boss = await call('/api/auth/register', { email: 'boss@example.com', password: 'a-really-long-password' });
+  eq(boss.body.user.role, 'owner', 'the configured address does');
+  configured.server.close();
+}
+
+/* ------------------------------- migration -------------------------------- */
+/* A course that has been running gets upgraded in place; refusing to start, or
+   silently dropping people, are both unacceptable answers. */
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fc-migrate-'));
+  const file = path.join(dir, 'data.json');
+  fs.writeFileSync(file, JSON.stringify({
+    version: 1,
+    users: { u1: { id: 'u1', email: 'old@example.com', displayName: 'Old', role: 'owner', salt: 'x', passwordHash: 'y', createdAt: '2026-01-01T00:00:00.000Z', lastSeenAt: '2026-01-01T00:00:00.000Z' } },
+    progress: { u1: { version: 1, completedLessons: ['m1l1'], lastLessonId: 'm1l1', updatedAt: null } },
+    sessions: {},
+  }));
+
+  const upgraded = await createServer({ dataFile: file, mailer: { name: 'null', async send() {} } });
+  eq(upgraded.store.data.version, 2, 'a v1 document is migrated to v2');
+  eq(upgraded.store.userById('u1').emailVerified, true,
+    'accounts that predate verification are treated as verified, not locked out');
+  eq(upgraded.store.progressFor('u1').completedLessons.length, 1, 'their progress survives');
+  ok(upgraded.store.data.tokens && typeof upgraded.store.data.tokens === 'object',
+    'the token table is added');
+  eq(JSON.parse(fs.readFileSync(file, 'utf8')).version, 2, 'and the migration is written back to disk');
+  upgraded.server.close();
+
+  const future = path.join(dir, 'future.json');
+  fs.writeFileSync(future, JSON.stringify({ version: 99, users: {}, progress: {}, sessions: {} }));
+  let refused = false;
+  try { await createServer({ dataFile: future }); } catch { refused = true; }
+  ok(refused, 'a document from a newer build is refused rather than downgraded');
 }
 
 /* --------------------------------- report --------------------------------- */
