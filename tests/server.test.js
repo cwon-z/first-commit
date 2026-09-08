@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createServer } from '../server/index.js';
 import { mergeProgress } from '../ui/progress.js';
-import { RateLimiter, hashPassword, verifyPassword, emailLooksValid } from '../server/auth.js';
+import { RateLimiter, hashPassword, verifyPassword, emailLooksValid, clientIp } from '../server/auth.js';
 import { sweepExpiredSessions } from '../server/api.js';
 import { courseUnits } from '../server/stats.js';
 
@@ -414,6 +414,52 @@ const learner = client();
   eq(merged.completedLessons.length, 3, 'merging keeps every finished lesson from both sides');
   eq(merged.lastLessonId, 'm2l1', 'the newer document wins the "where was I" pointer');
   eq(mergeProgress(remote, local).completedLessons.length, 3, 'merging is symmetric in what it keeps');
+}
+
+/* --------------------------- who the client is ----------------------------- */
+/* Behind a proxy this is the difference between per-visitor rate limiting and
+   one shared bucket for the whole internet. */
+{
+  const req = (xff, socket = '10.0.0.1') => ({
+    socket: { remoteAddress: socket },
+    headers: xff === null ? {} : { 'x-forwarded-for': xff },
+  });
+
+  eq(clientIp(req('203.0.113.9')), '10.0.0.1',
+    'the header is ignored unless proxies are declared — otherwise anyone could forge it');
+  eq(clientIp(req(null), 1), '10.0.0.1', 'with no header, the socket address is still used');
+  eq(clientIp(req('203.0.113.9'), 1), '203.0.113.9', 'one proxy: the client is the only entry');
+  eq(clientIp(req('1.1.1.1, 203.0.113.9'), 1), '203.0.113.9',
+    'a client that forges an entry is still identified by what the proxy saw');
+  eq(clientIp(req('1.1.1.1, 203.0.113.9, 10.9.9.9'), 2), '203.0.113.9',
+    'two proxies: count in from the right');
+}
+
+/* ----------------------------- mail abuse cap ------------------------------ */
+/* Sign-up mails whatever address is typed, so an open course is otherwise a
+   machine for delivering mail to strangers from your domain. */
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fc-mail-'));
+  const sent = [];
+  const capped = await createServer({
+    dataFile: path.join(dir, 'data.json'),
+    ownerEmails: ['boss@example.com'],
+    mailer: { name: 'test', async send(m) { sent.push(m); } },
+    limits: { register: 500, mailPerHour: 3 },
+  });
+  await new Promise((r) => capped.server.listen(0, '127.0.0.1', r));
+  const at = `http://127.0.0.1:${capped.server.address().port}`;
+  for (let i = 0; i < 6; i++) {
+    await fetch(at + '/api/auth/register', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...H },
+      body: JSON.stringify({ email: `victim${i}@elsewhere.example`, password: 'a-really-long-password' }),
+    });
+  }
+  eq(sent.length, 3, 'outbound mail stops at the instance cap');
+  eq(Object.keys(capped.store.data.users).length, 6,
+    'and the accounts are still created — mail is best-effort, never a gate');
+  capped.server.close();
 }
 
 /* --------------------- who owns the course, on a fresh box ----------------- */

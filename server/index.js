@@ -19,6 +19,10 @@
  *   FC_MAIL_FROM=course@x.com    envelope sender
  *   FC_REQUIRE_VERIFICATION=1    unconfirmed accounts cannot save progress
  *   FC_SECURE_COOKIES=1          set behind HTTPS
+ *   FC_TRUST_PROXY=1             number of reverse proxies in front of this
+ *                                server. Required behind nginx/Caddy, or every
+ *                                visitor shares one rate-limit bucket.
+ *   FC_MAIL_MAX_PER_HOUR=100     ceiling on outbound mail for the instance
  *
  * Every one of these is configuration, not a secret in the repository. That is
  * what lets this be a public mirror of what is deployed.
@@ -175,7 +179,13 @@ export async function createServer(opts = {}) {
       ?? process.env.FC_REQUIRE_VERIFICATION === '1',
     secureCookies: opts.secureCookies ?? process.env.FC_SECURE_COOKIES === '1',
     ownerEmails,
-    limits: opts.limits,
+    // `??` would let NaN through when the variable is unset; `||` is right here
+    // because 0 and "no proxy" are the same thing.
+    trustProxy: opts.trustProxy ?? (Number(process.env.FC_TRUST_PROXY) || 0),
+    limits: {
+      mailPerHour: Number(process.env.FC_MAIL_MAX_PER_HOUR) || undefined,
+      ...opts.limits,
+    },
   });
 
   const server = http.createServer(async (req, res) => {

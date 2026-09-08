@@ -22,7 +22,7 @@ import crypto from 'node:crypto';
 import {
   hashPassword, verifyPassword, hashToken, newSessionToken, emailLooksValid,
   passwordProblem, sessionCookie, clearedCookie, readCookie, publicUser,
-  RateLimiter, SESSION_DAYS, MIN_PASSWORD, newToken, tokenIsValid, TOKEN_TTL,
+  RateLimiter, SESSION_DAYS, MIN_PASSWORD, newToken, tokenIsValid, TOKEN_TTL, clientIp,
 } from './auth.js';
 import { normaliseEmail } from './store.js';
 import { buildStats } from './stats.js';
@@ -123,6 +123,7 @@ export function createApi({
   store, course, secureCookies = false, ownerEmails = [],
   mailer = null, baseUrl = '', requireVerification = false,
   brand = 'First Commit', mailFrom = 'first-commit@localhost', limits = {},
+  trustProxy = 0,
 }) {
   /* Sign-ups are limited per client address. A whole classroom can sit behind
      one NAT, so this has to be generous enough not to punish the second half
@@ -133,10 +134,18 @@ export function createApi({
   // limited harder than signing in — otherwise it is a way to have somebody
   // else's inbox filled on demand.
   const resetLimiter = new RateLimiter({ limit: limits.reset ?? 4, windowMs: 60 * 60 * 1000 });
+  /* A ceiling on outbound mail for the whole instance.
+     Sign-up sends a confirmation to whatever address was typed, so without
+     this an open course is a machine for delivering mail to strangers from
+     your domain — which costs you your sending reputation, not just noise.
+     The per-client limiter alone cannot stop it: the addresses are the
+     attacker's to choose and the clients may be many. */
+  const mailLimiter = new RateLimiter({ limit: limits.mailPerHour ?? 100, windowMs: 60 * 60 * 1000 });
   const sweeper = setInterval(() => {
     loginLimiter.sweep();
     registerLimiter.sweep();
     resetLimiter.sweep();
+    mailLimiter.sweep();
     sweepExpiredSessions(store).catch((err) => console.error('session sweep:', err));
     sweepExpiredTokens(store).catch((err) => console.error('token sweep:', err));
   }, 10 * 60 * 1000);
@@ -173,6 +182,14 @@ export function createApi({
   /** Fire-and-forget: a relay being down must not fail a sign-up. */
   async function deliver(kind, user, token) {
     if (!mailer) return;
+    if (mailLimiter.retryAfter('instance')) {
+      console.error(
+        `mail: hourly cap reached — not sending ${kind} to ${user.email}. ` +
+        'If this is real traffic rather than abuse, raise limits.mailPerHour.'
+      );
+      return;
+    }
+    mailLimiter.record('instance');
     const link = `${baseUrl}/app.html#/${kind}/${token}`;
     const body = messages[kind]({ brand, name: user.displayName || user.email, link });
     try {
@@ -397,7 +414,7 @@ export function createApi({
 
     const route = url.pathname.slice(5);
     const method = req.method || 'GET';
-    const clientKey = req.socket.remoteAddress || 'unknown';
+    const clientKey = clientIp(req, trustProxy);
 
     try {
       // A cross-origin <form> can POST but cannot set a custom header, so this

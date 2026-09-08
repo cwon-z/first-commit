@@ -142,6 +142,33 @@ export function clearedCookie({ secure }) {
   return sessionCookie('', { secure, maxAgeSeconds: 0 });
 }
 
+/**
+ * The address to rate-limit against.
+ *
+ * `req.socket.remoteAddress` is the truth only when the browser talks straight
+ * to this server. Behind a reverse proxy — which is how anything gets HTTPS —
+ * it is the *proxy* on every single request, so every visitor on the internet
+ * shares one rate-limit bucket: one attacker locks out everybody, and the
+ * per-client protection is worth nothing at all.
+ *
+ * `X-Forwarded-For` fixes that, but only if you know how many proxies are in
+ * front of you. A client may put anything it likes at the front of that header,
+ * and each proxy appends the address it actually saw. So the honest client
+ * address is `hops` entries from the right, and trusting the header at all has
+ * to be opt-in — trusting it with nothing in front of you would let anyone
+ * forge their identity and walk around the limiter entirely.
+ *
+ * @param {number} hops how many proxies you control sit in front of this server
+ */
+export function clientIp(req, hops = 0) {
+  const direct = (req.socket && req.socket.remoteAddress) || 'unknown';
+  if (!hops) return direct;
+  const chain = String((req.headers && req.headers['x-forwarded-for']) || '')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  if (!chain.length) return direct;
+  return chain[chain.length - hops] || chain[0];
+}
+
 export function readCookie(header, name = COOKIE_NAME) {
   for (const part of String(header || '').split(';')) {
     const eq = part.indexOf('=');

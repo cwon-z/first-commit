@@ -153,6 +153,50 @@ Ownership is what opens `/admin.html` and everyone's progress with it.
 The server prints a loud warning while an instance is unclaimed. Do not ignore
 it on anything reachable from the internet.
 
+### Opening it to people you don't know
+
+Everything above still applies; three more things start to matter once sign-up
+is public.
+
+**Set `FC_TRUST_PROXY` to the number of reverse proxies in front of you** —
+almost always `1`, because that is how you got HTTPS. Without it every request
+looks like it came from the proxy, so all rate limiting collapses into one
+bucket shared by the whole internet: one attacker locks out every real learner,
+and the per-client protection is worth nothing.
+
+**Sign-up sends mail to whatever address is typed**, which makes any open
+course a potential machine for delivering mail to strangers from your domain.
+There is a ceiling on outbound mail for the whole instance —
+`FC_MAIL_MAX_PER_HOUR`, default 100 — and going over it logs loudly and drops
+the message rather than sending it. Accounts are still created; mail is
+best-effort and never a gate.
+
+**Consider `FC_REQUIRE_VERIFICATION=1`.** Unconfirmed accounts can still read
+the course but cannot save progress, which makes throwaway sign-ups pointless
+without making the course unusable for someone who has not checked their mail
+yet.
+
+A working public configuration:
+
+```bash
+FC_OWNER_EMAILS=you@example.com \
+FC_BASE_URL=https://course.example.com \
+FC_TRUST_PROXY=1 \
+FC_SECURE_COOKIES=1 \
+FC_REQUIRE_VERIFICATION=1 \
+FC_SMTP_URL=smtps://user:pass@smtp.example.com:465 \
+FC_MAIL_FROM=course@example.com \
+npm start
+```
+
+**How many people it holds.** Every write rewrites the whole data file, so cost
+is linear in accounts. Measured, with each learner carrying progress and a live
+session: 100 users → 0.9 ms per save, 1,000 → 2.5 ms, 5,000 → 10.3 ms. Writes
+are serialised, so even 5,000 accounts leaves room for roughly a hundred saves a
+second, far more than a course generates. Comfortable into the low thousands;
+past that, `server/store.js` is the one file to replace and nothing above it
+needs to change.
+
 ### Email
 
 `FC_SMTP_URL` is the only thing standing between you and working verification

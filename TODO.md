@@ -57,6 +57,11 @@ in `docs/ui-rebuild-brief.md` §12 (A4).
 
 - [ ] **Push.** `main` is ahead of `origin/main`. Nothing has been pushed yet.
 
+- [ ] **Deploy with the public settings.** Sign-up is going to be open to
+      strangers, so `FC_TRUST_PROXY=1` and `FC_REQUIRE_VERIFICATION=1` matter
+      as much as `FC_OWNER_EMAILS`. The README has a working configuration
+      under *Opening it to people you don't know*.
+
 - [ ] **A real mail relay.** `FC_SMTP_URL` is unset, so verification and reset
       links are written to `data/outbox/` and printed to the console rather than
       sent. That is fine for people you know and not fine for strangers. The
