@@ -9,6 +9,8 @@ No dependencies and no build step. Accounts and course statistics are an
 optional, equally dependency-free extra — the course itself still runs as plain
 static files. `node_modules/` never appears.
 
+What is left to do lives in [TODO.md](TODO.md).
+
 ## Quick start
 
 There are two ways to run it, and the course is identical in both.
