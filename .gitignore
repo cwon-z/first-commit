@@ -17,3 +17,8 @@ data/
 #   and a scratch file that predates the rebuild
 First Commit - offline.html
 test.html
+
+# Deployment configuration: the examples in deploy/ are committed, the real
+# app.env never is — it holds the SMTP credential.
+app.env
+deploy/app.env
