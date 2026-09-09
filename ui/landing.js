@@ -10,6 +10,10 @@
  * back to a link into the app.
  * ========================================================================== */
 
+import { probeSession } from './progress.js';
+import { openAuthDialog } from './auth.js';
+import { icon } from './icons.js';
+
 const $ = (sel) => document.querySelector(sel);
 
 /** Concept / guided / challenge / recap, as the little badges under a card. */
@@ -130,3 +134,53 @@ fetch('./content/course.json')
     if (fallback) fallback.hidden = false;
     console.warn('landing: could not load course.json —', err.message);
   });
+
+
+/* ---------------------------- the account control -------------------------- */
+
+/**
+ * The front door needs the same door handle the app has. Someone coming back on
+ * a second device lands here, not on app.html, and without this their only
+ * route to their own progress is to guess at a URL.
+ *
+ * Absent on the static build: probeSession resolves null when no server
+ * answers, and the slot stays hidden rather than offering an account that
+ * cannot exist.
+ */
+async function renderAccount() {
+  const host = $('#landing-account');
+  if (!host) return;
+
+  const session = await probeSession();
+  if (!session) return;
+
+  const show = (user) => {
+    host.innerHTML = '';
+    host.hidden = false;
+
+    if (user) {
+      const link = document.createElement('a');
+      link.className = 'btn btn-sm';
+      link.href = './app.html';
+      link.append(icon('user'), user.displayName || user.email);
+      host.appendChild(link);
+      return;
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm';
+    btn.append(icon('user'), 'Sign in');
+    btn.addEventListener('click', async () => {
+      const signed = await openAuthDialog(session.config || {});
+      // Straight into the course: signing in from here is something a returning
+      // learner does on the way to a lesson, not an end in itself.
+      if (signed) location.href = './app.html';
+    });
+    host.appendChild(btn);
+  };
+
+  show(session.user);
+}
+
+renderAccount();

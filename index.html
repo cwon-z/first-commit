@@ -20,6 +20,9 @@
     <!-- Counted from course.json by ui/landing.js; the text below is the
          fallback if that fetch fails. -->
     <span class="header-stat" id="course-stat">11 modules · 45 units · free</span>
+    <!-- Filled by ui/landing.js only when an accounts server answers, so the
+         static build shows nothing here and promises nothing it cannot do. -->
+    <span id="landing-account" hidden></span>
     <a class="btn btn-solid btn-sm" href="./app.html">Open the course</a>
   </header>
 
@@ -159,9 +162,10 @@
     <!-- =============================== CLOSING ============================ -->
     <section class="closing">
       <div class="closing-slab">
-        <h2>Nothing to install. No account needed. Works on phones.</h2>
+        <h2>Nothing to install. No account required. Works on phones.</h2>
         <p>Everything runs in the page. Your progress is saved as you go, and the reset button on
-          every exercise means there is nothing here you can break.</p>
+          every exercise means there is nothing here you can break. Sign in if you want that
+          progress to follow you to another device — the course is the same either way.</p>
         <a class="btn btn-solid btn-lg" href="./app.html">Start module 1</a>
       </div>
     </section>
