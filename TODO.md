@@ -30,6 +30,18 @@ page. See the last four commits.
 - [x] **Backups** — handled on your server, out of this repository's scope.
 - [x] **The two scratch files** — now git-ignored rather than untracked.
 
+- [x] **Sign-up and sign-in rebuilt** — confirmation field, per-field
+      validation before any request, password reveal, server errors attached to
+      the field they are about.
+- [x] **Font licences** — the OFL text and copyright now ship with the fonts,
+      which the licence requires and we were not doing.
+- [x] **Interaction sweep** — `tools/sweep.mjs`, clean across 14 routes and
+      dialogs. It catches the class of bug the other suites cannot: a control
+      that renders perfectly and does nothing.
+- [ ] **Second opinion.** `docs/second-agent-brief.md` is a ready-to-paste
+      prompt for an independent agent to sweep the same ground. Worth doing —
+      the first pass shipped a dead submit button with every test green.
+
 ## Waiting on a person
 
 These cannot be closed from a terminal. Both are listed as acceptance criteria

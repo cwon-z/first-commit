@@ -271,6 +271,18 @@ function renderLearners(stats, filter) {
 
 let current = null;
 
+/** The "who are you" screen, with a button that opens the dialog. */
+function signInGate() {
+  const button = el('button', 'btn btn-solid btn-lg', 'Sign in');
+  button.type = 'button';
+  button.addEventListener('click', async () => {
+    const user = await openAuthDialog({ mode: 'signin' });
+    if (user) await loadStats();
+  });
+  gate('Owner only', 'Sign in to see the statistics',
+    "This page reads every learner's progress, so it asks who you are first.", button);
+}
+
 function renderAll(stats) {
   current = stats;
   $('#admin-gate').hidden = true;
@@ -288,14 +300,7 @@ async function loadStats() {
     return true;
   } catch (err) {
     if (err.status === 401) {
-      const button = el('button', 'btn btn-solid btn-lg', 'Sign in');
-      button.type = 'button';
-      button.addEventListener('click', async () => {
-        const user = await openAuthDialog({ mode: 'signin' });
-        if (user) await loadStats();
-      });
-      gate('Owner only', 'Sign in to see the statistics',
-        'This page reads every learner\'s progress, so it asks who you are first.', button);
+      signInGate();
     } else if (err.status === 403) {
       gate('Owner only', 'This page is for the course owner',
         'Your account can take the course, but not read everyone else\'s progress. ' +
@@ -323,6 +328,14 @@ async function boot() {
     if (current) renderLearners(current, $('#admin-search').value);
   });
   $('#admin-refresh').addEventListener('click', loadStats);
+
+  // Nobody is signed in, so asking for the statistics would be a request we
+  // already know answers 401. It works, but it puts a red error in the console
+  // of every owner who opens this page signed out.
+  if (!session.user) {
+    signInGate();
+    return;
+  }
   await loadStats();
 }
 

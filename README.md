@@ -419,6 +419,19 @@ npm run lint:course   # cross-module coherence report (full detail)
   open the statistics, and that the accounts file and the challenge solutions
   are not reachable over HTTP.
 
+There is a fifth check that CI cannot run, because it needs a browser and a
+live server:
+
+    npm start
+    node tools/sweep.mjs http://localhost:8000
+
+It drives a real browser over the DevTools protocol and reports dead controls
+(a button with no handler, a submit button outside its form), broken aria
+wiring, duplicate ids and console errors, across every route and dialog. That
+is the class of defect the other four structurally cannot see — a submit button
+rendered outside its form once shipped looking perfect and doing nothing, with
+every test green. Run it before a deploy; it exits non-zero on findings.
+
 CI runs all four on Node 18, 20 and 22 (`.github/workflows/test.yml`).
 
 ## Accessibility
@@ -446,6 +459,27 @@ challenge condition says `met` or `waiting` next to its filled or hollow disc.
 - The YouTube embed appears automatically once `meta.youtubeVideoId` is set in
   `content/course.json` — there is no HTML to edit.
 
-## License
+## Licence
 
-MIT — see [LICENSE](LICENSE).
+The code and the course content in this repository are MIT — see
+[LICENSE](LICENSE). That covers everything under version control here, the
+lesson prose in `content/course.json` included.
+
+### Third-party
+
+The two typefaces in `assets/fonts/` are **not** covered by that, and are not
+ours to relicense. Both are under the SIL Open Font License 1.1, which allows
+bundling them but requires their copyright notice and licence text to travel
+with the font files:
+
+| Typeface | Copyright | Licence |
+|---|---|---|
+| Archivo | 2020 The Archivo Project Authors | `assets/fonts/OFL-Archivo.txt` |
+| JetBrains Mono | 2020 The JetBrains Mono Project Authors | `assets/fonts/OFL-JetBrainsMono.txt` |
+
+Both are shipped as latin subsets, which the OFL permits as a Modified Version.
+[assets/fonts/NOTICE.md](assets/fonts/NOTICE.md) records what was changed. If
+you fork this, keep those files — dropping them is the one thing here that would
+actually breach a licence.
+
+Nothing else is vendored: no framework, no CDN, no analytics, no npm packages.

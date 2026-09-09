@@ -279,8 +279,12 @@ export function renderStates(container) {
 
   /* Controls are stateful too, and the disabled/confirming ones are the easiest
      to ship broken because they are never seen during a normal run. */
-  const { wrap, body } = plate('Controls');
+  const { wrap, body } = plate('Controls — appearance only, not wired up');
   body.classList.add('plate-controls');
+  // Specimens, not controls. `inert` keeps the appearance while taking them out
+  // of the tab order and swallowing clicks, so nobody presses one of these and
+  // wonders why the course did nothing.
+  body.setAttribute('inert', '');
   const buttons = [
     ['btn btn-solid btn-lg', 'Continue', 'arrow-right'],
     ['btn btn-sm', 'Run it for me', 'play'],
