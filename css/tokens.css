@@ -783,6 +783,48 @@ button {
   box-shadow: inset 0 0 0 1px var(--border-focus);
 }
 
+/* A field is label, control, hint, error — the error wired to the input with
+   aria-describedby so it is announced rather than merely visible. */
+.auth-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.auth-control .auth-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-reveal {
+  position: absolute;
+  right: var(--s-2);
+  height: var(--row-h-sm);
+  padding: 0 var(--s-6);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--w-05);
+  color: var(--text-tertiary);
+  font: var(--fw-medium) var(--fs-caption) / 1 var(--font-ui);
+  cursor: pointer;
+}
+.auth-reveal:hover {
+  background: var(--w-10);
+  color: var(--text-primary);
+}
+
+.auth-input[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1px var(--red-a24);
+}
+.auth-input[aria-invalid='true']:focus {
+  box-shadow: inset 0 0 0 1px var(--status-offline);
+}
+
+/* Never colour alone — the message is the signal. */
+.auth-field-error {
+  font: var(--fw-regular) var(--fs-caption) / 1.45 var(--font-ui);
+  color: var(--red-400);
+}
+
 .auth-hint {
   font: var(--fw-regular) var(--fs-caption) / 1.45 var(--font-ui);
   color: var(--text-disabled);

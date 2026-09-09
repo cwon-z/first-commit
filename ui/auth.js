@@ -39,36 +39,107 @@ export const deleteAccount = () => apiFetch('account', { method: 'DELETE' });
 
 /* --------------------------------- dialog --------------------------------- */
 
-function field(form, { label, type, name, autocomplete, hint, required = true }) {
-  const wrap = document.createElement('label');
+/* Ids have to be unique for label/aria wiring to be unambiguous, and a dialog
+ * can be opened more than once per page life. */
+let dialogSeq = 0;
+
+/**
+ * One labelled input, with the hint and the error message wired to it for a
+ * screen reader. Returns a small handle rather than the bare element, because
+ * every caller needs to be able to mark it wrong and clear it again.
+ */
+function field(form, {
+  id, label, type, name, autocomplete, hint, required = true, reveal = false,
+}) {
+  const wrap = document.createElement('div');
   wrap.className = 'auth-field';
-  const text = document.createElement('span');
-  text.className = 'auth-label';
-  text.textContent = label;
+
+  const labelEl = document.createElement('label');
+  labelEl.className = 'auth-label';
+  labelEl.htmlFor = id;
+  labelEl.textContent = label;
+
+  const control = document.createElement('div');
+  control.className = 'auth-control';
+
   const input = document.createElement('input');
+  input.id = id;
   input.type = type;
   input.name = name;
   input.required = required;
   input.autocomplete = autocomplete;
   input.className = 'auth-input';
   if (type === 'email') input.inputMode = 'email';
-  wrap.append(text, input);
-  if (hint) {
-    const h = document.createElement('span');
-    h.className = 'auth-hint';
-    h.textContent = hint;
-    wrap.appendChild(h);
+  control.appendChild(input);
+
+  if (reveal) {
+    // A password you cannot read is a password you mistype. Offering to show it
+    // is worth more than the shoulder-surfing it risks, as long as it is off by
+    // default and says which state it is in.
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'auth-reveal';
+    eye.textContent = 'Show';
+    eye.setAttribute('aria-controls', id);
+    eye.setAttribute('aria-pressed', 'false');
+    eye.addEventListener('click', () => {
+      const shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      eye.textContent = shown ? 'Show' : 'Hide';
+      eye.setAttribute('aria-pressed', String(!shown));
+      eye.setAttribute('aria-label', shown ? 'Show the password' : 'Hide the password');
+      input.focus();
+    });
+    control.appendChild(eye);
   }
+
+  const describedBy = [];
+  let hintEl = null;
+  if (hint) {
+    hintEl = document.createElement('p');
+    hintEl.className = 'auth-hint';
+    hintEl.id = `${id}-hint`;
+    hintEl.textContent = hint;
+    describedBy.push(hintEl.id);
+  }
+
+  const errorEl = document.createElement('p');
+  errorEl.className = 'auth-field-error';
+  errorEl.id = `${id}-error`;
+  errorEl.hidden = true;
+  describedBy.push(errorEl.id);
+
+  input.setAttribute('aria-describedby', describedBy.join(' '));
+  wrap.append(labelEl, control);
+  if (hintEl) wrap.appendChild(hintEl);
+  wrap.appendChild(errorEl);
   form.appendChild(wrap);
-  return input;
+
+  const handle = {
+    input,
+    get value() { return input.value; },
+    setError(message) {
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+      input.setAttribute('aria-invalid', 'true');
+    },
+    clear() {
+      errorEl.hidden = true;
+      input.removeAttribute('aria-invalid');
+    },
+  };
+  // Clear as soon as they start fixing it; leaving a stale red message under a
+  // field somebody is actively correcting is just nagging.
+  input.addEventListener('input', handle.clear);
+  return handle;
 }
 
 const COPY = {
   signup: {
     kicker: 'Create an account',
     title: 'Save your progress',
-    blurb: 'An account keeps your progress on the server, so you can pick the course up on ' +
-      'another device. Everything you have finished so far comes with you.',
+    blurb: 'Your progress is kept on the server instead of in this browser, so you can carry on ' +
+      'from a different device. Everything you have finished so far comes with you.',
     submit: 'Create account',
     swap: 'I already have an account',
   },
@@ -95,10 +166,8 @@ const COPY = {
   },
 };
 
-/* The dialog's submit button sits outside the <form> for layout, so it has to
- * be associated with it explicitly. Ids must be unique for that association to
- * be unambiguous, hence the counter. */
-let dialogSeq = 0;
+/** Deliberately loose, and only to catch typing slips before a round trip. */
+const looksLikeEmail = (value) => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(value.trim());
 
 /**
  * @param {{ mode?: 'signin'|'signup'|'forgot'|'reset', minPassword?: number,
@@ -109,6 +178,7 @@ export function openAuthDialog(opts = {}) {
   return new Promise((resolve) => {
     let mode = opts.mode || (opts.needsOwner ? 'signup' : 'signin');
     const minPassword = opts.minPassword || 10;
+    const seq = ++dialogSeq;
 
     const overlay = document.createElement('div');
     overlay.className = 'auth-overlay';
@@ -117,19 +187,19 @@ export function openAuthDialog(opts = {}) {
     card.className = 'auth-card';
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-modal', 'true');
-    card.setAttribute('aria-labelledby', 'auth-title');
+    card.setAttribute('aria-labelledby', `auth-title-${seq}`);
 
     const kicker = document.createElement('p');
     kicker.className = 'eyebrow';
     const title = document.createElement('h2');
     title.className = 'auth-title';
-    title.id = 'auth-title';
+    title.id = `auth-title-${seq}`;
     const blurb = document.createElement('p');
     blurb.className = 'auth-blurb';
 
     const form = document.createElement('form');
     form.className = 'auth-form';
-    form.id = `auth-form-${++dialogSeq}`;
+    form.id = `auth-form-${seq}`;
     form.noValidate = true;
 
     const note = document.createElement('p');
@@ -146,8 +216,8 @@ export function openAuthDialog(opts = {}) {
     submit.type = 'submit';
     // It is rendered in .auth-actions, outside the form, so without this it is
     // a submit button belonging to no form — and clicking it does nothing at
-    // all. Keeping it outside is what lets build() reset the form's fields
-    // without destroying the buttons.
+    // all. Keeping it outside is what lets build() rebuild the fields without
+    // destroying the buttons.
     submit.setAttribute('form', form.id);
     submit.className = 'btn btn-solid btn-lg';
 
@@ -172,55 +242,123 @@ export function openAuthDialog(opts = {}) {
     card.append(kicker, title, blurb, form, note, error, actions, forgot, guest);
     overlay.appendChild(card);
 
-    let nameInput = null;
-    let emailInput = null;
-    let passwordInput = null;
+    let fields = {};
 
     function build() {
       const copy = COPY[mode];
+      const signup = mode === 'signup';
       form.innerHTML = '';
-      nameInput = emailInput = passwordInput = null;
+      fields = {};
 
       kicker.textContent = copy.kicker;
-      title.textContent = mode === 'signup' && opts.needsOwner ? 'Set up the course' : copy.title;
-      blurb.textContent = mode === 'signup' && opts.needsOwner
+      title.textContent = signup && opts.needsOwner ? 'Set up the course' : copy.title;
+      blurb.textContent = signup && opts.needsOwner
         ? 'Nobody has signed up yet, so this first account becomes the course owner — the only one that can see the statistics page.'
         : copy.blurb;
 
-      if (mode === 'signup') {
-        nameInput = field(form, {
-          label: 'Name', type: 'text', name: 'displayName', autocomplete: 'nickname',
-          hint: 'Shown only to you and the course owner.', required: false,
+      if (signup) {
+        fields.name = field(form, {
+          id: `auth-name-${seq}`, label: 'Name (optional)', type: 'text',
+          name: 'displayName', autocomplete: 'nickname', required: false,
+          hint: 'Shown only to you and the course owner.',
         });
       }
       if (mode !== 'reset') {
-        emailInput = field(form, { label: 'Email', type: 'email', name: 'email', autocomplete: 'username' });
+        fields.email = field(form, {
+          id: `auth-email-${seq}`, label: 'Email', type: 'email',
+          name: 'email', autocomplete: 'username',
+        });
       }
-      if (mode === 'signin' || mode === 'signup' || mode === 'reset') {
-        passwordInput = field(form, {
+      if (mode !== 'forgot') {
+        fields.password = field(form, {
+          id: `auth-password-${seq}`,
           label: mode === 'reset' ? 'New password' : 'Password',
           type: 'password',
           name: 'password',
           autocomplete: mode === 'signin' ? 'current-password' : 'new-password',
           hint: mode === 'signin' ? null : `At least ${minPassword} characters.`,
+          reveal: mode !== 'signin',
+        });
+      }
+      if (signup || mode === 'reset') {
+        // Typing it twice is the only protection against setting a password you
+        // cannot reproduce — there is nothing to compare against afterwards.
+        fields.confirm = field(form, {
+          id: `auth-confirm-${seq}`,
+          label: 'Confirm password',
+          type: 'password',
+          name: 'confirmPassword',
+          autocomplete: 'new-password',
+        });
+        // Tell them while they type, not after they submit.
+        const compare = () => {
+          const a = fields.password.value;
+          const b = fields.confirm.value;
+          if (b && a && a !== b) fields.confirm.setError('The two passwords are different.');
+          else fields.confirm.clear();
+        };
+        fields.confirm.input.addEventListener('blur', compare);
+        fields.password.input.addEventListener('input', () => {
+          if (fields.confirm.value) compare();
         });
       }
 
       submit.textContent = copy.submit;
       submit.disabled = false;
       swap.textContent = copy.swap;
-      swap.hidden = !copy.swap || (mode === 'signup' && !!opts.needsOwner);
+      swap.hidden = !copy.swap || (signup && !!opts.needsOwner);
       // Only offered where it makes sense, and only when the server can send it.
       forgot.hidden = mode !== 'signin' || opts.canSendEmail === false;
       guest.hidden = mode === 'reset';
       note.hidden = true;
       error.hidden = true;
-      (nameInput || emailInput || passwordInput).focus();
+      (fields.name || fields.email || fields.password).input.focus();
     }
 
-    function fail(message) {
-      error.textContent = message;
-      error.hidden = false;
+    /** @returns {boolean} true when it is worth sending to the server. */
+    function validate() {
+      const problems = [];
+      if (fields.email && !looksLikeEmail(fields.email.value)) {
+        fields.email.setError('That does not look like an email address.');
+        problems.push(fields.email);
+      }
+      if (fields.password && mode !== 'signin' && fields.password.value.length < minPassword) {
+        fields.password.setError(`Use at least ${minPassword} characters.`);
+        problems.push(fields.password);
+      }
+      if (fields.password && mode === 'signin' && !fields.password.value) {
+        fields.password.setError('Enter your password.');
+        problems.push(fields.password);
+      }
+      if (fields.confirm && fields.confirm.value !== fields.password.value) {
+        fields.confirm.setError('The two passwords are different.');
+        problems.push(fields.confirm);
+      }
+      if (problems.length) problems[0].input.focus();
+      return problems.length === 0;
+    }
+
+    /**
+     * Put the server's complaint on the field it is about. A message about a
+     * duplicate address belongs under the address, not in a banner above a form
+     * the reader then has to search.
+     */
+    function fail(err) {
+      const message = (err && err.message) || 'That did not work. Try again.';
+      const status = err && err.status;
+      const target = status === 409 ? fields.email
+        : status === 401 ? fields.password
+        : /address/i.test(message) ? fields.email
+        : /password|characters/i.test(message) ? fields.password
+        : null;
+
+      if (target) {
+        target.setError(message);
+        target.input.focus();
+      } else {
+        error.textContent = message;
+        error.hidden = false;
+      }
       note.hidden = true;
       submit.disabled = false;
       submit.textContent = COPY[mode].submit;
@@ -237,7 +375,8 @@ export function openAuthDialog(opts = {}) {
       if (ev.key !== 'Tab') return;
       // Keep focus inside the dialog: it is modal, and tabbing out to a page
       // that is behind a scrim strands keyboard users.
-      const focusable = [...card.querySelectorAll('input, button')].filter((el) => !el.hidden && !el.disabled);
+      const focusable = [...card.querySelectorAll('input, button')]
+        .filter((el) => !el.hidden && !el.disabled && el.offsetParent !== null);
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -248,12 +387,14 @@ export function openAuthDialog(opts = {}) {
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       error.hidden = true;
+      if (!validate()) return;
+
       submit.disabled = true;
       submit.textContent = 'Working…';
       try {
-        const email = emailInput ? emailInput.value.trim() : '';
-        const password = passwordInput ? passwordInput.value : '';
-        if (mode === 'signup') { close((await signUp(email, password, nameInput ? nameInput.value : '')).user); return; }
+        const email = fields.email ? fields.email.value.trim() : '';
+        const password = fields.password ? fields.password.value : '';
+        if (mode === 'signup') { close((await signUp(email, password, fields.name ? fields.name.value : '')).user); return; }
         if (mode === 'signin') { close((await signIn(email, password)).user); return; }
         if (mode === 'reset') { close((await setNewPassword(opts.token, password)).user); return; }
 
@@ -265,7 +406,7 @@ export function openAuthDialog(opts = {}) {
         submit.disabled = true;
         submit.textContent = 'Sent';
       } catch (err) {
-        fail(err.message || 'That did not work. Try again.');
+        fail(err);
       }
     });
 
