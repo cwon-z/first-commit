@@ -35,7 +35,15 @@ to another device.
 
 - **No IP addresses.** Sign-in attempts are rate-limited per address, but that
   counter lives in memory and is gone when the server restarts. Nothing is
-  written to disk.
+  written to disk: the web server in front of the course is configured with
+  `access_log off`, so requests are not journalled either.
+
+  One honest caveat, because it is true of any hosted thing: whoever runs the
+  network between you and the server sees the connection. If this instance is
+  behind a CDN or a tunnel — the one at learngit.cwonr.com is behind Cloudflare
+  — then that provider sees your address the way your own ISP does. That is
+  outside what the course stores, and it is not something a privacy policy can
+  promise away.
 - **No analytics, no tracking, no third-party requests.** The course loads no
   scripts, fonts or styles from anywhere but the server you are on. The only
   outbound connection the server ever makes is to a mail relay, and only if the
