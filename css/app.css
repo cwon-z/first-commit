@@ -1551,6 +1551,23 @@ body[data-mode='exercise'] #lesson-article .lesson-figure {
   animation: fc-in var(--dur-slow) var(--ease-map);
 }
 
+/* The end of an email round trip. Same card as the exercise banner, but page
+   level and fixed: it lands before the workspace exists, and it sits above the
+   toast so the two can never argue about the same corner. */
+#mail-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-10);
+  background: var(--glass-tint-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  animation: fc-in var(--dur-slow) var(--ease-map);
+}
+
 .sb-inner {
   width: min(520px, 100%);
   max-height: 100%;
@@ -1580,6 +1597,9 @@ body[data-mode='exercise'] #lesson-article .lesson-figure {
   font: var(--fw-medium) var(--fs-caption) / 1 var(--font-mono);
   color: var(--ink-1000);
   animation: fc-pulse 1.2s var(--ease-map) 1;
+}
+.sb-check-bad {
+  background: var(--amber-500);
 }
 .sb-kicker {
   font: var(--fw-regular) var(--fs-micro) / 1 var(--font-mono);

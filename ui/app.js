@@ -138,7 +138,9 @@ async function boot() {
   $('#states-link').addEventListener('click', closeSidebar);
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
-    if ($('#sidebar').classList.contains('open')) {
+    if ($('#mail-banner')) {
+      $('#mail-banner').remove();
+    } else if ($('#sidebar').classList.contains('open')) {
       closeSidebar();
       menuBtn.focus();
     } else if ($('#success-banner')) {
@@ -380,14 +382,19 @@ async function handleMailLink(kind, token) {
   }
 
   if (kind === 'verify') {
+    let ok = true;
+    let detail = '';
     try {
       const body = await confirmEmail(token);
       if (S.account) S.account.set(body.user);
-      toast('Email confirmed — thank you.');
     } catch (err) {
-      toast(err.message || 'That confirmation link did not work.');
+      ok = false;
+      detail = err.message || 'That confirmation link did not work.';
     }
+    // After route(), so the banner lands on top of the course rather than
+    // being torn down by the render that follows it.
     route();
+    showMailBanner(ok, detail);
     return;
   }
 
@@ -410,6 +417,72 @@ function toast(message) {
   el.textContent = message;
   document.body.appendChild(el);
   window.setTimeout(() => el.remove(), 6000);
+}
+
+/**
+ * The end of a round trip that began in an inbox. The learner almost always
+ * arrives here signed out — they opened the link wherever their mail is — so a
+ * message that fades after six seconds reads as "nothing happened", which is
+ * exactly the wrong impression to leave with somebody who just handed over an
+ * address. This lands as a state, and offers the sign-in they came for.
+ */
+function showMailBanner(ok, detail) {
+  const old = $('#mail-banner');
+  if (old) old.remove();
+
+  const signedIn = !!(S.session && S.session.user);
+  const overlay = document.createElement('div');
+  overlay.id = 'mail-banner';
+  overlay.innerHTML = `<div class="sb-inner" role="dialog" aria-modal="true" aria-labelledby="mb-title">
+      <div class="sb-head">
+        <span class="sb-check" aria-hidden="true"></span>
+        <span class="sb-kicker"></span>
+      </div>
+      <h2 class="sb-title" id="mb-title"></h2>
+      <p class="sb-sub"></p>
+      <div class="sb-actions">
+        <button class="btn btn-solid btn-lg" id="mb-primary" type="button"></button>
+        <button class="btn btn-ghost btn-lg" id="mb-dismiss" type="button">Continue to the course</button>
+      </div>
+    </div>`;
+
+  const check = overlay.querySelector('.sb-check');
+  check.textContent = ok ? '\u2713' : '!';
+  if (!ok) check.classList.add('sb-check-bad');
+  overlay.querySelector('.sb-kicker').textContent = ok ? 'EMAIL CONFIRMED' : 'LINK NOT ACCEPTED';
+  overlay.querySelector('.sb-title').textContent = ok
+    ? 'Your email address is confirmed'
+    : 'That link could not be used';
+  overlay.querySelector('.sb-sub').textContent = ok
+    ? (signedIn
+      ? 'Progress now saves to your account, so it follows you to any device you sign in on.'
+      : 'Sign in and your progress saves to your account from here on, following you to any device.')
+    : `${detail} Sign in and ask for a new link from the account menu.`;
+
+  const dismiss = () => overlay.remove();
+  const primary = overlay.querySelector('#mb-primary');
+  const second = overlay.querySelector('#mb-dismiss');
+
+  if (ok && signedIn) {
+    primary.textContent = 'Back to the course';
+    primary.addEventListener('click', dismiss);
+    second.hidden = true;
+  } else {
+    primary.textContent = 'Sign in';
+    primary.addEventListener('click', async () => {
+      const user = await openAuthDialog({ ...(S.session.config || {}), mode: 'signin' });
+      if (user) {
+        if (S.account) S.account.set(user);
+        await onAccountChange(user);
+      }
+      dismiss();
+    });
+  }
+  second.addEventListener('click', dismiss);
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) dismiss(); });
+
+  document.body.appendChild(overlay);
+  primary.focus();
 }
 
 /* ------------------------------ lesson views ------------------------------ */
