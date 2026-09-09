@@ -176,6 +176,9 @@ const looksLikeEmail = (value) => /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(value.trim(
  */
 export function openAuthDialog(opts = {}) {
   return new Promise((resolve) => {
+    const opener = document.activeElement;
+    let busy = false;
+    let closed = false;
     let mode = opts.mode || (opts.needsOwner ? 'signup' : 'signin');
     const minPassword = opts.minPassword || 10;
     const seq = ++dialogSeq;
@@ -365,13 +368,16 @@ export function openAuthDialog(opts = {}) {
     }
 
     function close(user) {
+      if (closed) return;
+      closed = true;
       document.removeEventListener('keydown', onKey, true);
       overlay.remove();
+      if (opener?.isConnected) opener.focus();
       resolve(user || null);
     }
 
     function onKey(ev) {
-      if (ev.key === 'Escape') { ev.stopPropagation(); close(null); return; }
+      if (ev.key === 'Escape') { ev.stopPropagation(); if (!busy) close(null); return; }
       if (ev.key !== 'Tab') return;
       // Keep focus inside the dialog: it is modal, and tabbing out to a page
       // that is behind a scrim strands keyboard users.
@@ -386,10 +392,13 @@ export function openAuthDialog(opts = {}) {
 
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
+      if (busy || submit.disabled) return;
       error.hidden = true;
       if (!validate()) return;
 
       submit.disabled = true;
+      busy = true;
+      swap.disabled = forgot.disabled = guest.disabled = true;
       submit.textContent = 'Working…';
       try {
         const email = fields.email ? fields.email.value.trim() : '';
@@ -407,6 +416,9 @@ export function openAuthDialog(opts = {}) {
         submit.textContent = 'Sent';
       } catch (err) {
         fail(err);
+      } finally {
+        busy = false;
+        swap.disabled = forgot.disabled = guest.disabled = false;
       }
     });
 
@@ -416,7 +428,7 @@ export function openAuthDialog(opts = {}) {
     });
     forgot.addEventListener('click', () => { mode = 'forgot'; build(); });
     guest.addEventListener('click', () => close(null));
-    overlay.addEventListener('mousedown', (ev) => { if (ev.target === overlay) close(null); });
+    overlay.addEventListener('mousedown', (ev) => { if (ev.target === overlay && !busy) close(null); });
     document.addEventListener('keydown', onKey, true);
 
     document.body.appendChild(overlay);
@@ -524,7 +536,13 @@ export function mountAccountControl(host, { session, onChange }) {
 
     const out = panelButton('Sign out', 'btn btn-sm btn-block btn-ghost');
     out.addEventListener('click', async () => {
-      await signOut().catch(() => {});
+      out.disabled = true;
+      try { await signOut(); }
+      catch {
+        out.disabled = false;
+        out.textContent = 'Could not sign out — try again';
+        return;
+      }
       user = null;
       config = { ...config, needsOwner: false };
       render();

@@ -52,6 +52,13 @@ Expected layout on the host:
 `html/` and `app/` are both copies of parts of this repository. There is no
 build step; `rsync` is the whole deployment.
 
+Copy only `index.html`, `app.html`, `admin.html`, `css/`, `ui/`, `engine/`,
+`content/`, and `assets/` into `html/` (plus `favicon.ico` if present). Do not
+point nginx at a full checkout: the example serves files under its document
+root directly, without the Node server's public-file allowlist. In particular,
+keep `.git/`, environment files, `server/`, `data/`, mail, tests, and drafts
+outside that root. The source repository is public; runtime account data is not.
+
 Set `LAN_IP` and `VPN_IP` in the environment (or a `.env` file beside the
 compose file) to the private addresses you want the lb to listen on. Binding to
 specific addresses rather than `0.0.0.0` is deliberate — see the warning below.

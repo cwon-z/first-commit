@@ -82,6 +82,8 @@ export class SmtpSession {
     this.socket = socket;
     this.buffer = '';
     this.pending = [];
+    this.replies = [];
+    this.failure = null;
     socket.setEncoding('utf8');
     socket.on('data', (chunk) => this.onData(String(chunk)));
     socket.on('error', (err) => this.fail(err));
@@ -89,6 +91,7 @@ export class SmtpSession {
   }
 
   fail(err) {
+    this.failure = err;
     while (this.pending.length) this.pending.shift().reject(err);
   }
 
@@ -96,23 +99,29 @@ export class SmtpSession {
     this.buffer += chunk;
     for (;;) {
       const lines = this.buffer.split(/\r?\n/);
+      // TCP chunks are arbitrary: the last split entry is not a complete line.
+      const partial = lines.pop();
       const end = lines.findIndex((line) => /^\d{3} /.test(line));
       if (end === -1) return;                       // still mid-reply
       const reply = lines.slice(0, end + 1);
-      this.buffer = lines.slice(end + 1).join('\r\n');
+      this.buffer = [...lines.slice(end + 1), partial].join('\r\n');
       const waiter = this.pending.shift();
-      if (waiter) waiter.resolve({ code: Number(reply[end].slice(0, 3)), text: reply.join('\n') });
-      else return;                                  // unsolicited; ignore
+      const result = { code: Number(reply[end].slice(0, 3)), text: reply.join('\n') };
+      if (waiter) waiter.resolve(result);
+      else this.replies.push(result);
     }
   }
 
   reply() {
+    if (this.replies.length) return Promise.resolve(this.replies.shift());
+    if (this.failure) return Promise.reject(this.failure);
     return new Promise((resolve, reject) => this.pending.push({ resolve, reject }));
   }
 
   async command(line, expected) {
+    const waiting = this.reply();
     if (line !== null) this.socket.write(line + '\r\n');
-    const res = await this.reply();
+    const res = await waiting;
     if (expected && !expected.includes(res.code)) {
       throw new Error(`SMTP ${res.code}: ${res.text.split('\n').pop()}`);
     }

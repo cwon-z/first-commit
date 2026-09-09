@@ -1,5 +1,4 @@
-# This project has no build step and no dependencies — the only things that
-# should ever appear here are editor and OS droppings.
+# No build step or dependencies. Keep local tooling and runtime state private.
 node_modules/
 .DS_Store
 Thumbs.db
@@ -22,3 +21,24 @@ test.html
 # app.env never is — it holds the SMTP credential.
 app.env
 deploy/app.env
+
+# Local environment variants; sanitized examples remain publishable.
+.env
+.env.*
+*.env
+!*.env.example
+!.env.example
+!.env.*.example
+
+# Local mail, database files, credentials, and backups.
+outbox/
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.bak

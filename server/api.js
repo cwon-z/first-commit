@@ -54,15 +54,24 @@ function readBody(req) {
       size += chunk.length;
       if (size > BODY_LIMIT) {
         reject(Object.assign(new Error('Request body too large'), { status: 413 }));
-        req.destroy();
+        // Drain the request so the client can receive the JSON 413 response.
+        chunks.length = 0;
         return;
       }
       chunks.push(chunk);
     });
     req.on('end', () => {
       const raw = Buffer.concat(chunks).toString('utf8');
+      if (size > BODY_LIMIT) return;
       if (!raw) { resolve({}); return; }
-      try { resolve(JSON.parse(raw)); }
+      try {
+        const body = JSON.parse(raw);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+          reject(Object.assign(new Error('Body must be a JSON object'), { status: 400 }));
+          return;
+        }
+        resolve(body);
+      }
       catch { reject(Object.assign(new Error('Body was not valid JSON'), { status: 400 })); }
     });
     req.on('error', reject);
@@ -173,10 +182,14 @@ export function createApi({
   async function consumeToken(kind, token) {
     if (!token || typeof token !== 'string') return null;
     const tokenHash = hashToken(token);
-    const record = store.token(tokenHash);
-    if (!tokenIsValid(record, kind)) return null;
-    await store.write((d) => { delete d.tokens[tokenHash]; });
-    return store.userById(record.userId);
+    // Reject junk without a disk write; recheck inside the transaction for races.
+    if (!tokenIsValid(store.token(tokenHash), kind)) return null;
+    return store.write((d) => {
+      const record = d.tokens[tokenHash];
+      if (!tokenIsValid(record, kind)) return null;
+      delete d.tokens[tokenHash];
+      return d.users[record.userId] || null;
+    });
   }
 
   /** Fire-and-forget: a relay being down must not fail a sign-up. */
@@ -235,6 +248,8 @@ export function createApi({
   async function register(req, res, clientKey) {
     const wait = registerLimiter.retryAfter(clientKey);
     if (wait) return json(res, 429, { error: `Too many sign-ups from here. Try again in ${wait}s.` });
+    // Reserve the attempt before body reads and scrypt yield to another request.
+    registerLimiter.record(clientKey);
 
     const body = await readBody(req);
     const email = normaliseEmail(body.email);
@@ -245,7 +260,6 @@ export function createApi({
     const displayName = String(body.displayName || '').trim().slice(0, 60) || email.split('@')[0];
 
     if (store.userByEmail(email)) {
-      registerLimiter.record(clientKey);
       return json(res, 409, { error: 'An account with that address already exists. Sign in instead.' });
     }
 
@@ -258,11 +272,14 @@ export function createApi({
      * finds the URL first becomes owner and can read everyone's progress.
      * Deployments must set the variable; index.js says so loudly if they have
      * not, and README documents it. */
-    const owner = owners.size ? owners.has(email) : store.isEmpty();
     const { salt, passwordHash } = await hashPassword(body.password);
     const id = crypto.randomUUID();
 
     await store.write((d) => {
+      if (Object.values(d.users).some((u) => u.email === email)) {
+        throw Object.assign(new Error('An account with that address already exists. Sign in instead.'), { status: 409 });
+      }
+      const owner = owners.size ? owners.has(email) : Object.keys(d.users).length === 0;
       d.users[id] = {
         id, email, displayName,
         role: owner ? 'owner' : 'learner',
@@ -272,8 +289,6 @@ export function createApi({
       };
       d.progress[id] = emptyProgress();
     });
-    registerLimiter.record(clientKey);
-
     const created = store.userById(id);
     if (mailer) await deliver('verify', created, await issueToken('verify', id));
 
@@ -291,11 +306,11 @@ export function createApi({
     const key = clientKey + '|' + email;
     const wait = loginLimiter.retryAfter(key);
     if (wait) return json(res, 429, { error: `Too many attempts. Try again in ${wait}s.` });
+    loginLimiter.record(key);
 
     const user = store.userByEmail(email);
     const ok = await verifyPassword(body.password, user);
     if (!user || !ok) {
-      loginLimiter.record(key);
       // One message for both cases: a different error for "no such account"
       // would turn this endpoint into a way to enumerate who has signed up.
       return json(res, 401, { error: 'That email and password do not match an account.' });

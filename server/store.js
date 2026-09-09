@@ -152,7 +152,7 @@ export class Store {
 /** Case and whitespace are not identity; two people typing the same address in
  *  different cases are the same person. */
 export function normaliseEmail(email) {
-  return String(email || '').trim().toLowerCase();
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
 
 export default Store;

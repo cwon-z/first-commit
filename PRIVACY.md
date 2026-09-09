@@ -6,12 +6,14 @@ limitation it says so.
 
 There are two ways to run this course, and they collect different amounts.
 
-## Served as static files — nothing leaves your browser
+## Served as static files — progress stays in your browser
 
-The default. No accounts, no server, no requests to anyone. Your progress is
+There are no accounts in this mode. Your progress is
 kept in your own browser's `localStorage` under `first-commit.progress.v1`, and
 your layout preference under `first-commit.prefs.v1`. Clearing your site data
-erases both. Nobody, including whoever published the course, can see them.
+erases both. The course does not send this progress to the host. The browser
+still requests course files and probes for the optional accounts API. The web
+host or reverse proxy may keep access logs, including IP addresses.
 
 ## Run with the optional accounts server
 
@@ -44,12 +46,14 @@ to another device.
   — then that provider sees your address the way your own ISP does. That is
   outside what the course stores, and it is not something a privacy policy can
   promise away.
-- **No analytics, no tracking, no third-party requests.** The course loads no
+- **No analytics or tracking scripts.** The course loads no
   scripts, fonts or styles from anywhere but the server you are on. The only
-  outbound connection the server ever makes is to a mail relay, and only if the
-  owner configured one.
+  outbound connection the accounts server makes is to a mail relay, and only
+  if the owner configured one. If the owner enables the optional YouTube
+  video, the browser also connects to YouTube's privacy-enhanced embed service.
 - **No cookies except the session.** One cookie, `fc_session`, set only after
-  you sign in. It is HttpOnly and SameSite=Lax.
+  you sign in, register, or successfully reset your password. It is HttpOnly
+  and SameSite=Lax.
 - **Nothing about what you type in the terminal.** The Git simulator runs
   entirely in your browser. The server is told which units you finished, never
   what commands you ran to finish them.
@@ -65,10 +69,13 @@ to another device.
 
 ### Getting rid of it
 
-- **Download my data** in the account menu exports everything above as JSON.
+- **Download my data** in the account menu exports your public account fields,
+  progress, and active session timestamps as JSON. Password hashes, session
+  secrets, mail files, infrastructure logs, and backups are not included.
 - **Delete my account** in the same menu removes the account, the progress, the
   sessions and any outstanding links, immediately and without a grace period.
-  It cannot be undone.
+  It cannot be undone. Previously sent email, file-transport mail, server logs,
+  and backups have separate retention controlled by the operator.
 - The course owner can also reset your progress or delete your account from the
   statistics page.
 
@@ -84,7 +91,10 @@ them — ask whoever runs the instance you are using.
 Only sent for two reasons: confirming your address when you sign up, and
 resetting your password when you ask. Never for anything else. If the owner has
 not configured a mail relay, no email is sent at all and the messages are
-written to a folder on the server instead.
+written to a folder on the server instead. Those files contain recipient
+addresses and the full verification/reset links; the links may also appear in
+server logs. Token expiry does not delete mail files or logs. The operator must
+manage their access and retention separately from the account database.
 
 ---
 

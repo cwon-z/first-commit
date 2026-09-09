@@ -316,6 +316,7 @@ async function loadStats() {
 }
 
 async function boot() {
+  $('#admin-refresh').addEventListener('click', loadStats);
   const session = await probeSession();
   if (!session) {
     gate('Unavailable', 'No server behind this page',
@@ -327,7 +328,6 @@ async function boot() {
   $('#admin-search').addEventListener('input', () => {
     if (current) renderLearners(current, $('#admin-search').value);
   });
-  $('#admin-refresh').addEventListener('click', loadStats);
 
   // Nobody is signed in, so asking for the statistics would be a request we
   // already know answers 401. It works, but it puts a red error in the console

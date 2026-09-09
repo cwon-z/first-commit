@@ -34,6 +34,7 @@ import { icon } from './icons.js';
  *   there and whether anyone is signed in — decided once in boot(), swapped on
  *   sign-in and sign-out, and never asked about again. See ui/progress.js.   */
 let store = new LocalStorageProgressStore();
+let guestMergePending = false;
 
 /* View preferences share that seam so nothing else touches storage. */
 const prefs = new LocalStoragePrefsStore();
@@ -93,14 +94,23 @@ function applyChrome() {
  * possible bug in a course somebody is spending hours on.
  */
 function saveProgress() {
-  return Promise.resolve(store.save(S.progress))
-    .then(() => { $('#save-note').hidden = true; })
+  const savingStore = store;
+  return Promise.resolve(savingStore.save(S.progress))
+    .then(async () => {
+      if (savingStore !== store) return;
+      if (guestMergePending && savingStore instanceof RestProgressStore) {
+        await new LocalStorageProgressStore().clear();
+        guestMergePending = false;
+      }
+      $('#save-note').hidden = true;
+    })
     .catch((err) => {
       console.warn('progress save failed:', err);
       const note = $('#save-note');
       note.textContent = err && err.status === 401
         ? 'Signed out — progress not saved'
-        : 'Offline — progress not saved';
+        : err && err.status === 403 ? 'Confirm your email — progress not saved'
+          : 'Offline — progress not saved';
       note.hidden = false;
     });
 }
@@ -126,6 +136,10 @@ async function boot() {
   S.session = await probeSession();
   store = chooseStore(S.session);
   S.progress = await store.load();
+  if (S.session?.user) {
+    S.progress = mergeProgress(await new LocalStorageProgressStore().load(), S.progress);
+    guestMergePending = true;
+  }
   document.title = `${S.course.meta.brand} — interactive Git course`;
   $('#brand-name').textContent = S.course.meta.brand;
   buildSidebar();
@@ -182,6 +196,8 @@ async function boot() {
  * signed up.
  */
 async function onAccountChange(user) {
+  if (S.session) S.session.user = user;
+  guestMergePending = !!user;
   if (user) {
     const local = await new LocalStorageProgressStore().load();
     store = new RestProgressStore();
@@ -193,7 +209,6 @@ async function onAccountChange(user) {
     store = new LocalStorageProgressStore();
     S.progress = await store.load();
   }
-  $('#save-note').hidden = true;
   buildSidebar();
   if (S.current) show(S.current); else route();
 }
@@ -385,8 +400,10 @@ async function handleMailLink(kind, token) {
     let ok = true;
     let detail = '';
     try {
-      const body = await confirmEmail(token);
-      if (S.account) S.account.set(body.user);
+      await confirmEmail(token);
+      // Confirmation proves an address; it does not create a login session.
+      S.session = await probeSession();
+      if (S.account) S.account.set(S.session?.user || null);
     } catch (err) {
       ok = false;
       detail = err.message || 'That confirmation link did not work.';

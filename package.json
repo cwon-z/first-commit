@@ -9,7 +9,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node tests/engine.test.js && node tests/content.test.js && node tests/ui.test.js && node tests/server.test.js && node tools/lint-course.mjs --strict",
+    "test": "node tests/engine.test.js && node tests/content.test.js && node tests/ui.test.js && node tests/server.test.js && node tests/adversarial.test.js && node tests/mail.test.js && node tools/lint-course.mjs --strict",
     "test:engine": "node tests/engine.test.js",
     "test:content": "node tests/content.test.js",
     "serve": "node server/index.js",

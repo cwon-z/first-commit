@@ -35,6 +35,7 @@ export async function hashPassword(password) {
 }
 
 export async function verifyPassword(password, user) {
+  if (typeof password !== 'string' || password.length > 200) return false;
   if (!user || !user.salt || !user.passwordHash) return false;
   const key = await scrypt(password, user.salt);
   const stored = Buffer.from(user.passwordHash, 'hex');
@@ -76,6 +77,7 @@ export function emailLooksValid(email) {
 }
 
 export function passwordProblem(password) {
+  if (typeof password !== 'string') return 'Enter a password as text.';
   const p = String(password || '');
   if (p.length < MIN_PASSWORD) return `Use at least ${MIN_PASSWORD} characters.`;
   if (p.length > 200) return 'That is longer than 200 characters.';

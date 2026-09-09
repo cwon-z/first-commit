@@ -1,6 +1,6 @@
 # First Commit — interactive Git course
 
-A production-ready, fully static, interactive Git course for complete beginners.
+A fully static, interactive Git course for complete beginners.
 Learners type real git commands into a **simulated in-browser terminal** (no real
 git binary, no WASM — the repo state machine is pure JS) and watch a **live
 commit-graph visualization** update after every command.
@@ -10,6 +10,12 @@ optional, equally dependency-free extra — the course itself still runs as plai
 static files. `node_modules/` never appears.
 
 What is left to do lives in [TODO.md](TODO.md).
+
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). For sensitive
+bug reports, see [SECURITY.md](SECURITY.md). The public source includes worked
+challenge solutions and authoring drafts: this is a learning tool, not a secure
+assessment system. The accounts server keeps these files off its HTTP routes,
+but they are readable in the source repository.
 
 ## Quick start
 
@@ -424,6 +430,15 @@ live server:
 
     npm start
     node tools/sweep.mjs http://localhost:8000
+
+For account interactions, run `node tools/sweep.mjs --accounts`. It starts its
+own disposable server and checks real forms, account transitions, and admin
+writes without touching deployment accounts. For a plain file server, run
+`node tools/sweep.mjs http://localhost:8000 --static`. The browser tool needs
+Node 22+ and Chrome; the app and backend still support Node 18+.
+The sweep now visits all 47 lesson/recap routes and exercises actual outcomes.
+See [the independent sweep report](docs/independent-bug-sweep.md) for findings,
+reproductions, regression coverage, and remaining manual checks.
 
 It drives a real browser over the DevTools protocol and reports dead controls
 (a button with no handler, a submit button outside its form), broken aria

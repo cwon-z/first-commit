@@ -1,7 +1,7 @@
 # TODO
 
-What is left. Nothing here is broken — the course runs, all 45 units play
-through end to end, and 2,690 assertions pass. These are the things that are
+What is left after the independent bug sweep. All 47 course units pass the
+content checks, and the automated suites pass. These are the things that are
 either waiting on a person, waiting on a decision, or judgement calls about
 content.
 
@@ -10,7 +10,7 @@ usually the thing that decides what you can pick up today.
 
 **Done and not to be re-litigated:** the interface rebuild, the state-reference
 gallery, optional accounts with server-saved progress, and the owner statistics
-page. See the last four commits.
+page. See the README and the independent sweep report.
 
 ---
 
@@ -35,12 +35,12 @@ page. See the last four commits.
       the field they are about.
 - [x] **Font licences** — the OFL text and copyright now ship with the fonts,
       which the licence requires and we were not doing.
-- [x] **Interaction sweep** — `tools/sweep.mjs`, clean across 14 routes and
-      dialogs. It catches the class of bug the other suites cannot: a control
-      that renders perfectly and does nothing.
-- [ ] **Second opinion.** `docs/second-agent-brief.md` is a ready-to-paste
-      prompt for an independent agent to sweep the same ground. Worth doing —
-      the first pass shipped a dead submit button with every test green.
+- [x] **Interaction sweep** — `tools/sweep.mjs`, covering all 47 course units,
+      account/admin interactions, and static mode. It catches the class of bug
+      the other suites cannot: a control that renders perfectly and does nothing.
+- [x] **Second opinion.** Independent clean-clone sweep completed; 13 defect
+      groups fixed with HTTP, SMTP-parser, and real-browser regressions.
+      See [the findings and validation](docs/independent-bug-sweep.md).
 
 ## Waiting on a person
 
@@ -67,7 +67,8 @@ in `docs/ui-rebuild-brief.md` §12 (A4).
 
 ## Waiting on a decision
 
-- [ ] **Push.** `main` is ahead of `origin/main`. Nothing has been pushed yet.
+- [ ] **Publish.** Push the reviewed changes and make the repository public
+      when ready. Local commits do not change repository visibility.
 
 - [ ] **Deploy with the public settings.** Sign-up is going to be open to
       strangers, so `FC_TRUST_PROXY=1` and `FC_REQUIRE_VERIFICATION=1` matter

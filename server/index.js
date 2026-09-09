@@ -189,7 +189,13 @@ export async function createServer(opts = {}) {
   });
 
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost');
+    let url;
+    try { url = new URL(req.url, 'http://localhost'); }
+    catch {
+      res.writeHead(400, SECURITY_HEADERS);
+      res.end('Bad request');
+      return;
+    }
     try {
       if (await handleApi(req, res, url)) return;
       if (req.method !== 'GET' && req.method !== 'HEAD') {
