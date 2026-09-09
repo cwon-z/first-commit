@@ -54,6 +54,18 @@ function idsUsedBy(source) {
   return used;
 }
 
+/* --------- a submit button outside its form must be associated ----------- */
+{
+  const authJs = read('ui', 'auth.js');
+  const declaresSubmit = /\.type = 'submit'/.test(authJs);
+  const associates = /setAttribute\('form',/.test(authJs);
+  const appendedToForm = /form\.append(Child)?\([^)]*submit/.test(authJs);
+  // A type="submit" button that is neither inside its form nor associated with
+  // it by id submits nothing when clicked — silently, with no error anywhere.
+  ok(!declaresSubmit || associates || appendedToForm,
+    'auth dialog: submit button is owned by a form');
+}
+
 /* ------------------- every referenced element exists --------------------- */
 {
   const staticIds = idsIn(appHtml);

@@ -95,6 +95,11 @@ const COPY = {
   },
 };
 
+/* The dialog's submit button sits outside the <form> for layout, so it has to
+ * be associated with it explicitly. Ids must be unique for that association to
+ * be unambiguous, hence the counter. */
+let dialogSeq = 0;
+
 /**
  * @param {{ mode?: 'signin'|'signup'|'forgot'|'reset', minPassword?: number,
  *           needsOwner?: boolean, canSendEmail?: boolean, token?: string }} opts
@@ -124,6 +129,7 @@ export function openAuthDialog(opts = {}) {
 
     const form = document.createElement('form');
     form.className = 'auth-form';
+    form.id = `auth-form-${++dialogSeq}`;
     form.noValidate = true;
 
     const note = document.createElement('p');
@@ -138,6 +144,11 @@ export function openAuthDialog(opts = {}) {
 
     const submit = document.createElement('button');
     submit.type = 'submit';
+    // It is rendered in .auth-actions, outside the form, so without this it is
+    // a submit button belonging to no form — and clicking it does nothing at
+    // all. Keeping it outside is what lets build() reset the form's fields
+    // without destroying the buttons.
+    submit.setAttribute('form', form.id);
     submit.className = 'btn btn-solid btn-lg';
 
     const swap = document.createElement('button');
