@@ -41,6 +41,10 @@ page. See the README and the independent sweep report.
 - [x] **Second opinion.** Independent clean-clone sweep completed; 13 defect
       groups fixed with HTTP, SMTP-parser, and real-browser regressions.
       See [the findings and validation](docs/independent-bug-sweep.md).
+- [x] **Progress that went missing.** Saves now fold rather than replace, so a
+      second tab or device can no longer erase work; refused saves are kept on
+      the device; plus sandbox, terminal and phone-layout fixes.
+      See [the October sweep](docs/bug-sweep-2026-10.md).
 
 ## Waiting on a person
 
@@ -73,7 +77,10 @@ in `docs/ui-rebuild-brief.md` §12 (A4).
 - [ ] **Deploy with the public settings.** Sign-up is going to be open to
       strangers, so `FC_TRUST_PROXY=1` and `FC_REQUIRE_VERIFICATION=1` matter
       as much as `FC_OWNER_EMAILS`. The README has a working configuration
-      under *Opening it to people you don't know*.
+      under *Opening it to people you don't know*. **But not
+      `FC_REQUIRE_VERIFICATION=1` before the mail relay below works:** without
+      it nobody can confirm, so no new learner can save progress at all. The
+      server now warns about that combination at start-up.
 
 - [ ] **A real mail relay.** `FC_SMTP_URL` is unset, so verification and reset
       links are written to `data/outbox/` and printed to the console rather than
@@ -106,6 +113,22 @@ deliberate rather than outstanding, and recorded in the README under
 Still open, and better answered by data than by guessing: **which units people
 actually stop at.** The funnel on `/admin.html` will say, once real learners are
 using it. Rewriting on a hunch before then is how you fix the wrong module.
+
+## From the October sweep
+
+Reproduced, not yet fixed; details and repro steps in
+[the sweep report](docs/bug-sweep-2026-10.md#found-not-fixed).
+
+- [ ] **Sandbox commands that mislead whoever tries them** — `stash pop`
+      restores more than was stashed, `git reset <file>`, `switch -c <name>
+      <start>`, `checkout <rev> -- <file>`, `restore .`, whole-file conflicts
+      for edits on different lines, flags silently ignored. **Medium.**
+- [ ] **Challenges pass on a detached HEAD** where they lack `headOnBranch`
+      (m4l3, m10l3, m11l3). **Small.**
+- [ ] **Graph labels on lower lanes overlap the lane above.** The fix makes
+      every multi-lane figure taller, so it needs a design decision. **Small.**
+- [ ] **Smaller interface items** — admin focus after Reset/Delete, the
+      non-owner admin message, status lines' "−" mark, two `#/states` plates.
 
 ## Housekeeping
 

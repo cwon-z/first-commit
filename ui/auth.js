@@ -477,7 +477,13 @@ export function mountAccountControl(host, { session, onChange }) {
     menu.className = 'account-menu';
     const summary = document.createElement('summary');
     summary.className = 'btn btn-sm account-summary';
-    summary.append(icon('user'), user.displayName || user.email);
+    // Its own element so it can give way on a phone. The default name is the
+    // part of the address before the @, often long enough to push this control
+    // off the right edge of the screen.
+    const name = document.createElement('span');
+    name.className = 'account-name';
+    name.textContent = user.displayName || user.email;
+    summary.append(icon('user'), name);
     if (user.emailVerified === false) {
       const dot = document.createElement('span');
       dot.className = 'account-flag';
@@ -492,19 +498,26 @@ export function mountAccountControl(host, { session, onChange }) {
     const who = document.createElement('p');
     who.className = 'account-who';
     who.textContent = user.email;
+    // With verification required, an unconfirmed account's saves are refused;
+    // saying "saved to your account" there was simply untrue.
+    const blocked = user.emailVerified === false && !!config.requireVerification;
     const role = document.createElement('p');
     role.className = 'account-role';
-    role.textContent = user.role === 'owner'
-      ? 'Course owner — progress saved to your account'
-      : 'Progress saved to your account';
+    role.textContent = blocked
+      ? (user.role === 'owner' ? 'Course owner — progress' : 'Progress') + ' not saved to your account yet'
+      : user.role === 'owner'
+        ? 'Course owner — progress saved to your account'
+        : 'Progress saved to your account';
     panel.append(who, role);
 
     if (user.emailVerified === false) {
       const warn = document.createElement('div');
       warn.className = 'account-unverified';
-      warn.textContent = config.canSendEmail
-        ? 'Confirm your email to be able to reset your password later.'
-        : 'Email is not confirmed, and this server cannot send mail.';
+      warn.textContent = !config.canSendEmail
+        ? 'Email is not confirmed, and this server cannot send mail.'
+        : blocked
+          ? 'Confirm your email to start saving to your account. Until then, progress stays on this device.'
+          : 'Confirm your email to be able to reset your password later.';
       panel.appendChild(warn);
 
       if (config.canSendEmail) {

@@ -147,7 +147,12 @@ async function renderAccount() {
       const link = document.createElement('a');
       link.className = 'btn btn-sm';
       link.href = './app.html';
-      link.append(icon('user'), user.displayName || user.email);
+      // Its own element so a long name can give way on a phone instead of
+      // pushing "Open the course" off the screen.
+      const name = document.createElement('span');
+      name.className = 'account-name';
+      name.textContent = user.displayName || user.email;
+      link.append(icon('user'), name);
       host.appendChild(link);
       return;
     }

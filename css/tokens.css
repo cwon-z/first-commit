@@ -565,6 +565,11 @@ button {
   background: var(--surface-raised);
   box-shadow: var(--hairline-strong), var(--lip);
 }
+/* The rules above out-rank the global :focus-visible, which left a keyboard
+   user no ring at all on these tabs. */
+.pilltabs button:focus-visible {
+  box-shadow: var(--glow-focus);
+}
 
 /* ==========================================================================
  * Commit graph — SVG classes shared with the landing preview
@@ -866,8 +871,19 @@ button {
 }
 .account-summary {
   white-space: nowrap;
-  text-overflow: ellipsis;
   display: inline-flex;
+}
+/* The name gives way before anything else in the bar does; the panel shows
+   the full address. Ellipsis has to live here: on the flex container itself
+   it never applied to the text inside. */
+.account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-summary > .icon,
+.account-flag {
+  flex: none;
 }
 
 .account-panel {

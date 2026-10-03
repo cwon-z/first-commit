@@ -24,7 +24,7 @@ import { renderFiles } from './filetree.js';
 import { renderBlocks, inlineMd } from './lesson.js';
 import {
   LocalStorageProgressStore, LocalStoragePrefsStore, RestProgressStore,
-  probeSession, chooseStore, mergeProgress,
+  probeSession, chooseStore, mergeProgress, emptyProgress,
 } from './progress.js';
 import { mountAccountControl, openAuthDialog, confirmEmail } from './auth.js';
 import { renderStates } from './states.js';
@@ -35,6 +35,14 @@ import { icon } from './icons.js';
  *   sign-in and sign-out, and never asked about again. See ui/progress.js.   */
 let store = new LocalStorageProgressStore();
 let guestMergePending = false;
+
+/* Saves leave one at a time; see saveProgress. */
+let saveChain = Promise.resolve();
+let saveWaiting = false;
+/* Bumped whenever S.progress is replaced wholesale — sign-in, sign-out, reset —
+   so a save already on its way cannot fold an answer about the old state into
+   the new one. */
+let progressEpoch = 0;
 
 /* View preferences share that seam so nothing else touches storage. */
 const prefs = new LocalStoragePrefsStore();
@@ -92,27 +100,86 @@ function applyChrome() {
  * Persist, and surface a failure. The local store effectively cannot fail, but
  * the REST one can — and progress that quietly stopped saving is the worst
  * possible bug in a course somebody is spending hours on.
+ *
+ * Saves are queued, never sent side by side: two requests in flight can be
+ * handled in either order, and an earlier copy landing last used to undo the
+ * later one. Asking again while a save is already waiting adds nothing — the
+ * waiting save sends whatever is current when its turn comes.
  */
 function saveProgress() {
+  if (!saveWaiting) {
+    saveWaiting = true;
+    saveChain = saveChain
+      .then(() => { saveWaiting = false; return saveOnce(); })
+      // The chain has to outlive any failure, or every later save is skipped.
+      .catch((err) => console.warn('progress save failed:', err));
+  }
+  return saveChain;
+}
+
+async function saveOnce() {
   const savingStore = store;
-  return Promise.resolve(savingStore.save(S.progress))
-    .then(async () => {
-      if (savingStore !== store) return;
-      if (guestMergePending && savingStore instanceof RestProgressStore) {
-        await new LocalStorageProgressStore().clear();
-        guestMergePending = false;
-      }
-      $('#save-note').hidden = true;
-    })
-    .catch((err) => {
-      console.warn('progress save failed:', err);
-      const note = $('#save-note');
-      note.textContent = err && err.status === 401
-        ? 'Signed out — progress not saved'
-        : err && err.status === 403 ? 'Confirm your email — progress not saved'
-          : 'Offline — progress not saved';
-      note.hidden = false;
-    });
+  const epoch = progressEpoch;
+  const sent = { ...S.progress, completedLessons: [...S.progress.completedLessons] };
+  let saved;
+  try {
+    saved = await savingStore.save(sent);
+  } catch (err) {
+    console.warn('progress save failed:', err);
+    if (epoch === progressEpoch) showSaveProblem(err);
+    return;
+  }
+  if (epoch !== progressEpoch) return;
+  adoptSaved(saved, sent);
+  $('#save-note').hidden = true;
+  if (guestMergePending && savingStore instanceof RestProgressStore) {
+    // The guest's copy has reached the account; leave nothing behind for
+    // another account on this browser to inherit.
+    guestMergePending = false;
+    await new LocalStorageProgressStore().clear();
+  }
+}
+
+/**
+ * Take in what the store kept. Both stores fold a save into what they already
+ * hold, so the answer can carry lessons finished in another tab or on another
+ * device — or say that progress was reset somewhere else since this page
+ * loaded, in which case the reset stands.
+ */
+function adoptSaved(saved, sent) {
+  if (!saved || !Array.isArray(saved.completedLessons)) return;
+  const reset = sent.resetAt !== undefined && saved.resetAt !== sent.resetAt;
+  // Finished here while the save was on its way; the save queued behind this
+  // one carries them.
+  const sentIds = new Set(sent.completedLessons);
+  const since = S.progress.completedLessons.filter((id) => !sentIds.has(id));
+  const before = new Set(S.progress.completedLessons);
+  const completed = [...new Set([
+    ...saved.completedLessons,
+    ...(reset ? since : S.progress.completedLessons),
+  ])];
+  S.progress = {
+    ...S.progress,
+    completedLessons: completed,
+    resetAt: saved.resetAt,
+    updatedAt: saved.updatedAt ?? S.progress.updatedAt,
+  };
+  if (completed.length !== before.size || completed.some((id) => !before.has(id))) {
+    buildSidebar();
+    if (S.current) markActive(S.current.lesson.id);
+  }
+}
+
+/** Why the last save did not reach the account. The first word is all a phone
+ *  has room for, so it leads. */
+function showSaveProblem(err) {
+  const note = $('#save-note');
+  note.textContent = err && err.status === 401
+    ? 'Signed out — not saved to your account'
+    : err && err.status === 403 ? 'Confirm your email to save to your account'
+      : 'Offline — not saved to your account yet';
+  note.title = 'Kept on this device, and sent with the next save that gets through.';
+  note.hidden = false;
 }
 
 function setSidebar(open) {
@@ -135,7 +202,17 @@ async function boot() {
   // this is what keeps the static deployment working exactly as it did.
   S.session = await probeSession();
   store = chooseStore(S.session);
-  S.progress = await store.load();
+  try {
+    S.progress = await store.load();
+  } catch (err) {
+    // Signed in, but the account's progress could not be read just now. That
+    // used to stop the whole course with a message about file:// addresses.
+    // Start from an empty copy instead: a save folds into the account rather
+    // than replacing it, so the first one that gets through erases nothing,
+    // and its answer brings the account's progress back in.
+    S.progress = emptyProgress();
+    showSaveProblem(err);
+  }
   if (S.session?.user) {
     S.progress = mergeProgress(await new LocalStorageProgressStore().load(), S.progress);
     guestMergePending = true;
@@ -163,21 +240,31 @@ async function boot() {
   });
   $('#reset-progress').addEventListener('click', resetProgress);
 
+  // A graph scrolled while hidden (focus layout, another tab showing) stays at
+  // its oldest commits; bring HEAD into view whenever it is shown again.
+  const showHead = () => { if (S.engine) scrollGraphToHead($('#graph-scroll'), $('#graph-svg')); };
   for (const b of document.querySelectorAll('#layout-tabs button')) {
     b.addEventListener('click', () => {
       S.layout = b.dataset.layout;
       prefs.save({ ...prefs.load(), layout: S.layout });
       applyChrome();
+      showHead();
     });
   }
   for (const b of document.querySelectorAll('#work-tabs button')) {
-    b.addEventListener('click', () => { S.tab = b.dataset.tab; applyChrome(); });
+    b.addEventListener('click', () => {
+      S.tab = b.dataset.tab;
+      applyChrome();
+      if (S.tab === 'graph') showHead();
+    });
   }
   $('#files-btn').addEventListener('click', () => { S.filesOpen = !S.filesOpen; applyChrome(); });
   $('#files-close').addEventListener('click', () => { S.filesOpen = false; applyChrome(); });
   $('#now-bar').addEventListener('click', () => { S.tab = 'steps'; applyChrome(); });
-  wideEnough.addEventListener('change', applyChrome);
+  wideEnough.addEventListener('change', () => { applyChrome(); showHead(); });
   $('#lesson-pane').addEventListener('scroll', updateReadProgress, { passive: true });
+  // A save that failed for want of a connection goes again as soon as there is one.
+  window.addEventListener('online', () => { if (!$('#save-note').hidden) saveProgress(); });
 
   if (S.session) {
     S.account = mountAccountControl($('#account'), { session: S.session, onChange: onAccountChange });
@@ -197,17 +284,26 @@ async function boot() {
  */
 async function onAccountChange(user) {
   if (S.session) S.session.user = user;
-  guestMergePending = !!user;
   if (user) {
     const local = await new LocalStorageProgressStore().load();
-    store = new RestProgressStore();
-    const remote = await store.load();
-    const merged = mergeProgress(local, remote);
-    S.progress = merged;
-    if (merged.completedLessons.length > remote.completedLessons.length) await saveProgress();
+    const account = new RestProgressStore(user.id);
+    // Read before switching. Switching first and failing to read used to leave
+    // the guest's copy saving over the account's.
+    let remote = emptyProgress();
+    let problem = null;
+    try { remote = await account.load(); } catch (err) { problem = err; }
+    store = account;
+    progressEpoch++;
+    guestMergePending = true;
+    S.progress = mergeProgress(local, remote);
+    if (problem) showSaveProblem(problem); else $('#save-note').hidden = true;
+    if (S.progress.completedLessons.length > remote.completedLessons.length) await saveProgress();
   } else {
     store = new LocalStorageProgressStore();
+    progressEpoch++;
+    guestMergePending = false;
     S.progress = await store.load();
+    $('#save-note').hidden = true;
   }
   buildSidebar();
   if (S.current) show(S.current); else route();
@@ -340,8 +436,21 @@ async function resetProgress() {
     return;
   }
   cancelResetConfirm();
-  await store.clear();
-  S.progress = await store.load();
+  let cleared;
+  try {
+    cleared = await store.clear();
+  } catch (err) {
+    showSaveProblem(err);
+    return;
+  }
+  progressEpoch++;
+  S.progress = { ...emptyProgress(), ...cleared };
+  if (guestMergePending) {
+    // A guest copy still waiting to reach the account would come back at the
+    // next sign-in; erasing everything has to include it.
+    guestMergePending = false;
+    await new LocalStorageProgressStore().clear();
+  }
   buildSidebar();
   if (S.current) show(S.current); else route();
 }
@@ -402,7 +511,9 @@ async function handleMailLink(kind, token) {
     try {
       await confirmEmail(token);
       // Confirmation proves an address; it does not create a login session.
-      S.session = await probeSession();
+      // Keep the old session record if the probe itself fails: the banner
+      // below reads its config.
+      S.session = (await probeSession()) || S.session;
       if (S.account) S.account.set(S.session?.user || null);
     } catch (err) {
       ok = false;
@@ -715,9 +826,14 @@ function achievements(entry) {
   return [];
 }
 
-/** Plain text from a `say` string — the success list is not a rich surface. */
+/** Plain text from a `say` string — the success list is not a rich surface.
+ *  Rendered and read back rather than stripped of every * and backtick, which
+ *  turned "`*.log` catches every log file" into ".log catches…". inlineMd
+ *  escapes its input, so the throwaway element never holds live markup. */
 function stripMd(s) {
-  return String(s || '').replace(/[`*]/g, '');
+  const scratch = document.createElement('div');
+  scratch.innerHTML = inlineMd(String(s || ''));
+  return scratch.textContent;
 }
 
 function dismissSuccess() {
@@ -805,11 +921,7 @@ function setupWorkspace(entry, mode) {
 /** Run a command as though the learner had typed it (step "run it for me"). */
 function runLine(line) {
   if (!S.terminal || !S.current) return;
-  S.terminal.echo(line);
-  S.terminal.history.push(line);
-  handleCommand(line, S.current, S.exMode);
-  S.terminal.refreshPrompt();
-  S.terminal.scrollToEnd();
+  S.terminal.submit(line);
   S.terminal.focus();
 }
 
@@ -827,7 +939,10 @@ function handleCommand(line, entry, mode) {
   }
   const res = S.engine.run(trimmed);
   if (res.clear) S.terminal.clear();
-  else if (res.output) S.terminal.print(res.output);
+  // Diff and status colouring is for git's output. A file shown with `cat`
+  // whose lines start with "- " came out as red deletions with the "−" mark,
+  // in the very lesson that teaches how to read a diff.
+  else if (res.output) S.terminal.print(res.output, /^git(\s|$)/.test(trimmed) ? null : res.error ? 'err' : 'plain');
   updateVisuals();
   if (mode === 'guided') checkGuided(entry);
   else if (mode === 'challenge') checkChallenge(entry);
@@ -953,7 +1068,11 @@ function renderGuidedPanel(panel, entry) {
       run.type = 'button';
       run.className = 'btn btn-sm';
       run.append(icon('play'), 'Run it for me');
-      run.addEventListener('click', () => runLine(String(step.cmd).split('\n')[0]));
+      // Every line, in order — 21 steps need two commands, and running only
+      // the first left the button unable to finish any of them.
+      run.addEventListener('click', () => {
+        for (const line of String(step.cmd).split('\n')) if (line.trim()) runLine(line);
+      });
       tools.appendChild(run);
     }
     if (step.hint) {

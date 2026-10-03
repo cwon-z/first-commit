@@ -116,18 +116,35 @@ export function renderGraph(svg, graph) {
     xStep = Math.max(xStep, Math.ceil((stackWidth(a) + stackWidth(b)) / 2 + 10));
   }
 
-  /* ---- lane assignment: one lane per branch hint, main pinned to lane 0 --- */
-  const laneMap = new Map([['main', 0]]);
-  let nextLane = 1;
-  const laneFor = (hint) => {
-    const key = hint || '(detached)';
-    if (!laneMap.has(key)) laneMap.set(key, nextLane++);
+  /* ---- lane assignment: one lane per branch, main pinned to lane 0 ----
+   * ...and a commit continues its parent's line only while that line still
+   * ends at the parent. Once something else has continued it, the history has
+   * forked and this commit opens a lane of its own. Choosing by branch name
+   * alone put a teammate's commits and the learner's — both made on `main` —
+   * on one lane, and drew the edge between the learner's commit and its real
+   * parent straight through the teammate's: right after Git rejected a push,
+   * the graph showed `main` simply one commit ahead of `origin/main`. */
+  const laneMap = new Map([['main', 0]]); // branch name -> its lane
+  const laneKey = ['main'];               // lane -> the branch it was opened for
+  const laneTip = [];                     // lane -> newest commit drawn on it
+  const openLane = (key) => laneKey.push(key) - 1;
+  const laneFor = (key) => {
+    if (!laneMap.has(key)) laneMap.set(key, openLane(key));
     return laneMap.get(key);
   };
 
   const pos = new Map(); // id -> {x, y, lane}
   graph.commits.forEach((c, i) => {
-    pos.set(c.id, { x: xStart + i * xStep, y: 0, lane: laneFor(c.branchHint) });
+    const key = c.branchHint || '(detached)';
+    const parent = c.parents.length ? pos.get(c.parents[0]) : null;
+    let lane;
+    if (parent && laneKey[parent.lane] === key) {
+      lane = laneTip[parent.lane] === c.parents[0] ? parent.lane : openLane(key);
+    } else {
+      lane = laneFor(key);
+    }
+    laneTip[lane] = c.id;
+    pos.set(c.id, { x: xStart + i * xStep, y: 0, lane });
   });
   const usedLanes = Math.max(1, ...[...pos.values()].map((p) => p.lane + 1));
 

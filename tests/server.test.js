@@ -188,8 +188,9 @@ const learner = client();
     method: 'PUT', headers: H,
     body: { progress: { completedLessons: ['ok-id', '../../etc/passwd', 42, '<script>'], lastLessonId: 'x'.repeat(200) } },
   });
-  eq(dirty.body.progress.completedLessons.length, 1, 'junk lesson ids are dropped');
-  eq(dirty.body.progress.lastLessonId, null, 'an over-long lastLessonId is dropped');
+  ok(dirty.body.progress.completedLessons.includes('ok-id'), 'a well-formed lesson id is kept');
+  ok(dirty.body.progress.completedLessons.every((id) => /^[\w-]{1,64}$/.test(id)), 'junk lesson ids are dropped');
+  eq(dirty.body.progress.lastLessonId, 'm1l2', 'an over-long lastLessonId is dropped, not stored over the last good one');
 
   // The important one: two accounts must not see each other's work.
   await owner('/api/progress', {
@@ -199,11 +200,14 @@ const learner = client();
   eq(theirs.body.progress.completedLessons.length, 0,
     "one learner cannot read another's progress");
 
+  const ownerBefore = (await owner('/api/progress')).body.progress;
   await learner('/api/progress', {
-    method: 'PUT', headers: H, body: { progress: { completedLessons: ['m1l1'], lastLessonId: 'm1l1' } },
+    method: 'PUT', headers: H, body: { progress: { completedLessons: ['m1l1', 'm9l9'], lastLessonId: 'm1l1' } },
   });
-  const stillOwner = await owner('/api/progress');
-  eq(stillOwner.body.progress.completedLessons.length, 2, "and cannot overwrite it either");
+  const stillOwner = (await owner('/api/progress')).body.progress;
+  eq(JSON.stringify(stillOwner.completedLessons), JSON.stringify(ownerBefore.completedLessons),
+    'and cannot add to it either');
+  eq(stillOwner.lastLessonId, ownerBefore.lastLessonId, 'or move its pointer');
 
   const cleared = await learner('/api/progress', { method: 'DELETE', headers: H });
   eq(cleared.body.progress.completedLessons.length, 0, 'progress clears');
@@ -233,6 +237,77 @@ const learner = client();
   eq(stats.viewerId, ownerRow.id, 'the stats say who is looking, so the page does not offer to delete you');
   eq(stats.canSendEmail, true, 'and whether resending a confirmation is possible');
   eq(ownerRow.emailVerified, false, 'confirmation state is reported per learner');
+}
+
+/* ------------------- progress from more than one place -------------------- */
+/* Every open page saves its whole copy each time it shows a lesson. These are
+   the ways that used to lose a learner's work without any error at all. */
+{
+  const tabs = client();
+  await post(tabs, '/api/auth/register', { email: 'two-tabs@example.com', password: 'a-long-enough-password' });
+  const put = (progress) => tabs('/api/progress', { method: 'PUT', headers: H, body: { progress } });
+
+  const loaded = (await tabs('/api/progress')).body.progress;
+  eq(loaded.resetAt, null, 'a never-reset document says so, so a client knows its generation');
+  const tabA = { ...loaded, completedLessons: [...loaded.completedLessons] };
+  const tabB = { ...loaded, completedLessons: [...loaded.completedLessons] };
+
+  tabA.completedLessons.push('m1l1', 'm1l2');
+  await put(tabA);
+  tabB.lastLessonId = 'm1l3';   // the older tab merely shows a lesson
+  const afterB = await put(tabB);
+  eq(JSON.stringify(afterB.body.progress.completedLessons), JSON.stringify(['m1l1', 'm1l2']),
+    "a second tab's older copy does not erase what the first finished");
+  eq(afterB.body.progress.lastLessonId, 'm1l3', 'while the pointer follows the page last shown');
+
+  // A reset is the one thing that may take completions away.
+  const reset = (await tabs('/api/progress', { method: 'DELETE', headers: H })).body.progress;
+  ok(typeof reset.resetAt === 'string' && reset.resetAt.length > 0, 'a reset is marked');
+  const stale = await put({ ...tabA, lastLessonId: 'm2l1' });
+  eq(stale.body.progress.completedLessons.length, 0, 'a tab that never heard of the reset cannot undo it');
+  eq(stale.body.progress.resetAt, reset.resetAt, 'and is told which reset it missed');
+  eq(stale.body.progress.lastLessonId, 'm2l1', "though where it is still counts");
+
+  const current = await put({ ...reset, completedLessons: ['m1l1'], lastLessonId: 'm1l1' });
+  eq(JSON.stringify(current.body.progress.completedLessons), JSON.stringify(['m1l1']),
+    'a copy from after the reset saves normally');
+  const unknowing = await put({ completedLessons: ['m1l2'], lastLessonId: 'm1l2' });
+  eq(unknowing.body.progress.completedLessons.length, 2,
+    'a copy that does not say which side of a reset it is on is folded in, as older clients expect');
+  const forged = await put({ completedLessons: ['m3l1'], resetAt: 'whenever' });
+  eq(forged.body.progress.completedLessons.includes('m3l1'), false,
+    'a marker the server never issued counts as stale, not as a way round the reset');
+  eq(forged.body.progress.resetAt, reset.resetAt, 'and is never stored');
+
+  // Overlapping saves from one page: the first request after a quiet spell
+  // takes a slower path (it records lastSeenAt), so the next overtakes it.
+  const me = store.userByEmail('two-tabs@example.com');
+  await store.write((d) => { d.users[me.id].lastSeenAt = '2000-01-01T00:00:00.000Z'; });
+  const generation = { resetAt: reset.resetAt };
+  await Promise.all([
+    put({ ...generation, completedLessons: ['m1l1', 'm1l2', 'm4l1'], lastLessonId: 'm4l1' }),
+    put({ ...generation, completedLessons: ['m1l1', 'm1l2', 'm4l1', 'm4l2'], lastLessonId: 'm4l2' }),
+  ]);
+  ok((await tabs('/api/progress')).body.progress.completedLessons.includes('m4l2'),
+    'two saves overtaking each other keep the later completion');
+
+  // The owner's reset has to survive the learner's open tab too.
+  const owned = (await tabs('/api/progress')).body.progress;
+  const learnerTab = { ...owned };
+  eq((await owner(`/api/admin/users/${me.id}/reset-progress`, { method: 'POST', headers: H })).status,
+    200, 'the owner resets a learner with a tab open');
+  await put({ ...learnerTab, lastLessonId: 'm5l1' });
+  eq((await tabs('/api/progress')).body.progress.completedLessons.length, 0,
+    "and that tab's next save does not put the old list back");
+
+  // Documents written before the reset marker existed still read as never reset.
+  await store.write((d) => {
+    d.progress[me.id] = { version: 1, completedLessons: ['m1l1'], lastLessonId: 'm1l1', updatedAt: null };
+  });
+  const legacy = (await tabs('/api/progress')).body.progress;
+  eq(legacy.resetAt, null, 'an older stored document gains resetAt: null');
+  const legacySave = await put({ ...legacy, completedLessons: ['m1l1', 'm1l2'] });
+  eq(legacySave.body.progress.completedLessons.length, 2, 'and saves against it fold normally');
 }
 
 /* -------------------------------- sign-out -------------------------------- */

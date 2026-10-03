@@ -6,8 +6,8 @@
  *   POST   /api/auth/logout       sign out
  *   GET    /api/auth/me           who am I (null when signed out)
  *   GET    /api/progress          this account's progress document
- *   PUT    /api/progress          replace it
- *   DELETE /api/progress          clear it
+ *   PUT    /api/progress          fold a client's copy into it (see foldProgress)
+ *   DELETE /api/progress          clear it, marking the reset
  *   GET    /api/admin/stats       course statistics — owner only
  *
  * The progress document is exactly the shape ui/progress.js already defines, so
@@ -87,10 +87,59 @@ function sanitiseProgress(input) {
   const last = typeof input?.lastLessonId === 'string' && /^[\w-]{1,64}$/.test(input.lastLessonId)
     ? input.lastLessonId
     : null;
-  return { version: 1, completedLessons: clean, lastLessonId: last, updatedAt: nowIso() };
+  const doc = { version: 1, completedLessons: clean, lastLessonId: last, updatedAt: nowIso() };
+  // Only ever compared, never stored from the client. Absent means the client
+  // does not know which side of a reset it is on (an older build, or a page
+  // that could not load the account), and it is folded in like a current one.
+  if (input && input.resetAt !== undefined) {
+    doc.resetAt = typeof input.resetAt === 'string' && input.resetAt.length <= 64 ? input.resetAt : null;
+  }
+  return doc;
 }
 
-const emptyProgress = () => ({ version: 1, completedLessons: [], lastLessonId: null, updatedAt: null });
+/* `resetAt` is when this account's progress was last erased, or null if it
+   never has been. It is what lets a reset survive a tab that never heard of it. */
+const emptyProgress = () => ({
+  version: 1, completedLessons: [], lastLessonId: null, updatedAt: null, resetAt: null,
+});
+
+/** The stored document as clients see it; ones written before `resetAt` existed gain it. */
+const progressOf = (store, userId) => ({ ...emptyProgress(), ...store.progressFor(userId) });
+
+function resetProgressDoc() {
+  const now = nowIso();
+  return { ...emptyProgress(), updatedAt: now, resetAt: now };
+}
+
+/**
+ * Fold what a client sent into what is stored.
+ *
+ * Replacing the document outright lost work. Every open page saves its whole
+ * copy each time it shows a lesson, so a second tab — or the laptop left open
+ * while the learner carried on from their phone — wrote back an older list and
+ * erased everything finished since. Finishing a lesson is not undone by saving
+ * from somewhere that has not heard about it yet, so completions only ever
+ * accumulate here.
+ *
+ * The exception is a reset, which is deliberate. A client whose copy predates
+ * the latest reset gets the reset, not its old list back; the "where was I"
+ * pointer is still taken from it, since that is just the page it has open.
+ * ui/progress.js applies the same rule to the copy kept in a guest's browser.
+ */
+export function foldProgress(stored, incoming) {
+  if (!stored) return { ...incoming, resetAt: null };
+  const base = { ...emptyProgress(), ...stored };
+  const stale = incoming.resetAt !== undefined && incoming.resetAt !== base.resetAt;
+  return {
+    version: 1,
+    completedLessons: stale
+      ? base.completedLessons
+      : [...new Set([...base.completedLessons, ...incoming.completedLessons])].slice(0, 500),
+    lastLessonId: incoming.lastLessonId || base.lastLessonId,
+    updatedAt: incoming.updatedAt,
+    resetAt: base.resetAt,
+  };
+}
 
 /**
  * Drop sessions whose expiry has passed.
@@ -400,7 +449,7 @@ export function createApi({
         'not here and cannot be: only a scrypt hash of it is stored, and a hash ' +
         'cannot be turned back into the password.',
       account: publicUser(user),
-      progress: store.progressFor(user.id) || emptyProgress(),
+      progress: progressOf(store, user.id),
       activeSessions: Object.values(store.data.sessions)
         .filter((s) => s.userId === user.id)
         .map((s) => ({ createdAt: s.createdAt, expiresAt: s.expiresAt })),
@@ -495,18 +544,23 @@ export function createApi({
         }
 
         if (method === 'GET') {
-          json(res, 200, { progress: store.progressFor(user.id) || emptyProgress() });
+          json(res, 200, { progress: progressOf(store, user.id) });
           return true;
         }
         if (method === 'PUT') {
           const body = await readBody(req);
-          const doc = sanitiseProgress(body.progress ?? body);
-          await store.write((d) => { d.progress[user.id] = doc; });
+          const incoming = sanitiseProgress(body.progress ?? body);
+          // Folded inside the write, against whatever the previous write left:
+          // two saves racing each other must not both start from the same copy.
+          const doc = await store.write((d) => {
+            d.progress[user.id] = foldProgress(d.progress[user.id], incoming);
+            return d.progress[user.id];
+          });
           json(res, 200, { progress: doc });
           return true;
         }
         if (method === 'DELETE') {
-          const doc = emptyProgress();
+          const doc = resetProgressDoc();
           await store.write((d) => { d.progress[user.id] = doc; });
           json(res, 200, { progress: doc });
           return true;
@@ -535,8 +589,11 @@ export function createApi({
           const action = match[2];
 
           if (action === 'reset-progress' && method === 'POST') {
-            await store.write((d) => { d.progress[target.id] = emptyProgress(); });
-            json(res, 200, { ok: true, progress: emptyProgress() });
+            // Marked as a reset, so the learner's open tab cannot quietly put
+            // the old list back the next time it saves.
+            const doc = resetProgressDoc();
+            await store.write((d) => { d.progress[target.id] = doc; });
+            json(res, 200, { ok: true, progress: doc });
             return true;
           }
 

@@ -33,6 +33,13 @@ to another device.
 | Verification and reset links | the same way, one at a time | 24 hours and 1 hour respectively, and consumed on first use |
 | Account created, last seen | so the owner can see who is active | until you delete the account |
 
+One thing is kept in your browser rather than on the server. If a save cannot
+reach your account — you are offline, your session ended, or your address is
+not confirmed yet on a course that requires it — the units you finished are
+kept in `localStorage` under `first-commit.unsent.v1.<your account id>` until a
+save gets through, and then removed. It holds the same lesson ids the server
+would, nothing more, and clearing your site data erases it.
+
 ### What is not stored
 
 - **No IP addresses.** Sign-in attempts are rate-limited per address, but that

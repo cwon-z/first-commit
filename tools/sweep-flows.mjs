@@ -164,4 +164,137 @@ export async function sweepFlows({ base, send, evaluate, check, outbox, store, i
   await click('#account > button');
   await expect('phone-width auth has no horizontal overflow', "document.documentElement.scrollWidth <= innerWidth");
   await send('Emulation.clearDeviceMetricsOverride');
+
+  /* Progress saved from more than one place. Every open page saves its whole
+     copy on every lesson it shows; the other tab or device is played here by
+     writing exactly what it would write, then letting the real page save. */
+  const eventually = async (expression) => {
+    for (let i = 0; i < 60; i++) { if (await evaluate(expression)) return true; await sleep(50); }
+    return false;
+  };
+  const until = async (test) => {
+    for (let i = 0; i < 60; i++) { if (await test()) return true; await sleep(50); }
+    return false;
+  };
+  const done = id => `!!document.querySelector('.nav-lesson.done[data-lesson="${id}"]')`;
+  const guestCopy = "(JSON.parse(localStorage.getItem('first-commit.progress.v1') || '{}').completedLessons || [])";
+  const offline = `window.sweepFetch = window.fetch; window.fetch = (url, opts) =>
+    String(url).endsWith('api/progress') && opts && opts.method === 'PUT'
+      ? Promise.reject(new TypeError('simulated offline')) : window.sweepFetch(url, opts)`;
+  const finish = async (id) => {
+    await evaluate(`location.hash = '#/lesson/${id}'`);
+    await wait(`location.hash === '#/lesson/${id}' && !!document.querySelector('#lesson-article .lesson-actions button')`);
+    await click('#lesson-article .lesson-actions button');
+  };
+
+  await evaluate('localStorage.clear()');
+  await go('/app.html#/lesson/m1l1');
+  await evaluate(`(async () => { const p = await import('./ui/progress.js');
+    await new p.LocalStorageProgressStore().save({ completedLessons: ['m2l1', 'm2l1b'], lastLessonId: 'm2l1b' }); })()`);
+  await evaluate("location.hash = '#/lesson/m1l2'");
+  check("guest: another tab's work survives this page's next save", await eventually(`${guestCopy}.includes('m2l1b')`)
+    && await eventually(done('m2l1b')));
+  await finish('m1l1');   // so this page holds work of its own when the reset lands
+  await eventually(`${guestCopy}.includes('m1l1')`);
+  await evaluate(`(async () => { const p = await import('./ui/progress.js'); await new p.LocalStorageProgressStore().clear(); })()`);
+  await evaluate("location.hash = '#/lesson/m1l1'");
+  check('guest: a reset in another tab is not undone by this one',
+    await eventually(`!document.querySelector('.nav-lesson.done') && ${guestCopy}.length === 0`));
+
+  await api('auth/register', { email: 'devices@sweep.example', password });
+  const device = store.userByEmail('devices@sweep.example');
+  const onAccount = () => store.progressFor(device.id)?.completedLessons || [];
+  await go('/app.html#/lesson/m1l1');
+  await api('progress', { progress: { completedLessons: ['m3l1', 'm3l1b'], lastLessonId: 'm3l1b', resetAt: null } }, 'PUT');
+  await evaluate("location.hash = '#/lesson/m1l2'");
+  check("signed in: another device's work survives this page's next save",
+    await eventually(done('m3l1b')) && onAccount().includes('m3l1b'));
+  await finish('m1l1');
+  await until(() => onAccount().includes('m1l1'));
+  await api('progress', null, 'DELETE');
+  await evaluate("location.hash = '#/lesson/m1l1'");
+  check('signed in: a reset made elsewhere is not undone by this page',
+    await eventually("!document.querySelector('.nav-lesson.done')") && onAccount().length === 0);
+
+  await evaluate(offline);
+  await finish('m2l1');
+  check('offline: the failed save is reported',
+    await eventually("!document.querySelector('#save-note').hidden && document.querySelector('#save-note').textContent.startsWith('Offline')"));
+  check('offline: the unsent lesson is kept on this device',
+    await evaluate(`(localStorage.getItem('first-commit.unsent.v1.${device.id}') || '').includes('m2l1')`));
+  await evaluate("window.fetch = window.sweepFetch; window.dispatchEvent(new Event('online'))");
+  check('offline: back online, the lesson reaches the account', await until(() => onAccount().includes('m2l1')));
+  check('offline: and the note and the device copy clear',
+    await eventually(`document.querySelector('#save-note').hidden && localStorage.getItem('first-commit.unsent.v1.${device.id}') === null`));
+  await evaluate(offline);
+  await finish('m2l1b');
+  await eventually("!document.querySelector('#save-note').hidden");
+  await go('/app.html#/lesson/m1l1');
+  check('offline: reopening the course delivers what the closed page could not',
+    await until(() => onAccount().includes('m2l1b')));
+
+  const progressFor = store.progressFor;
+  store.progressFor = () => { throw new Error('injected: progress unreadable'); };
+  try {
+    await go('/app.html#/lesson/m1l2');
+    check('unreadable account progress still opens the course',
+      await evaluate("!!document.querySelector('#lesson-article .lesson-title') && !document.querySelector('.load-error')"));
+    check("and the first save that gets through brings the account's progress in", await eventually(done('m2l1b')));
+  } finally {
+    store.progressFor = progressFor;
+  }
+  await api('auth/logout', {});
+
+  /* The terminal and the bars around it — each of these once shipped broken. */
+  const typeLine = async (line) => {
+    await evaluate(`(() => { const i = document.querySelector('.term-input'); i.focus(); i.value = ${JSON.stringify(line)}; })()`);
+    await send('Input.dispatchKeyEvent', {type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});
+    await send('Input.dispatchKeyEvent', {type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+  };
+  const course = await (await fetch(base + '/content/course.json')).json();
+  const steps = course.modules[2].lessons.find(l => l.id === 'm3l2').exercise.steps;
+  await go('/app.html#/lesson/m3l2');
+  for (const step of steps.slice(0, 7)) for (const line of step.cmd.split('\n')) await typeLine(line);
+  await click('#step-list .step-current .step-tools button');
+  check('"Run it for me" finishes a step that needs two commands', await eventually("!!document.querySelector('#success-banner')"));
+
+  await go('/app.html#/lesson/m1l3');
+  await evaluate("document.querySelector('.term-input').focus()");
+  await send('Input.dispatchKeyEvent', {type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  await send('Input.dispatchKeyEvent', {type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  check('Tab on an empty line leaves the terminal', await evaluate("!document.activeElement.classList.contains('term-input')"));
+
+  await evaluate(`(() => { const i = document.querySelector('.term-input'); i.focus();
+    const data = new DataTransfer(); data.setData('text/plain', 'git init\\ngit status\\ngit sta');
+    i.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })); })()`);
+  check('a two-line paste runs both commands and keeps the unfinished third',
+    await evaluate("[...document.querySelectorAll('.term-line')].some(l => l.textContent.includes('On branch')) && document.querySelector('.term-input').value === 'git sta'"));
+
+  await go('/app.html#/lesson/m4l2');
+  await typeLine('cat menu.txt');
+  check('cat output is not dressed up as diff deletions', await eventually(
+    "[...document.querySelectorAll('.term-line')].some(l => l.textContent.includes('apple pie')) && !document.querySelector('.term-out .term-red')"));
+
+  await send('Emulation.setDeviceMetricsOverride',{width:1000,height:800,deviceScaleFactor:1,mobile:false});
+  await go('/app.html#/lesson/m6l3');
+  await typeLine('git switch -c a-rather-long-feature-branch-name');
+  check('a long branch name in the prompt still leaves room to type',
+    await evaluate("document.querySelector('.term-input').getBoundingClientRect().width >= 50"));
+
+  await send('Emulation.setDeviceMetricsOverride',{width:360,height:740,deviceScaleFactor:1,mobile:true});
+  await go('/app.html#/lesson/m3l3');
+  check('phone: the reset button stays on screen in a challenge', await evaluate(
+    "document.querySelector('#reset-btn').getBoundingClientRect().right <= innerWidth && document.documentElement.scrollWidth <= innerWidth"));
+  await api('auth/register', { email: 'a-learner-with-a-long-address@sweep.example', password });
+  await go('/app.html#/lesson/m1l1');
+  check('phone: a long account name keeps the top bar on screen', await evaluate(
+    "document.querySelector('#account').getBoundingClientRect().right <= innerWidth && document.documentElement.scrollWidth <= innerWidth"));
+  // Signed in, the landing page shows a link rather than go()'s sign-in button.
+  await send('Page.navigate', { url: 'about:blank' });
+  await send('Page.navigate', { url: base + '/index.html' });
+  await wait("!!document.querySelector('#landing-account a')");
+  check('phone: and keeps "Open the course" on the landing page', await evaluate(
+    "document.querySelector('.site-header > .btn-solid').getBoundingClientRect().right <= innerWidth && document.documentElement.scrollWidth <= innerWidth"));
+  await send('Emulation.clearDeviceMetricsOverride');
+  await api('auth/logout', {});
 }

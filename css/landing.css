@@ -29,8 +29,12 @@ body {
   border: 0;
 }
 
+/* The glow is a box-shadow, which forced-colours mode (Windows High Contrast)
+   does not paint; a transparent outline is invisible everywhere else and is
+   given a real colour there, so a keyboard user is never left without a ring. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--glow-focus);
   border-radius: var(--r-sm);
 }
@@ -87,6 +91,20 @@ body {
 
 .header-spacer {
   flex: 1;
+}
+
+/* The signed-in name is what gives way. The default one is the part of an
+   address before the @, and at its full width it pushed "Open the course"
+   off a phone screen. */
+#landing-account {
+  min-width: 0;
+}
+#landing-account > .btn {
+  max-width: min(200px, 100%);
+}
+.site-header .wordmark,
+.site-header > .btn-solid {
+  flex: none;
 }
 
 .header-stat {
@@ -281,6 +299,11 @@ a.btn:hover {
 a.mod:hover {
   color: inherit;
   text-decoration: none;
+}
+/* `.mod` sets its own shadow after the global :focus-visible rule, so a
+   focused card looked exactly like every other. */
+a.mod:focus-visible {
+  box-shadow: var(--glow-focus);
 }
 .mod.ready:hover {
   background: var(--surface-raised);

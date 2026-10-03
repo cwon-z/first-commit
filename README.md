@@ -24,7 +24,7 @@ There are two ways to run it, and the course is identical in both.
 ```bash
 npm start                          # with accounts   → http://localhost:8000
 npm run serve:static               # static only     → http://localhost:8000
-npm test                           # 2,790+ assertions, zero dependencies
+npm test                           # 2,900+ assertions, zero dependencies
 ```
 
 `npm start` adds optional sign-in, so progress is saved to an account and
@@ -83,10 +83,11 @@ first-commit/
 │   └── admin.css         # course statistics
 ├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
-│   ├── engine.test.js              # engine + validators              (246 assertions)
+│   ├── engine.test.js              # engine + validators              (306 assertions)
 │   ├── content.test.js             # course.json valid AND solvable  (2262)
-│   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (130)
-│   ├── server.test.js              # accounts, progress, stats, safety (124)
+│   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (137)
+│   ├── server.test.js              # accounts, progress, stats, safety (149)
+│   ├── progress.test.js            # the browser's progress stores    (37)
 │   └── fixtures-solutions.json     # a worked solution for every challenge
 ├── tools/                # authoring tools, not shipped to learners
 │   ├── check-module.mjs  # validate one drafted module + prove its challenge solvable
@@ -125,8 +126,23 @@ above the seam knows which it got, and `tests/ui.test.js` asserts that no other
 module in `ui/` so much as mentions `localStorage`.
 
 The progress document is versioned JSON (`{version, completedLessons,
-lastLessonId, updatedAt}`), which is also exactly what the API stores, so
-replacing this server with a different one is a matter of matching four routes.
+lastLessonId, updatedAt, resetAt}`), which is also exactly what the API stores,
+so replacing this server with a different one is a matter of matching four
+routes — and one rule. **A save folds into the stored copy; it never replaces
+it.** Every open tab saves its whole copy each time it shows a lesson, so
+replacing let a tab left open on an old copy (or a laptop left open while the
+learner carried on from a phone) erase everything finished since. Completions
+only accumulate, except across a reset: `resetAt` marks when progress was last
+erased, and a copy from before it gets the reset rather than restoring its old
+list. A copy with no `resetAt` has not heard either way and is folded in as
+current. Both stores apply the rule (`foldProgress` in `ui/progress.js` and
+`server/api.js`), and both answer a save with what they now hold, which is how
+an open page picks up lessons finished elsewhere.
+
+A save the server refuses or never receives — offline, session over, address
+not yet confirmed — is not lost with the tab: it is kept on the device under the
+account's id and goes with the next save, or the next sign-in, that gets
+through.
 
 ## Accounts
 
@@ -423,7 +439,13 @@ npm run lint:course   # cross-module coherence report (full detail)
   near-miss password fails, that sign-out really ends the session, that one
   learner cannot read or overwrite another's progress, that a learner cannot
   open the statistics, and that the accounts file and the challenge solutions
-  are not reachable over HTTP.
+  are not reachable over HTTP. It also replays the ways progress used to go
+  missing: an older tab saving over a newer one, two saves overtaking each
+  other, and a reset undone by a tab that never heard of it.
+- **progress.test.js** runs `ui/progress.js` itself against a shared stand-in
+  for `localStorage` and the real server: a guest's two tabs, a save made
+  offline and delivered on the next visit, and work done before confirming an
+  address arriving once it is confirmed.
 
 There is a fifth check that CI cannot run, because it needs a browser and a
 live server:
@@ -438,7 +460,9 @@ writes without touching deployment accounts. For a plain file server, run
 Node 22+ and Chrome; the app and backend still support Node 18+.
 The sweep now visits all 47 lesson/recap routes and exercises actual outcomes.
 See [the independent sweep report](docs/independent-bug-sweep.md) for findings,
-reproductions, regression coverage, and remaining manual checks.
+reproductions, regression coverage, and remaining manual checks, and
+[the October sweep](docs/bug-sweep-2026-10.md) for the progress-saving fixes
+and what is still open.
 
 It drives a real browser over the DevTools protocol and reports dead controls
 (a button with no handler, a submit button outside its form), broken aria

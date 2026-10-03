@@ -157,6 +157,19 @@ function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
 /** A commit's subject line — the first line, which is all most output shows. */
 function subject(message) { return String(message).split('\n')[0]; }
 
+/**
+ * Git never overwrites a file it is not tracking: it has no copy to give back.
+ * `verb` names the command in git's wording, `advice` what to do before it.
+ */
+function untrackedRefusal(paths, verb, advice) {
+  return {
+    output: `error: The following untracked working tree files would be overwritten by ${verb}:\n` +
+      paths.map((p) => `\t${p}`).join('\n') +
+      `\nPlease move or remove them before you ${advice}.\nAborting`,
+    error: true,
+  };
+}
+
 /** Indent a commit message the way `git log` does: four spaces on every line. */
 function indentMessage(message) {
   return String(message).split('\n').map((l) => '    ' + l).join('\n');
@@ -384,7 +397,11 @@ export class GitEngine {
     const m = ref.match(/^([^~^]+)([~^].*)?$/);
     if (m) { base = m[1]; ops = m[2] || ''; }
     let id = null;
+    const at = /^HEAD@\{(\d+)\}$/.exec(base);
     if (base === 'HEAD') id = this.headCommitId();
+    // Module 9 teaches reading `git reflog` and going back with HEAD@{n}; the
+    // number is the one that listing printed next to the commit.
+    else if (at) id = this.reflog[Number(at[1])]?.sha ?? null;
     else if (this.branches.has(base)) id = this.branches.get(base);
     else if (this.tracking.has(base)) {
       id = this.tracking.get(base);
@@ -1054,24 +1071,29 @@ export class GitEngine {
    */
   moveToTree(targetTree) {
     const head = this.headTree();
-    // remove tracked files not in target
-    for (const p of [...this.fs.keys()]) {
-      const tracked = this.index.has(p) || p in head;
-      if (tracked && !(p in targetTree)) this.fs.delete(p);
-    }
-    for (const [p, content] of Object.entries(targetTree)) {
-      // Real git only rewrites files that DIFFER between the two commits. A
-      // file identical on both sides is left completely alone, so uncommitted
-      // work in it survives the switch. Clobbering it here would teach the
-      // learner that changing branches destroys work — exactly backwards, and
-      // the single scariest thing you can teach a beginner about branching.
-      if (p in head && head[p] === content) {
-        const working = this.fs.has(p) ? this.fs.get(p) : null;
-        if (working !== head[p]) continue; // locally modified or deleted — keep it
+    // Real git only rewrites paths that DIFFER between the two commits. A path
+    // identical on both sides — present in both, or in neither — is left
+    // completely alone, in the working directory AND the index, so uncommitted
+    // work there survives the switch, staged or not. This used to delete every
+    // staged new file and unstage every staged edit: in module 5, staging a
+    // draft and switching to a new branch destroyed the draft. Teaching that
+    // changing branches destroys work is exactly backwards, and the single
+    // scariest thing you can teach a beginner about branching.
+    //
+    // Paths that do differ are clean by the time this runs: checkout refuses
+    // when they carry local changes, and every other caller requires a clean
+    // tree before calling.
+    const paths = new Set([...Object.keys(head), ...Object.keys(targetTree)]);
+    for (const p of paths) {
+      if (head[p] === targetTree[p]) continue;
+      if (p in targetTree) {
+        this.fs.set(p, targetTree[p]);
+        this.index.set(p, targetTree[p]);
+      } else {
+        this.fs.delete(p);
+        this.index.delete(p);
       }
-      this.fs.set(p, content);
     }
-    this.index = new Map(Object.entries(targetTree));
   }
 
   cmdCheckout(args, verb) {
@@ -1123,14 +1145,7 @@ export class GitEngine {
           error: true,
         };
       }
-      if (untrackedClobber.length) {
-        return {
-          output: `error: The following untracked working tree files would be overwritten by ${verb}:\n` +
-            untrackedClobber.map((p) => `\t${p}`).join('\n') +
-            '\nPlease move or remove them before you switch branches.\nAborting',
-          error: true,
-        };
-      }
+      if (untrackedClobber.length) return untrackedRefusal(untrackedClobber, verb, 'switch branches');
       const from = this.describeHeadForReflog();
       this.moveToTree(targetTree);
       this.HEAD = { type: 'branch', ref: target };
@@ -1154,7 +1169,7 @@ export class GitEngine {
       };
     }
     const commit = this.commits.get(id);
-    const { localMods } = this.checkoutBlockers(commit.tree);
+    const { localMods, untrackedClobber } = this.checkoutBlockers(commit.tree);
     if (localMods.length) {
       return {
         output: 'error: Your local changes to the following files would be overwritten by checkout:\n' +
@@ -1163,6 +1178,7 @@ export class GitEngine {
         error: true,
       };
     }
+    if (untrackedClobber.length) return untrackedRefusal(untrackedClobber, verb, 'switch branches');
     const from = this.describeHeadForReflog();
     this.moveToTree(commit.tree);
     this.HEAD = { type: 'commit', id };
@@ -1227,6 +1243,8 @@ HEAD is now at ${short(id)} ${subject(commit.message)}`,
       // fast-forward
       const oldTree = this.headTree();
       const newTree = this.commits.get(theirId).tree;
+      const clobber = this.checkoutBlockers(newTree).untrackedClobber;
+      if (clobber.length) return untrackedRefusal(clobber, 'merge', 'merge');
       this.moveToTree(newTree);
       const br = this.currentBranch();
       if (br) this.branches.set(br, theirId); else this.HEAD = { type: 'commit', id: theirId };
@@ -1256,6 +1274,9 @@ HEAD is now at ${short(id)} ${subject(commit.message)}`,
       merged[p] =
         `<<<<<<< HEAD\n${(o || '').replace(/\n$/, '')}\n=======\n${(t || '').replace(/\n$/, '')}\n>>>>>>> ${name}\n`;
     }
+    // Both outcomes below write the merged files into the working directory.
+    const clobber = this.checkoutBlockers(merged).untrackedClobber;
+    if (clobber.length) return untrackedRefusal(clobber, 'merge', 'merge');
 
     if (conflicts.length) {
       const preState = { fs: new Map(this.fs), index: new Map(this.index), headId: ourId };
@@ -1298,6 +1319,12 @@ HEAD is now at ${short(id)} ${subject(commit.message)}`,
     const target = rest[0] || 'HEAD';
     const id = this.resolveRef(target);
     if (!id) return { output: `fatal: ambiguous argument '${target}': unknown revision or path not in the working tree.`, error: true };
+    if (this.mergeState && mode === '--soft') {
+      return { output: 'fatal: Cannot do a soft reset in the middle of a merge.', error: true };
+    }
+    // Any other reset ends a merge in progress, as real git's does. Keeping it
+    // left "You have unmerged paths" on a tree reset --hard had just cleaned.
+    this.mergeState = null;
     const commit = this.commits.get(id);
     const br = this.currentBranch();
     // Paths git tracks RIGHT NOW — captured before the index and HEAD move, so

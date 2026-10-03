@@ -994,6 +994,103 @@ function includes(haystack, needle, name) {
   ok(u.fs.has('c.txt'), 'the unrelated later file survives');
 }
 
+/* ---- 26. staged work comes along on a switch, as unstaged work does ---- */
+{
+  // Module 5's challenge, the way a learner naturally does it: stage the
+  // draft, make the branch, switch to it. The draft used to be deleted.
+  const e = new GitEngine();
+  e.run('git init');
+  e.run('echo "plain" > recipes.txt');
+  e.run('git add .'); e.run('git commit -m base');
+  e.run('git branch croissants');
+  e.run('echo "butter, flour" > croissants.md');
+  e.run('git add croissants.md');
+  e.run('echo "edited and staged" > recipes.txt');
+  e.run('git add recipes.txt');
+  const r = e.run('git switch croissants');
+  ok(!r.error, 'switching with staged work on unchanged paths is allowed');
+  ok(e.fs.get('croissants.md') === 'butter, flour\n', 'a staged new file survives the switch');
+  const st = e.statuses();
+  ok(st.staged.some((s) => s.path === 'croissants.md'), 'and is still staged');
+  ok(st.staged.some((s) => s.path === 'recipes.txt'), 'a staged edit is still staged, not quietly unstaged');
+  includes(e.run('git commit -m "Add the croissant draft"').output, 'croissants.md', 'and commits on the new branch');
+}
+
+/* ---- 27. any reset other than --soft ends a merge in progress ---- */
+{
+  const conflicted = () => {
+    const e = new GitEngine();
+    e.run('git init'); e.run('echo base > t.txt'); e.run('git add .'); e.run('git commit -m base');
+    e.run('git switch -c other'); e.run('echo theirs > t.txt'); e.run('git commit -am theirs');
+    e.run('git switch main'); e.run('echo ours > t.txt'); e.run('git commit -am ours');
+    e.run('git merge other');
+    return e;
+  };
+  const e = conflicted();
+  ok(!!e.mergeState, 'setup: a merge is in conflict');
+  e.run('git reset --hard');
+  ok(!e.mergeState, 'reset --hard ends the merge');
+  includes(e.run('git status').output, 'nothing to commit, working tree clean', 'and status says so');
+  ok(e.fs.get('t.txt') === 'ours\n', 'the conflict markers are gone');
+  ok(!e.run('git switch other').error, 'and switching branches works again');
+
+  const m = conflicted();
+  m.run('git reset');
+  ok(!m.mergeState, 'a mixed reset ends the merge too');
+
+  const s = conflicted();
+  const soft = s.run('git reset --soft HEAD');
+  ok(soft.error && /middle of a merge/.test(soft.output), 'a soft reset mid-merge is refused, as in real git');
+  ok(!!s.mergeState, 'and leaves the merge as it was');
+}
+
+/* ---- 28. HEAD@{n} names the reflog entry with that number ---- */
+{
+  const e = new GitEngine();
+  e.run('git init'); e.run('echo a > a.txt'); e.run('git add .'); e.run('git commit -m one');
+  e.run('echo b > a.txt'); e.run('git commit -am two');
+  const two = e.headCommitId();
+  e.run('git reset --hard HEAD~1');
+  includes(e.run('git reflog').output, `${two.slice(0, 7)} HEAD@{1}`, 'reflog labels the lost commit HEAD@{1}');
+  const back = e.run('git reset --hard HEAD@{1}');
+  ok(!back.error, 'reset --hard HEAD@{1} is accepted, as module 9 teaches');
+  ok(e.headCommitId() === two && e.fs.get('a.txt') === 'b\n', 'and brings the lost commit back');
+  // That reset is itself a new entry, so the numbers have moved on by one.
+  ok(e.resolveRef('HEAD@{0}~1') === e.commits.get(two).parents[0], 'suffixes work on it too');
+  ok(e.resolveRef('HEAD@{99}') === null, 'an entry that does not exist resolves to nothing');
+}
+
+/* ---- 29. nothing overwrites a file git is not tracking ---- */
+{
+  // switch already refused; merge, pull and a detached checkout did not.
+  const setup = () => {
+    const e = new GitEngine();
+    for (const c of ['git init', 'echo base > a.txt', 'git add .', 'git commit -m base',
+      'git switch -c feature', 'echo "their notes" > notes.txt', 'git add .', 'git commit -m "add notes"',
+      'git switch main', 'echo "MY UNSAVED NOTES" > notes.txt']) e.run(c);
+    return e;
+  };
+  const ff = setup();
+  const r = ff.run('git merge feature');
+  ok(r.error, 'a fast-forward merge refuses to overwrite an untracked file');
+  includes(r.output, 'untracked working tree files would be overwritten by merge', 'with git\'s message');
+  ok(ff.fs.get('notes.txt') === 'MY UNSAVED NOTES\n' && ff.headCommit().message === 'base', 'and changes nothing');
+
+  const three = setup();
+  three.run('echo more > a.txt'); three.run('git commit -am "main moves"');
+  ok(three.run('git merge feature').error && three.fs.get('notes.txt') === 'MY UNSAVED NOTES\n',
+    'a three-way merge refuses too');
+  ok(!three.mergeState, 'without leaving a merge half-started');
+
+  const detached = setup();
+  ok(detached.run('git checkout feature~0').error && detached.fs.get('notes.txt') === 'MY UNSAVED NOTES\n',
+    'so does checking out a commit');
+
+  const moved = setup();
+  moved.run('rm notes.txt');
+  ok(!moved.run('git merge feature').error, 'once the file is out of the way the merge goes ahead');
+}
+
 /* ---- report ---- */
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {

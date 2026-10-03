@@ -43,8 +43,12 @@ body {
   display: none !important;
 }
 
+/* The glow is a box-shadow, which forced-colours mode (Windows High Contrast)
+   does not paint; a transparent outline is invisible everywhere else and is
+   given a real colour there, so a keyboard user is never left without a ring. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--glow-focus);
   border-radius: var(--r-sm);
 }
@@ -149,8 +153,14 @@ body {
   white-space: nowrap;
 }
 
+/* Shrinks, so a long name cannot push the bar past a phone's edge. Only the
+   summary inside is capped — clipping here would cut off the dropdown panel. */
 #account {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+#account .account-menu > summary {
+  max-width: min(180px, 100%);
 }
 
 /* ==========================================================================
@@ -307,6 +317,10 @@ body {
   background: var(--w-05);
   box-shadow: var(--hairline-strong);
 }
+.nav-lesson:focus-visible,
+#now-bar:focus-visible {
+  box-shadow: var(--glow-focus);
+}
 
 .nav-icon {
   flex: none;
@@ -405,11 +419,14 @@ body[data-mode='exercise'] #ex-toolbar {
   min-width: 0;
 }
 
+/* Gives way before the buttons after it: "1 of 5 conditions met" pushed the
+   reset button off a phone screen in every challenge. */
 #ex-meter {
   display: flex;
   align-items: center;
   gap: var(--s-4);
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .tick-row {
@@ -434,6 +451,9 @@ body[data-mode='exercise'] #ex-toolbar {
   font: var(--fw-regular) var(--fs-caption) / 1 var(--font-mono);
   color: var(--text-tertiary);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ==========================================================================
@@ -1108,6 +1128,13 @@ body[data-mode='exercise'] #lesson-article .lesson-figure {
   font: var(--fw-regular) var(--fs-body) / 1.45 var(--font-ui);
   color: var(--text-primary);
   text-wrap: pretty;
+  /* Two lines at most — a long step took the bar to 156px on a small phone and
+     left the graph 95. The bar says "more", and tapping it opens the step. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 #now-more {
   flex: none;
@@ -1416,9 +1443,19 @@ body[data-mode='exercise'] #lesson-article .lesson-figure {
   flex: none;
 }
 
+/* The prompt grows with the branch name; it gives way so the line being typed
+   never does. A long name used to squeeze the input to nothing. */
+.term-inputline > .term-prompt {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .term-input {
   flex: 1;
-  min-width: 0;
+  min-width: 8ch;
   background: transparent;
   border: 0;
   outline: 0;
@@ -1792,8 +1829,14 @@ body[data-mode='exercise'][data-layout='focus'] #terminal-wrap {
     display: inline-block;
     line-height: 20px;
   }
-  .account-menu > summary {
-    max-width: 120px;
+  #account .account-menu > summary {
+    max-width: min(120px, 100%);
+  }
+  /* A failed save outranks the progress count, which the sidebar repeats. A
+     phone has no room for both and the account control: with all three, the
+     account button was pushed off the screen. */
+  #topbar:has(#save-note:not([hidden])) .progress-wrap {
+    display: none;
   }
   #ex-toolbar {
     padding: 0 var(--s-5);

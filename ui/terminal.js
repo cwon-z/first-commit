@@ -96,6 +96,7 @@ export class Terminal {
     this.input.addEventListener('focus', this.onFocus);
     this.input.addEventListener('blur', this.onBlur);
     this.input.addEventListener('keydown', (ev) => this.onKey(ev));
+    this.input.addEventListener('paste', (ev) => this.onPaste(ev));
   }
 
   /** Unbind everything attached to the persistent root element. */
@@ -111,19 +112,46 @@ export class Terminal {
     this.promptEl.textContent = this.promptText();
   }
 
+  /** Run a line exactly as though it had been typed and Enter pressed. */
+  submit(line) {
+    this.echo(line);
+    if (line.trim()) {
+      this.history.push(line);
+    }
+    this.historyIdx = -1;
+    this.draft = '';
+    this.onCommand(line);
+    this.refreshPrompt();
+    this.scrollToEnd();
+  }
+
+  /**
+   * A text input flattens pasted newlines, so two commands copied from a
+   * lesson ran as one long, wrong one. Run each finished line in turn and
+   * leave whatever follows the last newline in the input, still editable.
+   */
+  onPaste(ev) {
+    const text = ev.clipboardData ? ev.clipboardData.getData('text/plain') : '';
+    if (!/[\r\n]/.test(text)) return;   // one line: the input takes it as usual
+    ev.preventDefault();
+    const value = this.input.value;
+    const start = this.input.selectionStart ?? value.length;
+    const end = this.input.selectionEnd ?? value.length;
+    const lines = (value.slice(0, start) + text + value.slice(end)).replace(/\r\n?/g, '\n').split('\n');
+    const unfinished = lines.pop();
+    this.input.value = '';
+    for (const line of lines) this.submit(line);
+    this.input.value = unfinished;
+  }
+
   onKey(ev) {
+    // Enter that completes a Korean, Japanese or Chinese word belongs to the
+    // input method; acting on it ran the command with the word half-typed.
+    if (ev.isComposing || ev.keyCode === 229) return;
     if (ev.key === 'Enter') {
       const line = this.input.value;
       this.input.value = '';
-      this.echo(line);
-      if (line.trim()) {
-        this.history.push(line);
-      }
-      this.historyIdx = -1;
-      this.draft = '';
-      this.onCommand(line);
-      this.refreshPrompt();
-      this.scrollToEnd();
+      this.submit(line);
     } else if (ev.key === 'ArrowUp') {
       ev.preventDefault();
       if (!this.history.length) return;
@@ -145,7 +173,10 @@ export class Terminal {
       } else {
         this.input.value = this.history[this.historyIdx];
       }
-    } else if (ev.key === 'Tab') {
+    } else if (ev.key === 'Tab' && !ev.shiftKey && !ev.altKey && !ev.ctrlKey && !ev.metaKey &&
+        this.input.value.trim()) {
+      // Only when there is something to complete. Taking every Tab meant a
+      // keyboard user could never leave the terminal (WCAG 2.1.2).
       ev.preventDefault();
       this.complete();
     } else if (ev.key === 'l' && ev.ctrlKey) {
@@ -161,26 +192,32 @@ export class Terminal {
 
   complete() {
     const val = this.input.value;
-    const parts = val.split(/\s+/);
-    const last = parts[parts.length - 1] || '';
+    // Only the word being completed changes. Splitting the whole line and
+    // joining it again collapsed the spaces inside a quoted echo — changing
+    // what got written to the file — and dropped the quotes a name needs.
+    const words = val.trim().split(/\s+/);
+    const atBoundary = /\s$/.test(val);
+    const position = atBoundary ? words.length : words.length - 1;
+    const tail = atBoundary ? '' : words[words.length - 1];
+    const last = tail.replace(/^["']/, '');
+    const head = val.slice(0, val.length - tail.length);
+    const quote = (name) => (/\s/.test(name) ? `"${name}"` : name);
     const c = this.completer();
     let pool = [];
-    if (parts.length <= 1) pool = c.commands || [];
-    else if (parts[0] === 'git' && parts.length === 2) pool = c.gitSubcommands || [];
+    if (position === 0) pool = c.commands || [];
+    else if (words[0] === 'git' && position === 1) pool = c.gitSubcommands || [];
     else pool = [...(c.files || []), ...(c.branches || [])];
     const matches = pool.filter((p) => p.startsWith(last) && p !== last);
     if (matches.length === 1) {
-      parts[parts.length - 1] = matches[0];
-      this.input.value = parts.join(' ') + (parts.length <= 2 ? ' ' : '');
+      this.input.value = head + quote(matches[0]) + (position <= 1 ? ' ' : '');
     } else if (matches.length > 1) {
       // extend to longest common prefix; show options
       let prefix = matches[0];
       for (const m of matches) {
         while (!m.startsWith(prefix)) prefix = prefix.slice(0, -1);
       }
-      if (prefix.length > last.length) {
-        parts[parts.length - 1] = prefix;
-        this.input.value = parts.join(' ');
+      if (prefix.length > last.length && !/\s/.test(prefix)) {
+        this.input.value = head + tail.slice(0, tail.length - last.length) + prefix;
       } else {
         this.echo(val);
         this.print(matches.join('  '), 'dim');

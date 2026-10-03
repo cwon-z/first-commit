@@ -117,6 +117,17 @@ try {
     assert.equal(status, 400);
     assert.equal((await fetch(base + '/app.html')).status, 200);
   });
+  await test('a static file that cannot be opened does not take the server down', async () => {
+    // Passes the stat, fails the open: what a deploy removing the file in
+    // between, a wrong permission, or running out of descriptors looks like.
+    const realOpen = fs.createReadStream;
+    fs.createReadStream = (file, ...rest) => String(file).endsWith('index.html')
+      ? realOpen(path.join(os.tmpdir(), `fc-missing-${process.pid}-${Date.now()}`), ...rest)
+      : realOpen(file, ...rest);
+    try { await fetch(base + '/index.html').then(r => r.text()).catch(() => {}); }
+    finally { fs.createReadStream = realOpen; }
+    assert.equal((await fetch(base + '/app.html')).status, 200);
+  });
   await test('parallel requests cannot bypass sign-up and login rate limits', async () => {
     const limited = await createServer({
       dataFile:path.join(fs.mkdtempSync(path.join(os.tmpdir(),'fc-burst-')),'data.json'),

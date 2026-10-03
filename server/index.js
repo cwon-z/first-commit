@@ -32,6 +32,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { pipeline } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store.js';
 import { createApi, sweepExpiredSessions, sweepExpiredTokens } from './api.js';
@@ -137,7 +138,13 @@ async function serveStatic(req, res, url) {
     ...SECURITY_HEADERS,
   });
   if (req.method === 'HEAD') { res.end(); return; }
-  fs.createReadStream(file).pipe(res);
+  // pipeline, not pipe. A file can pass the stat above and still fail to open
+  // — removed by a deploy in between, unreadable, or the process out of file
+  // descriptors — and that unhandled 'error' event took the whole server down
+  // with it. pipeline also closes the file when a visitor leaves mid-download.
+  pipeline(fs.createReadStream(file), res, (err) => {
+    if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') console.error('static:', err.message);
+  });
 }
 
 /**
@@ -167,6 +174,8 @@ export async function createServer(opts = {}) {
     smtpUrl,
     outbox: path.join(path.dirname(dataFile), 'outbox'),
   });
+  const requireVerification = opts.requireVerification
+    ?? process.env.FC_REQUIRE_VERIFICATION === '1';
 
   const handleApi = createApi({
     store,
@@ -175,8 +184,7 @@ export async function createServer(opts = {}) {
     baseUrl,
     brand: course.meta?.brand || 'First Commit',
     mailFrom: opts.mailFrom ?? process.env.FC_MAIL_FROM ?? 'first-commit@localhost',
-    requireVerification: opts.requireVerification
-      ?? process.env.FC_REQUIRE_VERIFICATION === '1',
+    requireVerification,
     secureCookies: opts.secureCookies ?? process.env.FC_SECURE_COOKIES === '1',
     ownerEmails,
     // `??` would let NaN through when the variable is unset; `||` is right here
@@ -211,18 +219,30 @@ export async function createServer(opts = {}) {
     }
   });
 
-  return { server, store, dataFile, mailer, baseUrl, ownerEmails, port };
+  return { server, store, dataFile, mailer, baseUrl, ownerEmails, port, requireVerification };
 }
 
 /* --------------------------------- CLI ----------------------------------- */
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const { server, store, dataFile, mailer, baseUrl, ownerEmails, port } = await createServer();
+  const {
+    server, store, dataFile, mailer, baseUrl, ownerEmails, port, requireVerification,
+  } = await createServer();
   server.listen(port, () => {
     console.log(`first-commit  →  ${baseUrl}`);
     console.log(`data          →  ${dataFile}`);
     console.log(`mail          →  ${mailer.name === 'smtp' ? `smtp ${mailer.host}` : 'written to data/outbox (no SMTP configured)'}`);
+
+    /* The other combination that breaks the course without an error anywhere:
+       the confirmation link only reaches a file on this machine, so no new
+       learner can ever confirm, and every one of them is refused a save. */
+    if (requireVerification && mailer.name === 'file') {
+      console.warn('\n  ⚠  NOBODY NEW CAN SAVE PROGRESS. FC_REQUIRE_VERIFICATION=1 refuses to save');
+      console.warn('     progress until an address is confirmed, but FC_SMTP_URL is not set, so');
+      console.warn('     confirmation links are only written to data/outbox and never sent.');
+      console.warn('     Set FC_SMTP_URL, or unset FC_REQUIRE_VERIFICATION until mail works.\n');
+    }
 
     /* The one configuration mistake that actually hands the course away.
        Without FC_OWNER_EMAILS the first registration wins, so on a public
