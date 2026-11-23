@@ -1135,6 +1135,196 @@ function includes(haystack, needle, name) {
   ok(!resolved(sloppy), 'marking a file resolved with the markers still in it does not count');
 }
 
+/* ---- 31. a mistyped flag is refused, never quietly ignored ---- */
+{
+  // `git restore --stagd file` used to run the destructive form of the command
+  // module 3 had just warned about; `git diff --stagged` answered a different
+  // question without saying so.
+  const e = new GitEngine();
+  e.applySetup([
+    { op: 'init' },
+    { op: 'write', path: 'style.css', content: 'h1 { color: black; }' },
+    { op: 'add' }, { op: 'commit', message: 'base' },
+    { op: 'write', path: 'style.css', content: 'h1 { color: hotpink; }' },
+  ]);
+  let r = e.run('git restore --stagd style.css');
+  ok(r.error && r.output.includes("unknown option `stagd'"), 'restore refuses a flag it does not know');
+  ok(e.fs.get('style.css') === 'h1 { color: hotpink; }\n', '...and the edit it would have destroyed is still there');
+  ok(e.run('git restore -staged style.css').error && e.fs.get('style.css').includes('hotpink'), 'a single-dash near miss is refused too');
+  r = e.run('git restore --staged nothere.css');
+  ok(r.error && r.output.includes("pathspec 'nothere.css' did not match"), 'restore --staged reports a path it does not know');
+  r = e.run('git diff --stagged');
+  ok(r.error && r.output.includes("unknown option `stagged'"), 'diff refuses a mistyped --staged');
+  ok(!e.run('git diff --cached').error && !e.run('git diff --staged').error, 'both real spellings still work');
+  r = e.run('git log --online');
+  ok(r.error && r.output.includes("unknown option `online'"), 'log refuses a mistyped --oneline');
+  ok(!e.run('git log --oneline -n 1').error && !e.run('git log -1 --all --graph').error, 'the flags log does know still work');
+
+  e.run('git add style.css');
+  e.run('git restore --staged .');
+  ok(e.statuses().staged.length === 0 && e.fs.get('style.css').includes('hotpink'), 'restore --staged . unstages everything and keeps the edit');
+  e.run('git restore .');
+  ok(e.fs.get('style.css') === 'h1 { color: black; }\n', 'restore . puts back every tracked file');
+}
+
+/* ---- 32. commit messages: empty, unquoted, and -m with no space ---- */
+{
+  const e = new GitEngine();
+  e.applySetup([{ op: 'init' }, { op: 'write', path: 'recipe.txt', content: 'Pancakes' }, { op: 'add' }]);
+  let r = e.run('git commit -m ""');
+  ok(r.error && r.output === 'Aborting commit due to empty commit message.', 'an empty message aborts the commit, as in git');
+  ok(!e.headCommit(), '...and no commit is made');
+  r = e.run('git commit -m Add pancake recipe');
+  ok(r.error && r.output.includes("pathspec 'pancake' did not match"), 'an unquoted message is not silently cut to its first word');
+  includes(r.output, 'git commit -m "Add pancake recipe"', '...and the reply shows the quoted form');
+  ok(!e.headCommit(), '...and no commit is made');
+  r = e.run('git commit -m"Add pancake recipe"');
+  ok(!r.error && e.headCommit().message === 'Add pancake recipe', '-m"message" with no space is a message');
+
+  e.run('echo "notes" > notes.txt');
+  r = e.run('git commit -am "Add notes"');
+  ok(r.error && r.output.includes('nothing added to commit but untracked files present'),
+    'with only a new file lying around, the reply does not recommend commit -a');
+  e.run('echo "more" >> recipe.txt');
+  r = e.run('git commit -m "x"');
+  ok(r.error && r.output.includes('no changes added to commit'), 'with an unstaged edit it still does');
+}
+
+/* ---- 33. shell: redirection without spaces, and ls inside a folder ---- */
+{
+  const e = new GitEngine();
+  e.run('echo "idea">ideas.txt');
+  ok(e.fs.get('ideas.txt') === 'idea\n', 'echo "x">file writes the file');
+  e.run('echo "more" >>ideas.txt');
+  ok(e.fs.get('ideas.txt') === 'idea\nmore\n', 'echo "x" >>file appends');
+  ok(e.run('echo "a > b"').output === 'a > b', 'a quoted > is still just text');
+  e.run('echo "x" > docs/setup.md');
+  ok(e.run('ls').output === 'docs/\nideas.txt', 'ls shows a folder once');
+  ok(e.run('ls docs').output === 'setup.md' && e.run('ls docs/').output === 'setup.md', 'ls <folder> lists what is inside it');
+  ok(e.run('ls nope').error, 'ls on a folder that is not there says so');
+}
+
+/* ---- 34. log and branch can see what a fetch brought ---- */
+{
+  const e = new GitEngine();
+  e.applySetup([
+    { op: 'init' },
+    { op: 'write', path: 'trip.md', content: 'plan' }, { op: 'add' }, { op: 'commit', message: 'Start the trip plan' },
+    { op: 'remote' },
+    { op: 'remoteCommit', branch: 'main', path: 'budget.md', content: 'flights 480', message: 'Add a budget' },
+  ]);
+  e.run('git fetch');
+  ok(!e.run('git log --oneline').output.includes('Add a budget'), 'plain log does not list a fetched, unmerged commit');
+  let r = e.run('git log --oneline --all');
+  ok(r.output.includes('(origin/main) Add a budget'), 'log --all does, under its origin/main label');
+  r = e.run('git log --oneline origin/main');
+  ok(r.output.split('\n')[0].includes('Add a budget'), 'log <ref> starts from that ref');
+  ok(e.run('git log --oneline nothere').error, 'log with an unknown revision is an error, not the current log');
+  ok(e.run('git branch -r').output.trim() === 'origin/main', 'branch -r lists remote-tracking branches');
+  ok(e.run('git branch -a').output.includes('remotes/origin/main'), 'branch -a lists them alongside local ones');
+
+  // Rejections are worded the way git words them.
+  e.run('echo "socks" > packing.md'); e.run('git add .'); e.run('git commit -m "Pack"');
+  r = e.run('git push');
+  ok(r.error && r.output.includes('(non-fast-forward)'), 'push after a fetch is rejected as non-fast-forward');
+  r = e.run('git push --force');
+  ok(r.error && r.output.includes('force-push is switched off'), 'a force push says it is switched off rather than "fetch first"');
+  ok(e.remotes.origin.branches.main !== e.branches.get('main'), '...and the remote is left alone');
+
+  const stale = new GitEngine();
+  stale.applySetup([
+    { op: 'init' },
+    { op: 'write', path: 'trip.md', content: 'plan' }, { op: 'add' }, { op: 'commit', message: 'Start' },
+    { op: 'remote' },
+    { op: 'remoteCommit', branch: 'main', path: 'budget.md', content: 'flights 480', message: 'Add a budget' },
+    { op: 'write', path: 'packing.md', content: 'socks' }, { op: 'add' }, { op: 'commit', message: 'Pack' },
+  ]);
+  ok(stale.run('git push').output.includes('(fetch first)'), 'push before fetching is rejected as fetch first');
+
+  const b = new GitEngine();
+  b.applySetup([{ op: 'init' }, { op: 'write', path: 'a.txt', content: 'a' }, { op: 'add' }, { op: 'commit', message: 'a' }]);
+  ok(!b.run('git branch -M main').error && b.currentBranch() === 'main', 'branch -M main on main is a no-op, not an error');
+  b.run('git branch -m trunk');
+  ok(b.currentBranch() === 'trunk' && !b.branches.has('main'), 'branch -m renames the current branch');
+}
+
+/* ---- 35. .gitignore: names match at any depth, a bare name matches a folder ---- */
+{
+  const e = new GitEngine();
+  e.applySetup([
+    { op: 'init' },
+    { op: 'write', path: 'app.js', content: 'app' }, { op: 'add' }, { op: 'commit', message: 'base' },
+    { op: 'write', path: 'cache/session.bin', content: 'blob' },
+    { op: 'write', path: 'config/secrets.env', content: 'KEY=1' },
+    { op: 'write', path: 'pkg/node_modules/x.js', content: 'x' },
+    { op: 'write', path: 'debug.log', content: 'log' },
+    { op: 'write', path: '.gitignore', content: 'cache\nsecrets.env\nnode_modules/\n*.log' },
+  ]);
+  ok(e.statuses().untracked.join() === '.gitignore', 'a bare folder name, a nested file name and a nested folder are all ignored');
+  ok(e.matchesIgnore('tomorrow.log') && !e.matchesIgnore('notes.txt'), 'matchesIgnore answers for paths that do not exist yet');
+  ok(!e.matchesIgnore('node_modules'), 'a folder-only rule does not match a file of that name');
+  const pass = (path) => runChecks(e, [{ kind: 'pathIgnored', path }])[0].passed;
+  ok(pass('cache/anything-else') && pass('staging.env') === false, 'the pathIgnored check reads the rules, not their spelling');
+
+  let r = e.run('git rm app.js');
+  ok(r.error && r.output.includes('not available in this sandbox') && !r.output.includes('not a git command'),
+    'git rm explains itself instead of claiming not to be a git command');
+  ok(e.run('git config user.name x').output.includes('not needed in this sandbox'), 'so does git config');
+  const fresh = new GitEngine();
+  ok(fresh.run('git innit').output.includes("'innit' is not a git command"), 'a typo is a typo even before git init');
+
+  e.run('echo "y" > docs/a.md'); e.run('echo "z" > docs/b.md');
+  ok(!e.run('git add docs/').error && e.index.has('docs/a.md') && e.index.has('docs/b.md'), 'git add <folder>/ stages what is inside it');
+  ok(e.run('git add nope/').error, '...and still reports a folder that is not there');
+}
+
+/* ---- 36. validators that count forward, tell command variants apart, and read where a commit was made ---- */
+{
+  const e = new GitEngine();
+  e.applySetup([
+    { op: 'init' },
+    { op: 'write', path: 'app.js', content: 'v1' }, { op: 'write', path: 'README.md', content: 'v1' },
+    { op: 'add' }, { op: 'commit', message: 'Initial commit' },
+    { op: 'write', path: 'app.js', content: 'v2' }, { op: 'write', path: 'README.md', content: 'v2' },
+  ]);
+  const second = { kind: 'commitTouched', nth: 2, paths: ['app.js'], exact: true };
+  ok(!runChecks(e, [second])[0].passed, 'nth: false while that commit does not exist');
+  e.run('git add app.js'); e.run('git commit -m "Greet people by name"');
+  ok(runChecks(e, [second])[0].passed, 'nth: true as soon as the second commit is made');
+  ok(!runChecks(e, [{ kind: 'commitTouched', ref: 'HEAD~1', paths: ['app.js'], exact: true }])[0].passed,
+    '...where a HEAD~1 check is still looking at the commit before it');
+  e.run('git add README.md'); e.run('git commit -m "Docs"');
+  ok(runChecks(e, [second])[0].passed, 'nth: and it stays true after later commits');
+  const msg = (c) => runChecks(e, [{ kind: 'lastCommitMessage', ...c }])[0].passed;
+  ok(msg({ nth: 2, equals: 'Greet people by name' }) && !msg({ equals: 'Greet people by name' }), 'lastCommitMessage can name a commit by position');
+  ok(!msg({ minLength: 10 }) && msg({ nth: 2, minLength: 10, maxLength: 72 }) && !msg({ nth: 2, maxLength: 5 }),
+    'minLength and maxLength measure the subject line');
+
+  const ran = (c) => runChecks(e, [{ kind: 'commandRan', command: 'git', ...c }])[0].passed;
+  e.run('git diff');
+  ok(ran({ sub: 'diff' }) && !ran({ sub: 'diff', withArg: ['--staged', '--cached'] }), 'commandRan withArg: plain diff is not diff --staged');
+  e.run('git diff --cached');
+  ok(ran({ sub: 'diff', withArg: ['--staged', '--cached'] }), '...either spelling of the flag is');
+  e.run('git switch nowhere');
+  ok(!ran({ sub: 'switch' }) && ran({ sub: ['switch', 'checkout'], failed: true }), 'commandRan failed: matches a command that was refused');
+
+  // commitOnBranch: the end state cannot tell these two histories apart.
+  const ship = (onBranch) => {
+    const g = new GitEngine();
+    g.applySetup([
+      { op: 'init' }, { op: 'write', path: 'index.html', content: 'home' }, { op: 'add' }, { op: 'commit', message: 'Publish' },
+      { op: 'write', path: 'trips.html', content: 'trips' },
+    ]);
+    if (onBranch) g.run('git switch -c trip-reports');
+    g.run('git add trips.html'); g.run('git commit -m "Add trips"');
+    if (!onBranch) g.run('git switch -c trip-reports');
+    g.run('git switch main'); g.run('git merge trip-reports');
+    return runChecks(g, [{ kind: 'commitOnBranch', path: 'trips.html', branch: 'trip-reports', into: 'main' }])[0].passed;
+  };
+  ok(ship(true), 'commitOnBranch: true when the commit was made on the branch');
+  ok(!ship(false), 'commitOnBranch: false when it was made on main and the branch created afterwards');
+}
+
 /* ---- report ---- */
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {

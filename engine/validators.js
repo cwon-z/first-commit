@@ -6,16 +6,39 @@
  *
  * (One pragmatic exception: the `commandRan` check, used only in guided
  * walkthroughs for read-only commands like `ls` or `git status` that change
- * no state. It matches the parsed command *semantically* — name + subcommand
- * + success — not the raw string. Challenge exercises never use it.)
+ * no state. It matches the parsed command *semantically* — name, subcommand,
+ * success, and where the step is about one particular variant, the flag that
+ * makes it that variant — not the raw string. Challenge exercises never use
+ * it.)
  *
  * Each check in content JSON looks like:
  *   { "kind": "fileCommitted", "path": "notes.txt", "label": "notes.txt is committed" }
  * ========================================================================== */
 
-/** Returns true iff `commit` changed exactly (or at least) the given paths. */
-function changedPaths(engine, ref) {
-  const id = engine.resolveRef(ref);
+/**
+ * The commit a check is about. `nth` counts forward from the first commit on
+ * the branch (1 = the root), following first parents; `ref` counts back from
+ * wherever HEAD is. Prefer `nth` when the checklist names commits in the order
+ * the learner makes them: "first new commit: only app.js" should tick the
+ * moment that commit exists and stay ticked, and a `ref` of HEAD~1 cannot do
+ * that — it points at a different commit after every new one.
+ */
+function commitFor(engine, check) {
+  if (check.nth != null) {
+    let id = check.branch ? engine.branches.get(check.branch) : engine.headCommitId();
+    const chain = [];
+    while (id) {
+      chain.push(id);
+      const c = engine.commits.get(id);
+      id = c && c.parents.length ? c.parents[0] : null;
+    }
+    return chain[chain.length - check.nth] || null;
+  }
+  return engine.resolveRef(check.ref || 'HEAD');
+}
+
+/** The paths a commit changed relative to its first parent, or null. */
+function changedPaths(engine, id) {
   if (!id) return null;
   const c = engine.commits.get(id);
   const parentTree = c.parents.length ? engine.commits.get(c.parents[0]).tree : {};
@@ -122,20 +145,25 @@ export const CHECKS = {
 
   /* --- history shape --- */
   lastCommitMessage: (e, c) => {
-    const commit = e.headCommit();
+    // The newest commit's message — or, with `nth` / `ref`, that commit's.
+    // minLength / maxLength measure the subject line, so a body is welcome.
+    const id = c.nth != null || c.ref != null ? commitFor(e, c) : e.headCommitId();
+    const commit = id ? e.commits.get(id) : null;
     if (!commit) return false;
-    if (c.equals != null) return commit.message === c.equals;
+    const subject = commit.message.split('\n')[0].trim();
+    if (c.equals != null && commit.message !== c.equals) return false;
     if (c.contains != null) {
       const hay = c.ci ? commit.message.toLowerCase() : commit.message;
-      return hay.includes(c.ci ? c.contains.toLowerCase() : c.contains);
+      if (!hay.includes(c.ci ? c.contains.toLowerCase() : c.contains)) return false;
     }
-    if (c.minLength != null) return commit.message.trim().length >= c.minLength;
+    if (c.minLength != null && subject.length < c.minLength) return false;
+    if (c.maxLength != null && subject.length > c.maxLength) return false;
     return true;
   },
 
   commitTouched: (e, c) => {
-    // The commit at `ref` changed exactly / at least the given paths.
-    const changed = changedPaths(e, c.ref || 'HEAD');
+    // The commit at `nth` / `ref` changed exactly / at least the given paths.
+    const changed = changedPaths(e, commitFor(e, c));
     if (!changed) return false;
     const want = new Set(c.paths || [c.path]);
     for (const p of want) if (!changed.has(p)) return false;
@@ -143,6 +171,26 @@ export const CHECKS = {
       for (const p of changed) if (!want.has(p)) return false;
     }
     return true;
+  },
+
+  commitOnBranch: (e, c) => {
+    // The commit that first added `path` was made while standing on `branch`.
+    // The end state cannot show this — a branch created after the fact points
+    // at the same commit — so it reads what the commit itself recorded.
+    const tip = c.into ? e.branches.get(c.into) : e.headCommitId();
+    if (!tip) return false;
+    const adders = [...e.ancestorsOf(tip)].map((id) => e.commits.get(id)).filter((k) => {
+      if (!k || !(c.path in k.tree)) return false;
+      return !k.parents.some((p) => c.path in e.commits.get(p).tree);
+    }).sort((a, b) => a.seq - b.seq);
+    return adders.length > 0 && adders[0].branchHint === c.branch;
+  },
+
+  pathIgnored: (e, c) => {
+    // The .gitignore rules in force would cover this path — which need not
+    // exist. Asking about `tomorrow.log` is how "every .log file" is told
+    // apart from two log files listed by name.
+    return typeof e.matchesIgnore === 'function' && e.matchesIgnore(c.path);
   },
 
   mergeCommitAt: (e, c) => {
@@ -179,10 +227,16 @@ export const CHECKS = {
 
   /* --- guided-walkthrough only (semantic, not string-matching) --- */
   commandRan: (e, c) => {
+    // `sub` may list alternatives (switch / checkout). `withArg` names flags or
+    // arguments, any one of which must be present — `git diff` and
+    // `git diff --staged` answer different questions, and a step about the
+    // second should not be passed by the first. `failed: true` is for the rare
+    // step whose command is meant to be refused.
     const last = e.lastCommand;
-    if (!last || !last.ok) return false;
+    if (!last || (c.failed ? last.ok : !last.ok)) return false;
     if (c.command && last.name !== c.command) return false;
-    if (c.sub && last.sub !== c.sub) return false;
+    if (c.sub && !(Array.isArray(c.sub) ? c.sub : [c.sub]).includes(last.sub)) return false;
+    if (c.withArg && !c.withArg.some((a) => (last.args || []).includes(a))) return false;
     return true;
   },
 };

@@ -19,6 +19,10 @@
 const BASE_TIME = Date.UTC(2026, 0, 5, 9, 0, 0); // deterministic fake clock
 const REPO_PATH = '/home/learner/project';
 const AUTHOR = 'Learner <learner@example.com>';
+/** Every git verb the dispatcher handles (`clone` only to explain itself). */
+const SUBCOMMANDS = ['init', 'status', 'add', 'commit', 'log', 'diff', 'branch', 'switch',
+  'checkout', 'merge', 'restore', 'reset', 'revert', 'rebase', 'remote', 'push', 'pull', 'fetch',
+  'reflog', 'stash', 'show', 'clone'];
 
 /** Setup operations `applySetup()` understands. Exported so the content test
  *  can reject a typo'd op in course.json instead of silently ignoring it. */
@@ -129,12 +133,15 @@ function gitDate(seq) {
     `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} ${d.getUTCFullYear()} +0000`;
 }
 
-/** Tokenize a command line, honoring single/double quotes. */
+/** Tokenize a command line, honoring single/double quotes. An unquoted `>` or
+ *  `>>` is its own token whether or not it has spaces round it, as in a real
+ *  shell: `echo "idea">ideas.txt` writes the file rather than printing the lot. */
 function tokenize(line) {
   const tokens = [];
   let cur = '';
   let quote = null;
   let has = false;
+  const flush = () => { if (has || cur.length) { tokens.push(cur); cur = ''; has = false; } };
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (quote) {
@@ -143,13 +150,37 @@ function tokenize(line) {
     } else if (c === '"' || c === "'") {
       quote = c; has = true;
     } else if (c === ' ' || c === '\t') {
-      if (has || cur.length) { tokens.push(cur); cur = ''; has = false; }
+      flush();
+    } else if (c === '>') {
+      flush();
+      if (line[i + 1] === '>') { tokens.push('>>'); i++; } else tokens.push('>');
     } else {
       cur += c;
     }
   }
-  if (has || cur.length) tokens.push(cur);
+  flush();
   return tokens;
+}
+
+/**
+ * The reply to a flag a command does not know. Silently ignoring one is not
+ * harmless here: `git restore --stagd file` used to run the destructive form of
+ * the command the lesson had just warned about. `knows` lists what this
+ * sandbox's version of the command does accept, because the flag may be a typo
+ * or may be real Git the sandbox simply does not model.
+ */
+function unknownOption(cmd, flag, knows) {
+  return {
+    output: `error: unknown option \`${flag.replace(/^-+/, '')}'\n` +
+      `(this sandbox's git ${cmd} understands: ${knows})`,
+    error: true,
+  };
+}
+
+/** One .gitignore pattern segment as a regular expression: `*` and `?` only. */
+function globRe(pattern) {
+  const src = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]');
+  return new RegExp(`^${src}$`);
 }
 
 function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
@@ -197,7 +228,7 @@ export class GitEngine {
     this.stash = [];                  // [{ id, fs, index, desc }], newest first
     this.setupWarnings = [];          // unknown ops seen by applySetup()
     this.seq = 0;
-    this.lastCommand = null;          // { name, sub, ok, raw } — semantic record
+    this.lastCommand = null;          // { name, sub, ok, raw, args } — semantic record
     this.setupSnapshot = null;        // fs snapshot taken after applySetup()
     this.setupOps = null;
   }
@@ -222,6 +253,7 @@ export class GitEngine {
       sub: name === 'git' ? (tokens[1] || '') : '',
       ok: !res.error,
       raw,
+      args: tokens.slice(name === 'git' ? 2 : 1),
     };
     return res;
   }
@@ -232,10 +264,19 @@ export class GitEngine {
     switch (name) {
       case 'ls': {
         const all = args.includes('-a') || args.includes('-la') || args.includes('-al');
+        // `ls docs` lists what is inside that folder; it used to ignore the
+        // argument and print the top folder, which read as "docs is empty".
+        const target = (args.filter((a) => !a.startsWith('-'))[0] || '').replace(/\/+$/, '');
+        if (target && target !== '.' && this.fs.has(target)) return { output: target, error: false };
+        const prefix = target && target !== '.' ? target + '/' : '';
         const names = new Set();
         for (const p of this.fs.keys()) {
-          const top = p.includes('/') ? p.split('/')[0] + '/' : p;
-          names.add(top);
+          if (!p.startsWith(prefix)) continue;
+          const rest = p.slice(prefix.length);
+          names.add(rest.includes('/') ? rest.split('/')[0] + '/' : rest);
+        }
+        if (prefix && !names.size) {
+          return { output: `ls: cannot access '${target}': No such file or directory`, error: true };
         }
         const list = [...names].sort();
         if (all) {
@@ -305,6 +346,29 @@ export class GitEngine {
     if (args[0] === '--version') return { output: 'git version 2.45.0.sandbox', error: false };
     const sub = args[0];
     const rest = args.slice(1);
+    // Real Git the course names but this sandbox does not model. Saying "not a
+    // git command" about these would teach something false.
+    if (sub === 'rm') {
+      return {
+        output: 'git rm is not available in this sandbox.\n' +
+          'To stop tracking a file here, delete it with  rm <file>  and then stage\n' +
+          'that deletion with  git add <file>  (or  git add .).',
+        error: true,
+      };
+    }
+    if (sub === 'config') {
+      return {
+        output: 'git config is not needed in this sandbox: your name, your email and a\n' +
+          'default branch called main are already set up. On your own machine it is\n' +
+          'how you tell Git those things, once.',
+        error: true,
+      };
+    }
+    // A typo'd verb is a typo wherever you are standing — `git innit` in a
+    // plain folder is "not a git command", not "not a git repository".
+    if (!SUBCOMMANDS.includes(sub)) {
+      return { output: `git: '${sub}' is not a git command. See 'git --help'.`, error: true };
+    }
     const needRepo = !['init', 'clone'].includes(sub);
     if (needRepo && !this.initialized) {
       return { output: 'fatal: not a git repository (or any of the parent directories): .git', error: true };
@@ -477,13 +541,33 @@ export class GitEngine {
     if (path === '.gitignore') return false;
     // Never ignore files already tracked
     if (this.index.has(path) || path in this.headTree()) return false;
-    for (const pat of this.ignoredPatterns()) {
-      if (pat.endsWith('/')) {
-        if (path.startsWith(pat)) return true;
-      } else if (pat.startsWith('*.')) {
-        if (path.endsWith(pat.slice(1))) return true;
-      } else if (path === pat) {
-        return true;
+    return this.matchesIgnore(path);
+  }
+
+  /**
+   * Would the current .gitignore rules cover this path, tracked or not?
+   * A pattern with no slash in it (`secrets.env`, `*.log`, `cache`) matches a
+   * file or a folder of that name at any depth; a trailing slash (`cache/`)
+   * restricts it to folders; a slash anywhere else anchors it to the top
+   * folder. `*` and `?` work within one name. Negation (`!`) and `**` are not
+   * modelled.
+   */
+  matchesIgnore(path) {
+    const segs = path.split('/');
+    for (let pat of this.ignoredPatterns()) {
+      if (pat.startsWith('!')) continue;
+      const dirOnly = pat.endsWith('/');
+      if (dirOnly) pat = pat.slice(0, -1);
+      const anchored = pat.includes('/');
+      if (pat.startsWith('/')) pat = pat.slice(1);
+      if (!pat) continue;
+      const re = globRe(pat);
+      // The last segment is the file itself; a folder-only rule cannot match it.
+      const upto = dirOnly ? segs.length - 1 : segs.length;
+      if (anchored) {
+        for (let i = 1; i <= upto; i++) if (re.test(segs.slice(0, i).join('/'))) return true;
+      } else {
+        for (let i = 0; i < upto; i++) if (re.test(segs[i])) return true;
       }
     }
     return false;
@@ -566,7 +650,9 @@ export class GitEngine {
 
     if (staged.length) {
       lines.push('Changes to be committed:');
-      lines.push('  (use "git restore --staged <file>..." to unstage)');
+      // Not during a merge: there the staged files are the ones Git already
+      // merged, and "unstaging" one would drop it from the merge.
+      if (!this.mergeState) lines.push('  (use "git restore --staged <file>..." to unstage)');
       for (const s of staged) lines.push(`\t${(s.kind + ':').padEnd(12)}${s.path}`);
       lines.push('');
     }
@@ -622,12 +708,21 @@ export class GitEngine {
       for (const p of Object.keys(head)) if (!this.fs.has(p)) stageOne(p);
       return { output: '', error: false };
     }
-    for (const p of paths) {
-      const known = this.fs.has(p) || this.index.has(p) || p in head;
-      if (!known) {
-        return { output: `fatal: pathspec '${p}' did not match any files`, error: true };
+    // `git add docs` and `git add docs/` mean everything under that folder.
+    const expanded = [];
+    for (const raw of paths) {
+      const p = raw.replace(/\/+$/, '');
+      if (this.fs.has(p) || this.index.has(p) || p in head) { expanded.push(p); continue; }
+      const under = [...new Set([...this.fs.keys(), ...this.index.keys(), ...Object.keys(head)])]
+        .filter((f) => f.startsWith(p + '/')).sort();
+      if (!under.length) {
+        return { output: `fatal: pathspec '${raw}' did not match any files`, error: true };
       }
+      // Like `git add .`, a folder quietly skips what .gitignore covers.
+      expanded.push(...under.filter((f) => force || !this.isIgnored(f)));
     }
+    paths.length = 0;
+    paths.push(...expanded);
     if (!force) {
       const ignored = paths.filter((p) => this.isIgnored(p));
       if (ignored.length) {
@@ -645,19 +740,34 @@ export class GitEngine {
   }
 
   cmdRestore(args) {
-    const stagedMode = args.includes('--staged');
-    const paths = args.filter((a) => !a.startsWith('-'));
-    if (!paths.length) return { output: 'fatal: you must specify path(s) to restore', error: true };
+    // One mistyped flag is the whole difference between the safe form of this
+    // command and the one that discards work, so nothing here is guessed at.
+    const flags = args.filter((a) => a.startsWith('-'));
+    const bad = flags.find((f) => !['--staged', '-S', '--worktree', '-W'].includes(f));
+    if (bad) return unknownOption('restore', bad, '--staged');
+    const stagedMode = flags.includes('--staged') || flags.includes('-S');
+    const named = args.filter((a) => !a.startsWith('-'));
+    if (!named.length) return { output: 'fatal: you must specify path(s) to restore', error: true };
     const head = this.headTree();
+    const paths = [];
+    for (const p of named) {
+      if (p === '.') {
+        // Everything: what is staged or committed when unstaging, and what the
+        // staging area holds when restoring files from it.
+        paths.push(...(stagedMode ? new Set([...this.index.keys(), ...Object.keys(head)]) : this.index.keys()));
+        continue;
+      }
+      if (!this.index.has(p) && !(p in head)) {
+        return { output: `error: pathspec '${p}' did not match any file(s) known to git`, error: true };
+      }
+      paths.push(p);
+    }
     for (const p of paths) {
       if (stagedMode) {
         if (p in head) this.index.set(p, head[p]);
         else this.index.delete(p);
-      } else {
-        if (this.index.has(p)) this.fs.set(p, this.index.get(p));
-        else if (p in head) this.fs.set(p, head[p]);
-        else return { output: `error: pathspec '${p}' did not match any file(s) known to git`, error: true };
-      }
+      } else if (this.index.has(p)) this.fs.set(p, this.index.get(p));
+      else if (p in head) this.fs.set(p, head[p]);
     }
     return { output: '', error: false };
   }
@@ -706,6 +816,7 @@ export class GitEngine {
     // Real git joins repeated -m flags with a blank line between them, which is
     // how you write a subject and a body without opening an editor.
     const parts = [];
+    const stray = [];
     let stageTracked = false;
     let amend = false;
     for (let i = 0; i < args.length; i++) {
@@ -714,8 +825,32 @@ export class GitEngine {
       else if (a === '-am' || a === '-ma') { stageTracked = true; if (args[i + 1] != null) parts.push(args[i + 1]); i++; }
       else if (a === '-a' || a === '--all') stageTracked = true;
       else if (a === '--amend') amend = true;
+      else if (/^-m./.test(a)) parts.push(a.slice(2));           // -m"msg", no space
+      else if (/^--message=/.test(a)) parts.push(a.slice(10));
+      else if (!a.startsWith('-')) stray.push(a);
+    }
+    // `git commit -m Add pancake recipe` — without quotes only "Add" is the
+    // message, and git reads the rest as files to commit. Recording "Add" and
+    // saying nothing hid the one thing the lesson's "the quotes matter" is about.
+    if (stray.length) {
+      const unknown = stray.filter((w) => !this.fs.has(w) && !this.index.has(w) && !(w in this.headTree()));
+      if (unknown.length) {
+        return {
+          output: unknown.map((w) => `error: pathspec '${w}' did not match any file(s) known to git`).join('\n') +
+            (parts.length ? `\n(a message of more than one word needs quotes:  git commit -m "${[...parts, ...stray].join(' ')}")` : ''),
+          error: true,
+        };
+      }
+      return {
+        output: `error: this sandbox does not commit by file name ('${stray[0]}').\n` +
+          'Stage what you want with git add, then run git commit -m "your message".',
+        error: true,
+      };
     }
     const message = parts.length ? parts.join('\n\n') : null;
+    if (message != null && !message.trim()) {
+      return { output: 'Aborting commit due to empty commit message.', error: true };
+    }
     if (stageTracked) {
       for (const p of [...this.index.keys()]) {
         if (this.fs.has(p)) this.index.set(p, this.fs.get(p));
@@ -778,7 +913,11 @@ export class GitEngine {
           lines.push('Untracked files:');
           for (const p of untracked) lines.push(`\t${p}`);
         }
-        lines.push('no changes added to commit (use "git add" and/or "git commit -a")');
+        // With only brand-new files, `git commit -a` would not help: it never
+        // picks up a file Git is not tracking.
+        lines.push(unstaged.length
+          ? 'no changes added to commit (use "git add" and/or "git commit -a")'
+          : 'nothing added to commit but untracked files present (use "git add" to track)');
       } else {
         lines.push('nothing to commit, working tree clean');
       }
@@ -857,23 +996,42 @@ export class GitEngine {
     const graphMode = args.includes('--graph');
     const all = args.includes('--all');
     let limit = Infinity;
-    const nIdx = args.indexOf('-n');
-    if (nIdx !== -1 && args[nIdx + 1]) limit = parseInt(args[nIdx + 1], 10) || Infinity;
-    for (const a of args) {
-      const m = a.match(/^-(\d+)$/);
+    const revs = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      const m = a.match(/^-(\d+)$/) || a.match(/^-n(\d+)$/) || a.match(/^--max-count=(\d+)$/);
       if (m) limit = parseInt(m[1], 10);
+      else if (a === '-n') { limit = parseInt(args[i + 1], 10) || Infinity; i++; }
+      else if (['--oneline', '--graph', '--all', '--decorate'].includes(a)) continue;
+      else if (a.startsWith('-')) return unknownOption('log', a, '--oneline, --all, --graph, -n <number>');
+      else revs.push(a);
     }
 
+    // `git log origin/main` walks back from that ref, not from where you stand.
+    const starts = [];
+    for (const r of revs) {
+      const id = this.resolveRef(r);
+      if (!id) {
+        return { output: `fatal: ambiguous argument '${r}': unknown revision or path not in the working tree.`, error: true };
+      }
+      starts.push(id);
+    }
     const startId = this.headCommitId();
-    if (!startId && !all) {
+    if (!startId && !all && !starts.length) {
       const br = this.currentBranch() || 'HEAD';
       return { output: `fatal: your current branch '${br}' does not have any commits yet`, error: true };
     }
     let ids;
     if (all) {
+      // Every ref this repository holds — including origin/*, which is where a
+      // fetched-but-not-merged commit lives and the only way to see it listed.
       ids = new Set();
       for (const tip of this.branches.values()) for (const a of this.ancestorsOf(tip)) ids.add(a);
+      for (const tip of this.tracking.values()) for (const a of this.ancestorsOf(tip)) ids.add(a);
       if (startId) for (const a of this.ancestorsOf(startId)) ids.add(a);
+    } else if (starts.length) {
+      ids = new Set();
+      for (const id of starts) for (const a of this.ancestorsOf(id)) ids.add(a);
     } else {
       ids = this.ancestorsOf(startId);
     }
@@ -941,6 +1099,8 @@ export class GitEngine {
    * Trailing arguments that aren't revisions are treated as path filters.
    */
   cmdDiff(args) {
+    const bad = args.find((a) => a.startsWith('-') && !['--staged', '--cached', '--'].includes(a));
+    if (bad) return unknownOption('diff', bad, '--staged (or --cached), <commit>, <commit> <commit>, <file>');
     const staged = args.includes('--staged') || args.includes('--cached');
     const positional = args.filter((a) => !a.startsWith('-'));
 
@@ -1016,12 +1176,44 @@ export class GitEngine {
       this.branches.delete(name);
       return { output: `Deleted branch ${name} (was ${short(tip)}).`, error: false };
     }
+    // `git branch -m <new>` / `-m <old> <new>` rename a branch; -M does it even
+    // if the new name is taken. `git branch -M main` on a branch already called
+    // main is the no-op hosting sites tell everyone to run.
+    const rename = flags.includes('-m') || flags.includes('--move');
+    const forceRename = flags.includes('-M');
+    if (rename || forceRename) {
+      const from = names.length >= 2 ? names[0] : this.currentBranch();
+      const to = names.length >= 2 ? names[1] : names[0];
+      if (!to) return { output: 'fatal: branch name required', error: true };
+      if (!from || !this.branches.has(from)) {
+        return { output: `error: refname refs/heads/${from || 'HEAD'} not found\nfatal: Branch rename failed`, error: true };
+      }
+      if (from === to) return { output: '', error: false };
+      if (this.branches.has(to) && !forceRename) {
+        return { output: `fatal: a branch named '${to}' already exists`, error: true };
+      }
+      this.branches.set(to, this.branches.get(from));
+      this.branches.delete(from);
+      if (this.upstreams.has(from)) { this.upstreams.set(to, this.upstreams.get(from)); this.upstreams.delete(from); }
+      if (this.HEAD.type === 'branch' && this.HEAD.ref === from) this.HEAD = { type: 'branch', ref: to };
+      return { output: '', error: false };
+    }
     if (!names.length) {
       const lines = [];
       const cur = this.currentBranch();
-      if (this.HEAD.type === 'commit') lines.push(`* (HEAD detached at ${short(this.HEAD.id)})`);
-      for (const name of [...this.branches.keys()].sort()) {
-        lines.push(name === cur ? `* ${name}` : `  ${name}`);
+      // -r: only what you have fetched; -a: your branches and those together.
+      const remotesOnly = flags.includes('-r') || flags.includes('--remotes');
+      const withRemotes = remotesOnly || flags.includes('-a') || flags.includes('--all');
+      if (!remotesOnly) {
+        if (this.HEAD.type === 'commit') lines.push(`* (HEAD detached at ${short(this.HEAD.id)})`);
+        for (const name of [...this.branches.keys()].sort()) {
+          lines.push(name === cur ? `* ${name}` : `  ${name}`);
+        }
+      }
+      if (withRemotes) {
+        for (const name of [...this.tracking.keys()].sort()) {
+          lines.push(remotesOnly ? `  ${name}` : `  remotes/${name}`);
+        }
       }
       return { output: lines.join('\n'), error: false };
     }
@@ -1545,9 +1737,36 @@ HEAD is now at ${short(id)} ${subject(commit.message)}`,
       return { output: lines.join('\n'), error: false };
     }
     if (remoteTip && !this.isAncestor(remoteTip, localTip)) {
-      return {
-        output:
+      // Printing the ordinary rejection for a force push taught that --force
+      // does nothing. It does a great deal; this sandbox just will not do it.
+      const force = args.find((a) => a === '-f' || a === '--force' || a.startsWith('--force-with-lease'));
+      if (force) {
+        return {
+          output:
 `To ${origin.url}
+ ! [rejected]        ${branch} -> ${branch} (force-push is switched off in this sandbox)
+error: failed to push some refs to '${origin.url}'
+hint: On a real remote, ${force} would have replaced ${remoteName}'s ${branch} with yours
+hint: and discarded every commit there that your branch does not contain.
+hint: Here the remote keeps what it has. To combine the two histories
+hint: instead, use 'git pull' before pushing again.`,
+          error: true,
+        };
+      }
+      // Git words this two ways. If your origin/<branch> label is out of date,
+      // the remote holds commits you have never seen: (fetch first). If you
+      // have already fetched them and your branch simply does not contain
+      // them: (non-fast-forward).
+      const known = this.tracking.get(`${remoteName}/${branch}`) === remoteTip;
+      return {
+        output: known
+          ? `To ${origin.url}
+ ! [rejected]        ${branch} -> ${branch} (non-fast-forward)
+error: failed to push some refs to '${origin.url}'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. If you want to integrate the remote changes,
+hint: use 'git pull' before pushing again.`
+          : `To ${origin.url}
  ! [rejected]        ${branch} -> ${branch} (fetch first)
 error: failed to push some refs to '${origin.url}'
 hint: Updates were rejected because the remote contains work that you do not
