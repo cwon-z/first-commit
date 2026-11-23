@@ -97,7 +97,7 @@
             "p": "A useful way to hold it: `--soft` touches only the branch pointer, `--mixed` touches the pointer and the staging area, `--hard` touches the pointer, the staging area, *and* your actual files."
           },
           {
-            "warn": "`--hard` is the only genuinely dangerous option in this module. Committed work it removes can nearly always be rescued with `git reflog` (below). Uncommitted work it removes cannot — that was never recorded anywhere. Make `git status` your reflex before typing `--hard`, so you know exactly what you're standing on."
+            "warn": "`--hard` is the only dangerous one of the three. Committed work it removes can nearly always be rescued with `git reflog` (below). Uncommitted work it removes cannot — that was never recorded anywhere. Make `git status` your reflex before typing `--hard`, so you know exactly what you're standing on."
           },
           {
             "h": "What reset does to the picture"
@@ -199,7 +199,7 @@
             "h": "The safety net: git reflog"
           },
           {
-            "p": "Now the genuinely reassuring part. Git quietly records **every position `HEAD` has ever held** in your repository — every commit, every amend, every branch switch, every reset. This record is called the *reflog* (reference log). It lives only on your own machine, which is why most people never hear about it until the day it saves them. It isn't infinite, either — entries age out after a few months. The reflog is a rescue for this week's accident, not an archive."
+            "p": "Now the genuinely reassuring part. Git quietly records **every position `HEAD` has ever held** in your repository — every commit, every amend, every branch switch, every reset. This record is called the *reflog* (reference log). It lives only on your own machine, which is why most people never hear about it until the day it saves them. It isn't infinite, either — entries age out, after about a month for a commit nothing points at any more. The reflog is a rescue for this week's accident, not an archive."
           },
           {
             "analogy": "`git log` is the official history — the story your project chooses to tell. `git reflog` is the security-camera footage: every move you actually made, in order, including the ones you'd rather nobody saw."
@@ -276,7 +276,7 @@
               ]
             },
             {
-              "say": "Look at the file panel: chapter2.txt is back to its committed state, and `git status` would report nothing to commit. Nothing was lost. Tip the drawer back out.",
+              "say": "Open **Files**: chapter2.txt is back to its committed state, and `git status` would report nothing to commit. Nothing was lost. Tip the drawer back out.",
               "cmd": "git stash pop",
               "hint": "Type: git stash pop",
               "expect": [
@@ -294,7 +294,7 @@
               ]
             },
             {
-              "say": "Except the sentence still isn't finished — that commit was premature. `--soft` moves the branch back one commit and leaves every change **staged**, exactly as it was a second before you pressed commit. Check the file panel: your work is untouched, it's just no longer part of the history.",
+              "say": "Except the sentence still isn't finished — that commit was premature. `--soft` moves the branch back one commit and leaves every change **staged**, exactly as it was a second before you pressed commit. Open **Files** to check: your work is untouched, it's just no longer part of the history.",
               "cmd": "git reset --soft HEAD~1",
               "hint": "Type: git reset --soft HEAD~1 — HEAD~1 means \"one commit before where I am\".",
               "expect": [
@@ -366,12 +366,13 @@
             { "op": "add" },
             { "op": "commit", "message": "more wip" }
           ],
-          "goal": "Clean up both problems and leave a tidy, clean repository. (1) The two junk commits at the top — `wip` and `more wip` — were never pushed, so erase them from your history completely, taking `scratch.txt` with them. (2) The `Add booking details` commit **was** pushed, so its commit must stay in the history untouched — but `booking.txt` must no longer exist in your project. (3) `Add day two` is good work: `itinerary.txt` must still mention Sintra when you're done. Finish with a clean working tree, exactly five commits, and your cleaned-up history pushed — if you picked the right tool for the booking commit, `git push` will be accepted.",
+          "goal": "Clean up both problems and leave a tidy, clean repository. (1) The two junk commits at the top — `wip` and `more wip` — were never pushed, so erase them from your history completely, taking `scratch.txt` with them. (2) The `Add booking details` commit **was** pushed, so its commit must stay in the history untouched — but `booking.txt` must no longer exist in your project. (3) `Add day two` is good work: `itinerary.txt` must still mention Sintra when you're done. Finish with a clean working tree, exactly five commits, and your cleaned-up history pushed — if you picked the right tool for the booking commit, `git push` will be accepted. Push **last**: the moment a commit reaches origin it is newspaper, and the junk commits must never get there.",
           "hints": [
             "Two problems, two tools. One of them lives above the origin/main line and one lives below it — re-read the two questions from the concept lesson and decide which tool each needs.",
-            "Deal with the junk commits first. They're the two newest, so one reset that moves the branch back two commits erases both — and if you pick the flavour that also rewrites your files, scratch.txt goes with them. Any other flavour leaves it sitting on disk for you to delete yourself.",
-            "With those gone, the booking commit is one step behind you. `git revert <commit>` writes a new commit that deletes what that one added — the original commit stays right where it is. Refs like HEAD~1 work here, and so does the ID from git log --oneline.",
-            "Overshot the reset and lost Sintra? That's exactly what git reflog is for: find the line for the 'Add day two' commit, copy its ID, and git reset --hard back onto it."
+            "Deal with the junk commits first. They're the two newest, so one reset that moves the branch back two commits erases both — and if you pick the flavour that also rewrites your files, scratch.txt goes with them. Any other flavour leaves it sitting on disk for you to delete yourself, with the terminal's own delete command: `rm scratch.txt`.",
+            "With those gone, the booking commit is one step behind you. `git revert <commit>` writes a new commit that deletes what that one added — the original commit stays right where it is. Refs like HEAD~1 work here, and so does the ID from git log --oneline. Then `git push` — it is accepted, because nothing origin already had was rewritten.",
+            "Overshot the reset and lost Sintra? That's exactly what git reflog is for: find the line for the 'Add day two' commit, copy its ID, and git reset --hard back onto it.",
+            "Pushed too early, while the junk commits were still on your branch? They are public now, and this exercise wants them erased rather than corrected — so press **reset** in the bar at the top and take it again: junk first, booking second, push last."
           ],
           "expect": [
             { "kind": "fileAbsent", "path": "scratch.txt", "label": "scratch.txt is gone from your project" },
@@ -386,7 +387,9 @@
     ],
     "recap": {
       "body": [
-        { "h": "Module 9 recap" },
+        {
+          "h": "Module 9 recap"
+        },
         {
           "p": "You never have to remember all of these at once. Answer the two questions — *has it been committed?* and *has it been shared?* — and only two or three of them are ever candidates."
         },

@@ -51,7 +51,7 @@
           },
           {
             "list": [
-              "`secrets.env` — an **exact name**. Matches files called exactly that. (In real Git that means one anywhere in the project, however deeply buried; this sandbox only looks in the top folder.)",
+              "`secrets.env` — an **exact name**. Matches anything called exactly that, anywhere in the project, however deeply buried.",
               "`*.log` — an **extension**. The `*` means \"anything\", so this matches `debug.log`, `error.log`, and any other file ending in `.log`.",
               "`node_modules/` — a **folder**. The trailing slash says \"this is a directory\": everything inside it, at any depth, is ignored."
             ]
@@ -84,7 +84,7 @@
             "p": "To stop tracking something you've already committed, you have to remove it from the project and commit that removal. From the moment it's gone, it's untracked again, and *now* the ignore rule applies to it — so when the build tool recreates that folder tomorrow, Git says nothing."
           },
           {
-            "warn": "Removing a file from your project deletes it from your folder too. For build output that's harmless — it regenerates. For a real `secrets.env` you actually need, copy it somewhere safe first. (Outside this sandbox, real Git has `git rm --cached <file>`, which unhooks a file from tracking while leaving your copy on disk. This simulator doesn't implement it, so we'll use plain `rm` on files we can afford to lose.)"
+            "warn": "Removing a file from your project deletes it from your folder too. For build output that's harmless — it regenerates. For a real `secrets.env` you actually need, copy it somewhere safe first. (Outside this sandbox, real Git has `git rm --cached <file>`, which unhooks a file from tracking while leaving your copy on disk. This simulator doesn't implement it, so we'll use the terminal's own delete command, `rm <file>`, on files we can afford to lose.)"
           },
           {
             "h": "Adding an ignored file on purpose"
@@ -108,7 +108,7 @@
             "p": "Here is the honest, uncomfortable part. You committed `config.env` with a live payment key in it three weeks ago. Today you notice, wipe the key out of the file, add it to `.gitignore`, and commit. Your working folder is clean. Are you safe?"
           },
           {
-            "p": "No. Deleting a file changes the *newest* snapshot. It cannot change the old ones — that permanence is the entire point of a commit, and it doesn't switch off for embarrassing commits."
+            "p": "No. Editing or deleting a file changes the *newest* snapshot. It cannot change the old ones — that permanence is the entire point of a commit, and it doesn't switch off for embarrassing commits."
           },
           {
             "graph": {
@@ -173,7 +173,7 @@
           ],
           "steps": [
             {
-              "say": "Start where you always start, and count what Git is showing you: one real edit to `app.js` that you care about, buried under five untracked files you never wrote — two logs, two downloaded libraries and a live API key. This is what a real project looks like without ignore rules.",
+              "say": "Start where you always start, and count what Git is showing you: one real edit to `app.js` that you care about, buried under five untracked files you never wrote — two logs, two downloaded libraries and a live API key. (Real Git would fold the two libraries into a single `node_modules/` line; this sandbox lists what is inside.) This is what a real project looks like without ignore rules.",
               "cmd": "git status",
               "hint": "Type: git status",
               "expect": [
@@ -199,8 +199,9 @@
             {
               "say": "Now the other two shapes. Note the double arrow: `>>` **appends** a line, where the single `>` you used a moment ago *replaces* the whole file — using it here would wipe out the line you just wrote. `*.log` catches every log file, present and future; `node_modules/` catches an entire folder.",
               "cmd": "echo \"*.log\" >> .gitignore\necho \"node_modules/\" >> .gitignore",
-              "hint": "Two commands: echo \"*.log\" >> .gitignore then echo \"node_modules/\" >> .gitignore",
+              "hint": "Two commands: echo \"*.log\" >> .gitignore then echo \"node_modules/\" >> .gitignore (Used a single > by mistake and lost the first rule? echo \"secrets.env\" >> .gitignore puts it back.)",
               "expect": [
+                { "kind": "fileExists", "path": ".gitignore", "contains": "secrets.env", "label": "The secrets.env rule is still there" },
                 { "kind": "fileExists", "path": ".gitignore", "contains": "*.log", "label": "Every .log file is ignored" },
                 { "kind": "fileExists", "path": ".gitignore", "contains": "node_modules/", "label": "The node_modules folder is ignored" }
               ]
@@ -224,13 +225,21 @@
               ]
             },
             {
-              "say": "Commit. Read the stat block: **two files changed**. The rules themselves are now part of the project's history, so anyone who copies this repository inherits them without being told.",
-              "cmd": "git commit -m \"Add .gitignore and update the welcome message\"",
-              "hint": "git commit -m \"Add .gitignore and update the welcome message\"",
+              "say": "`git add .` is convenient and indiscriminate: along with the new `.gitignore` it has staged your `app.js` edit, which is a different piece of work. One story per commit — so take `app.js` back out of the frame and commit the rules on their own. They are now part of the project's history, so anyone who copies this repository inherits them without being told.",
+              "cmd": "git restore --staged app.js\ngit commit -m \"Add a .gitignore\"",
+              "hint": "git restore --staged app.js — then git commit -m \"Add a .gitignore\"",
               "expect": [
                 { "kind": "commitCount", "min": 2, "label": "A second commit exists" },
-                { "kind": "fileCommitted", "path": ".gitignore", "label": ".gitignore is committed" },
-                { "kind": "commitTouched", "ref": "HEAD", "paths": [".gitignore", "app.js"], "exact": true, "label": "The commit contains nothing but .gitignore and app.js" }
+                { "kind": "commitTouched", "ref": "HEAD", "paths": [".gitignore"], "exact": true, "label": "It holds the ignore rules and nothing else" }
+              ]
+            },
+            {
+              "say": "Now the edit you actually came here to make, in a commit of its own.",
+              "cmd": "git add app.js\ngit commit -m \"Announce free delivery\"",
+              "hint": "git add app.js — then git commit -m \"Announce free delivery\"",
+              "expect": [
+                { "kind": "commitCount", "min": 3, "label": "A third commit exists" },
+                { "kind": "commitTouched", "ref": "HEAD", "paths": ["app.js"], "exact": true, "label": "It holds the app.js edit and nothing else" }
               ]
             },
             {
@@ -247,9 +256,9 @@
               "cmd": "rm build/bundle.js\ngit add .\ngit commit -m \"Stop tracking generated build output\"",
               "hint": "rm build/bundle.js, then git add . (this stages the deletion), then commit it.",
               "expect": [
-                { "kind": "fileAbsent", "path": "build/bundle.js", "label": "build/bundle.js is out of the project" },
-                { "kind": "commitTouched", "ref": "HEAD", "paths": [".gitignore", "build/bundle.js"], "exact": true, "label": "The commit records the removal and the new rule" },
-                { "kind": "cleanWorkingTree", "label": "Working tree is clean" }
+                { "kind": "fileAbsent", "path": "build/bundle.js", "label": "The bundle is gone from the project" },
+                { "kind": "fileCommitted", "path": ".gitignore", "contains": "build/", "label": "The build/ rule is committed" },
+                { "kind": "cleanWorkingTree", "label": "The removal is committed too" }
               ]
             }
           ]
@@ -261,7 +270,7 @@
         "type": "challenge",
         "body": [
           {
-            "p": "A repository in a genuinely bad state. Somebody committed `deploy.env` — with a live AWS secret key in it — back in the first commit. Since then the app has been run a few times, leaving logs and a `cache/` folder scattered around. There's also `example.env`: a placeholder listing the settings a new teammate has to fill in, with nothing real in it. And you've just improved the README, which is worth keeping."
+            "p": "A repository in a genuinely bad state. Somebody committed `deploy.env` — with a live AWS secret key in it — back in the first commit. Since then the app has been run a few times, leaving logs and a `cache/` folder scattered around. There's also `example.env`: a placeholder listing the settings a new teammate has to fill in, with nothing real in it. And you've just updated the README to say where the credentials come from now — ask a teammate — which belongs with this cleanup."
           },
           {
             "p": "Clean the house. The checklist watches the *state* of the repo, so any route that gets there counts. Two things it will hold you to. The junk has to still be sitting on your disk when you're done — ignoring is not deleting. And `example.env` has to end up committed, even though the rule you're about to write covers it: that file is the deliberate exception, and Git will make you say so out loud."
@@ -285,7 +294,7 @@
             { "op": "write", "path": "cache/session.bin", "content": "cached-session-blob" },
             { "op": "write", "path": "cache/thumbs.bin", "content": "cached-thumbnails-blob" }
           ],
-          "goal": "End with `git status` completely silent — nothing modified, nothing staged, and nothing untracked — while `build.log`, `test.log` and the `cache/` files are all still sitting in your project folder. Your committed `.gitignore` must ignore the `cache/` folder, every `.log` file and every `.env` file. `deploy.env` itself must be gone from the project, so Git stops tracking it — while `example.env` ends up committed anyway, as a deliberate exception to your own rule. Do the whole cleanup in a single new commit on top of the initial one, carrying those changes and your README improvement and nothing else.",
+          "goal": "End with `git status` completely silent — nothing modified, nothing staged, and nothing untracked — while `build.log`, `test.log` and the `cache/` files are all still sitting in your project folder. Your committed `.gitignore` must ignore the `cache/` folder, every `.log` file and every `.env` file. `deploy.env` itself must be gone from the project, so Git stops tracking it — while `example.env` ends up committed anyway, as a deliberate exception to your own rule. Do the whole cleanup in a single new commit on top of the initial one, carrying those changes and the README note that goes with them, and nothing else.",
           "hints": [
             "Three rules, and you only need two of the three shapes: a folder pattern ends with a slash, an extension pattern starts with a star and a dot. One extension rule can cover both `.env` files at once. Build the file up with echo \"...\" > .gitignore and then echo \"...\" >> .gitignore.",
             "Adding an env rule will NOT make Git stop tracking deploy.env — it was in the first commit, so it's already inside. Get it out of the project, and stage that removal like any other change. Leave the logs and the cache exactly where they are: the point is that Git can't see them, not that they're gone.",
@@ -293,9 +302,10 @@
             "The finishing sequence: git add -f example.env to force in the exception, then — there is no git rm in this sandbox — the shell's rm deploy.env, then git add . to stage that deletion alongside your new .gitignore and the README edit, then one git commit -m \"...\"."
           ],
           "expect": [
-            { "kind": "fileCommitted", "path": ".gitignore", "contains": "cache/", "label": "A committed .gitignore hides the cache/ folder" },
-            { "kind": "fileCommitted", "path": ".gitignore", "contains": "*.log", "label": "...and every .log file" },
-            { "kind": "fileCommitted", "path": ".gitignore", "contains": "*.env", "label": "...and every .env file, deploy.env included" },
+            { "kind": "fileCommitted", "path": ".gitignore", "nonEmpty": true, "label": "A .gitignore is committed, so the whole team gets the rules" },
+            { "kind": "pathIgnored", "path": "cache/anything-else", "label": "It hides the cache/ folder" },
+            { "kind": "pathIgnored", "path": "tomorrow.log", "label": "...and every .log file" },
+            { "kind": "pathIgnored", "path": "staging.env", "label": "...and every .env file, deploy.env included" },
             { "kind": "fileAbsent", "path": "deploy.env", "label": "deploy.env is gone from your project folder" },
             { "kind": "fileCommitted", "path": "example.env", "label": "example.env is committed anyway — the deliberate exception" },
             { "kind": "cleanWorkingTree", "allowUntracked": false, "label": "git status is completely silent — nothing modified, nothing untracked" },
@@ -308,7 +318,9 @@
     ],
     "recap": {
       "body": [
-        { "h": "Module 10 recap" },
+        {
+          "h": "Module 10 recap"
+        },
         {
           "list": [
             "A repository holds the **source of truth**, not everything in the folder. Dependencies, build output, editor junk, logs and secrets stay out.",
@@ -337,7 +349,9 @@
             ]
           }
         },
-        { "p": "Next, the last module: commit hygiene — what makes a commit message worth reading, how to keep each commit to one idea, and how to fix the message you just got wrong." }
+        {
+          "p": "Next, the last module: commit hygiene — what makes a commit message worth reading, how to keep each commit to one idea, and how to fix the message you just got wrong."
+        }
       ]
     }
   },

@@ -54,7 +54,7 @@
             "code": "no changes added to commit (use \"git add\" and/or \"git commit -a\")"
           },
           {
-            "p": "It means: *\"if you ran `git commit` this second, the commit would be empty.\"* **Changed is not the same as staged.** The clothes are all over the bed; the suitcase is empty. That line has confused more beginners than anything else Git prints."
+            "p": "It means: *\"nothing is staged, so a `git commit` right now would have nothing to record\"* — Git would simply refuse. **Changed is not the same as staged.** The clothes are all over the bed; the suitcase is empty. That line has confused more beginners than anything else Git prints."
           },
           {
             "tip": "`git status` changes nothing. Ever. It is the one Git command you can run as often as you breathe, and the fastest way out of \"what state am I in?\""
@@ -100,7 +100,7 @@
             "analogy": "Back to the suitcase. `git diff` holds the bed up against the suitcase: *what have I chosen but not packed?* `git diff --staged` holds the suitcase up against the packing list you filed last trip: *what will this trip's list say?* And `git diff HEAD` ignores the suitcase entirely, comparing the whole room against that list."
           },
           {
-            "p": "Each row of the table reads older on the left, newer on the right — the direction `add` and `commit` push your work into history, which is why the last commit sits at the far left:"
+            "p": "Each row of the table reads older on the left, newer on the right: the last commit is the oldest version of your work, the staging area is newer, and your working directory is the newest of all:"
           },
           {
             "code": "git diff            staging area -> working directory\ngit diff --staged   last commit  -> staging area\ngit diff HEAD       last commit  -> working directory\ngit diff <A> <B>    commit A     -> commit B"
@@ -283,7 +283,7 @@
               ]
             },
             {
-              "say": "So where did the change go? One shelf to the left. `git diff --staged` compares the **last commit** with the **staging area** — in other words, it prints exactly what your next commit will contain. Same two hunks, different question.",
+              "say": "So where did the change go? Into the staging area. `git diff --staged` compares the **last commit** with the **staging area** — in other words, it prints exactly what your next commit will contain. Same two hunks, different question.",
               "cmd": "git diff --staged",
               "hint": "Type: git diff --staged",
               "expect": [
@@ -291,19 +291,29 @@
                   "kind": "commandRan",
                   "command": "git",
                   "sub": "diff",
-                  "label": "The change reappears, staged"
+                  "label": "The change reappears, staged",
+                  "withArg": [
+                    "--staged",
+                    "--cached"
+                  ]
                 }
               ]
             },
             {
               "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. Note the **double** arrow: `>>` adds a line to the end of a file, where the single `>` you have been using replaces the whole thing. `menu.txt` is then listed **twice**: the version you staged, and newer edits sitting on top of it.",
               "cmd": "echo \"- lemon tart\" >> menu.txt\ngit status",
-              "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status",
+              "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status. If a single > has wiped the menu, git restore menu.txt puts back the version you staged — then try again with two arrows.",
               "expect": [
                 {
                   "kind": "fileChanged",
                   "path": "menu.txt",
                   "label": "menu.txt has a fresh edit on top"
+                },
+                {
+                  "kind": "fileExists",
+                  "path": "menu.txt",
+                  "contains": "CORNER CAFE",
+                  "label": "The rest of the menu is still there"
                 },
                 {
                   "kind": "commandRan",
@@ -322,7 +332,10 @@
                   "kind": "commandRan",
                   "command": "git",
                   "sub": "diff",
-                  "label": "See everything since the last commit"
+                  "label": "See everything since the last commit",
+                  "withArg": [
+                    "HEAD"
+                  ]
                 }
               ]
             },
@@ -494,7 +507,7 @@
         {
           "list": [
             "`git status` is a report with three shelves: **staged** (in the suitcase), **not staged** (on the bed), **untracked** (still in the wardrobe).",
-            "**no changes added to commit** means \"committing right now would produce an empty commit\". Changed is not staged.",
+            "**no changes added to commit** means \"nothing is staged, so there is nothing to commit yet\". Changed is not staged.",
             "A diff is a list of edit instructions: `-` left, `+` arrived, a leading space is unchanged context, and `@@ -1,4 +1,5 @@` tells you where in the file you are.",
             "`git diff` never has one meaning — always ask *which two endpoints?*",
             "`git show <ref>` opens a single commit; `git diff <A> <B>` measures the gap between two.",

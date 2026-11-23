@@ -220,7 +220,7 @@
             }
           },
           {
-            "h": "What switching does to the files in your folder"
+            "h": "What switching does to your working directory"
           },
           {
             "p": "`git switch <name>` does two things. It moves HEAD onto that branch — and it updates the files that *differ* between the commit you were standing on and the commit you're going to."
@@ -235,7 +235,7 @@
             "p": "This is the moment beginners panic. You switch from `neon-theme` back to `main`, open your stylesheet, and the pink is gone. Worse, a file you created over on the other branch has disappeared from the folder entirely."
           },
           {
-            "tip": "Nothing was destroyed. Those contents are sitting inside a commit, and the branch name is your bookmark back to them. Switch to that branch and the files reappear exactly as you left them. Your folder is a **window onto one commit at a time**, not the whole album."
+            "tip": "Nothing was destroyed. Those contents are sitting inside a commit, and the branch name is your bookmark back to them. Switch to that branch and the files reappear exactly as you left them. Your working directory is a **window onto one commit at a time**, not the whole album."
           },
           {
             "p": "Two details worth knowing before they surprise you:"
@@ -250,7 +250,7 @@
             "h": "When Git refuses to switch"
           },
           {
-            "p": "Git stops you in exactly one situation: when the file you have been editing is one of the files it would have to overwrite. Suppose you're on `main` with an uncommitted edit to `style.css`, and `neon-theme` holds a *different* version of that same file. Switching would mean writing neon's version over the top of yours. Git won't do it:"
+            "p": "Apart from that untracked-file case, Git stops you in exactly one situation: when the file you have been editing is one of the files it would have to overwrite. Suppose you're on `main` with an uncommitted edit to `style.css`, and `neon-theme` holds a *different* version of that same file. Switching would mean writing neon's version over the top of yours. Git won't do it:"
           },
           {
             "code": "git switch neon-theme\nerror: Your local changes to the following files would be overwritten by switch:\n\tstyle.css\nPlease commit your changes or stash them before you switch branches.\nAborting"
@@ -277,7 +277,7 @@
             "p": "When a branch has done its job, `git branch -d <name>` peels the sticky note off. It does not delete the commits — you are throwing away a *label*, not the photographs."
           },
           {
-            "warn": "`git branch -d` refuses when the branch holds commits that exist nowhere else, saying the branch \"is not fully merged\". That is a guard rail, not a wall: removing the only name pointing at your work would make it genuinely hard to find again. A capital `-D` overrides the guard. Reach for `-D` only when you have decided, on purpose, to abandon that work."
+            "warn": "`git branch -d` refuses when the branch holds commits that the branch you are standing on does not have, saying the branch \"is not fully merged\". That is a guard rail, not a wall: removing the only name pointing at your work would make it genuinely hard to find again. A capital `-D` overrides the guard. Reach for `-D` only when you have decided, on purpose, to abandon that work."
           },
           {
             "h": "The whole toolkit"
@@ -375,7 +375,7 @@
               ]
             },
             {
-              "say": "That was instant, and — check the file panel — not one file changed. Here's the proof. `--oneline` squeezes each commit onto a single line (short ID, labels in brackets, message) and `--all` shows every branch's history, not only the one you're standing on. Read the labels in brackets carefully.",
+              "say": "That was instant, and not one file changed — open **Files** if you would like to check. Here's the proof. `--oneline` squeezes each commit onto a single line (short ID, labels in brackets, message) and `--all` shows every branch's history, not only the one you're standing on. Read the labels in brackets carefully.",
               "cmd": "git log --oneline --all",
               "hint": "Type: git log --oneline --all",
               "expect": [
@@ -383,7 +383,10 @@
                   "kind": "commandRan",
                   "command": "git",
                   "sub": "log",
-                  "label": "See both labels on one commit"
+                  "label": "See both labels on one commit",
+                  "withArg": [
+                    "--all"
+                  ]
                 }
               ]
             },
@@ -459,6 +462,16 @@
                   "kind": "headOnBranch",
                   "name": "main",
                   "label": "Git refused the switch — you're still standing on main"
+                },
+                {
+                  "kind": "commandRan",
+                  "command": "git",
+                  "sub": [
+                    "switch",
+                    "checkout"
+                  ],
+                  "failed": true,
+                  "label": "Git refused the switch"
                 }
               ]
             },
@@ -485,7 +498,7 @@
               ]
             },
             {
-              "say": "Read the brackets: `(HEAD -> main)` and `(neon-theme)` now sit on two *different* commits. The terminal can only print commits one per line, newest first, so it can't show you the shape — look at the **graph panel** for that. Two lines, splitting apart at `Add a tagline`. You built a fork in your project's history: a navy site and a pink one, both saved, each a single `git switch` away. Leave them forked — introducing them is Module 6's job.",
+              "say": "Read the brackets: `(HEAD -> main)` and `(neon-theme)` now sit on two *different* commits. The terminal can only print commits one per line, newest first, so it can't show you the shape — look at the **graph panel** for that. Two lines, splitting apart at `Add a tagline`. You built a fork in your project's history: a navy site and a pink one, both saved, each a single `git switch` away. Leave them forked — bringing branches back together is Module 6's job.",
               "cmd": "git log --oneline --all",
               "hint": "Type: git log --oneline --all",
               "expect": [
@@ -493,7 +506,10 @@
                   "kind": "commandRan",
                   "command": "git",
                   "sub": "log",
-                  "label": "Read the two branch labels"
+                  "label": "Read the two branch labels",
+                  "withArg": [
+                    "--all"
+                  ]
                 }
               ]
             }
@@ -512,7 +528,7 @@
             "p": "Nothing here needs merging; that's the next module. Nothing needs undoing either. Run `git branch` and `git status` first, look at what you've been handed, and think about **where the commit is going to land** before you make it."
           },
           {
-            "warn": "The trap: if you commit onto `main`, the checklist can never go green — `main` has to finish exactly where it started. Think first, commit second. If you do slip, the reset button on the terminal panel puts the exercise back to the beginning."
+            "warn": "The trap: if you commit onto `main`, nothing you have learned so far takes that commit back off again — and `main` has to finish exactly where it started. Think first, commit second. If you do slip, **reset** in the bar at the top puts the exercise back to the beginning."
           }
         ],
         "exercise": {
@@ -602,7 +618,8 @@
             },
             {
               "kind": "cleanWorkingTree",
-              "label": "Working tree is clean"
+              "label": "Working tree is clean",
+              "allowUntracked": false
             }
           ]
         }
@@ -695,7 +712,7 @@
           }
         },
         {
-          "p": "Next: those two branches are still strangers to each other. Module 6 introduces them — `git merge`, what a merge commit really is, and what to do when both sides have edited the same line."
+          "p": "Next: two branches that have drifted apart are not much use until they can be brought back together. Module 6 is `git merge` — what a merge commit really is, and what to do when both sides have edited the same line."
         }
       ]
     }

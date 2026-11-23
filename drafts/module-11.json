@@ -49,7 +49,7 @@
             ]
           },
           {
-            "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch and the login endpoint was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
+            "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch, and login was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
           },
           {
             "tip": "Small, obvious changes don't need a body at all. `Fix typo in README` is a complete and excellent commit message. Save your words for the changes that will confuse somebody."
@@ -588,11 +588,11 @@
               "content": "# Setup\n1. Download the code.\n2. Open index.html.\n3. Create an account on login.html."
             }
           ],
-          "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, the bug fix in a commit of its own, and both documentation files together in one final commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
+          "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, then the bug fix in a commit of its own whose subject line says what it fixed, and last of all both documentation files together in one commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
           "hints": [
             "Think about order first. `git commit --amend` only ever reaches the commit at the very tip of your branch — so which of the three jobs is impossible once you've committed anything on top?",
             "To complete an existing commit: stage the missing file with `git add login.css`, then run `git commit --amend --no-edit`. That rebuilds the tip commit with the extra file and leaves its message alone.",
-            "\"One logical change\" is not \"one file.\" You can stage several at once: `git add README.md docs/setup.md`, then make a single commit. Check yourself before you call it done, with `git log --oneline` and `git status`: four commits, nothing modified, nothing untracked. If a subject line needs the word \"and\", you've merged two commits that should have stayed apart.",
+            "\"One logical change\" is not \"one file.\" You can stage several at once: `git add README.md docs/setup.md`, then make a single commit. Check yourself before you call it done, with `git log --oneline` and `git status`: four commits, nothing modified, nothing untracked. If a subject line needs the word \"and\" to join two different jobs, you've merged two commits that should have stayed apart.",
             "Committed too soon and buried the login commit? You are not stuck. `git reset HEAD~1` from Module 9 lifts the newest commit off the branch and leaves its changes in your working directory, **unstaged** — so your next `git add` picks up only the file you name, and nothing can sneak into the amend. Run it once for each commit you need to lift, then start again from the amend."
           ],
           "expect": [
@@ -603,7 +603,7 @@
             },
             {
               "kind": "commitTouched",
-              "ref": "HEAD~2",
+              "nth": 2,
               "paths": [
                 "login.html",
                 "login.css"
@@ -612,28 +612,43 @@
               "label": "The login commit now carries both of its files"
             },
             {
+              "kind": "lastCommitMessage",
+              "nth": 2,
+              "equals": "Add a login form",
+              "label": "...and its message is still \"Add a login form\""
+            },
+            {
               "kind": "commitTouched",
-              "ref": "HEAD~1",
+              "nth": 3,
               "paths": [
                 "app.js"
               ],
               "exact": true,
-              "label": "The bug fix has a commit to itself"
+              "label": "Third commit: the bug fix, with app.js to itself"
+            },
+            {
+              "kind": "lastCommitMessage",
+              "nth": 3,
+              "minLength": 10,
+              "maxLength": 72,
+              "label": "...under a subject line that says what it fixed"
             },
             {
               "kind": "commitTouched",
-              "ref": "HEAD",
+              "nth": 4,
               "paths": [
                 "README.md",
                 "docs/setup.md"
               ],
               "exact": true,
-              "label": "One documentation commit covering both docs files"
+              "label": "Fourth and last: one documentation commit covering both docs files"
             },
             {
               "kind": "lastCommitMessage",
+              "nth": 4,
               "minLength": 10,
-              "label": "The last commit's message is a real subject line, not \"docs\" or \"wip\""
+              "maxLength": 72,
+              "label": "...whose subject is a short real sentence, not \"docs\" or \"wip\""
             },
             {
               "kind": "cleanWorkingTree",
@@ -765,17 +780,17 @@
           ]
         },
         {
-          "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. A pull request is a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
+          "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. Even the pull request from Module 8 was only a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
         },
         {
           "h": "Where to go next"
         },
         {
           "list": [
-            "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons.",
+            "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons. (First time using Git on that machine? The three lines of one-time setup are back in Module 2.)",
             "**Push something to a remote.** Make an account on a hosting service, create an empty repository, and connect it with the `git remote add` and `git push -u` you learned in Module 7. Seeing your own history appear on a web page makes it click.",
             "**Read someone else's log.** Clone a project you admire and run `git log --oneline`. You'll spot the good messages and the bad ones immediately now, which is proof you learned something.",
-            "**Let Git teach you the rest.** `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
+            "**Let Git teach you the rest.** In real Git on your own machine, `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
             "**Come back to the playground** any time you want to try something frightening before you try it for real. Nothing here can break."
           ]
         },

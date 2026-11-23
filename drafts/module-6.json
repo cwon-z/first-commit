@@ -305,7 +305,7 @@
             "p": "`git status` is at its most helpful in this state. It names what is stuck, and hands you both exits:"
           },
           {
-            "code": "$ git status\nOn branch main\nYou have unmerged paths.\n  (fix conflicts and run \"git commit\")\n  (use \"git merge --abort\" to abort the merge)\n\nChanges to be committed:\n  (use \"git restore --staged <file>...\" to unstage)\n\tmodified:   hours.txt\n\nUnmerged paths:\n  (use \"git add <file>...\" to mark resolution)\n\tboth modified:   tagline.txt"
+            "code": "$ git status\nOn branch main\nYou have unmerged paths.\n  (fix conflicts and run \"git commit\")\n  (use \"git merge --abort\" to abort the merge)\n\nChanges to be committed:\n\tmodified:   hours.txt\n\nUnmerged paths:\n  (use \"git add <file>...\" to mark resolution)\n\tboth modified:   tagline.txt"
           },
           {
             "p": "Two lists. The top one is work Git already finished for you — `hours.txt` came across cleanly and is staged, ready to go. Only the bottom one is waiting on a human."
@@ -374,7 +374,7 @@
         "type": "guided",
         "body": [
           {
-            "p": "You are back on the Luna Cafe site, and two branches are waiting for you. `hours-fix` corrects the opening hours and was started from exactly where `main` stands today. `bold-tagline` was started earlier in the week — before you sat down and rewrote the tagline yourself."
+            "p": "This time you are looking after the Luna Cafe site, and two branches are waiting for you. `hours-fix` corrects the opening hours and was started from exactly where `main` stands today. `bold-tagline` was started earlier in the week — before you sat down and rewrote the tagline yourself."
           },
           {
             "graph": {
@@ -544,7 +544,10 @@
                   "kind": "commandRan",
                   "command": "git",
                   "sub": "log",
-                  "label": "You surveyed every branch"
+                  "label": "You surveyed every branch",
+                  "withArg": [
+                    "--all"
+                  ]
                 }
               ]
             },
@@ -608,6 +611,11 @@
                   "kind": "noConflictMarkers",
                   "path": "tagline.txt",
                   "label": "tagline.txt is back to normal"
+                },
+                {
+                  "kind": "commitCount",
+                  "exact": 3,
+                  "label": "Nothing was merged — main is back where it stood"
                 }
               ]
             },
@@ -625,21 +633,20 @@
               ]
             },
             {
-              "say": "Resolve it by writing the line you actually want. Here we borrow from both taglines. On your own machine you could keep either side untouched or invent something else entirely — Git has no opinion. This checklist only asks for a line of your own that still mentions coffee. Writing the whole file in one go also wipes the three marker lines, which is exactly what you need.",
+              "say": "Resolve it by writing the line you actually want. Here we borrow from both taglines; keeping either side exactly as it was, or writing something else entirely, is just as valid — Git has no opinion, and neither does this walkthrough. Writing the whole file in one go also wipes the three marker lines, which is exactly what you need.",
               "cmd": "echo \"Wake up to good coffee. No fuss.\" > tagline.txt",
-              "hint": "Type: echo \"Wake up to good coffee. No fuss.\" > tagline.txt — or any line of your own that mentions coffee.",
+              "hint": "Type: echo \"Wake up to good coffee. No fuss.\" > tagline.txt — or any line you like, so long as the three marker lines are gone.",
               "expect": [
                 {
                   "kind": "noConflictMarkers",
                   "path": "tagline.txt",
-                  "label": "The conflict markers are gone"
+                  "label": "The marker lines are gone"
                 },
                 {
                   "kind": "fileExists",
                   "path": "tagline.txt",
-                  "contains": "coffee",
-                  "ci": true,
-                  "label": "tagline.txt now says something about coffee"
+                  "nonEmpty": true,
+                  "label": "tagline.txt says something"
                 }
               ]
             },
@@ -649,11 +656,8 @@
               "hint": "Type: git add tagline.txt",
               "expect": [
                 {
-                  "kind": "fileStaged",
+                  "kind": "conflictResolved",
                   "path": "tagline.txt",
-                  "content": true,
-                  "contains": "coffee",
-                  "ci": true,
                   "label": "tagline.txt is marked as resolved"
                 }
               ]
@@ -663,10 +667,6 @@
               "cmd": "git commit",
               "hint": "Type: git commit — no -m needed while a merge is in progress. (git commit --no-edit works too.)",
               "expect": [
-                {
-                  "kind": "mergeCommitAt",
-                  "label": "main's newest commit is a merge commit with two parents"
-                },
                 {
                   "kind": "branchesMerged",
                   "from": "bold-tagline",

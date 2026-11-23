@@ -150,7 +150,7 @@
           "type": "guided",
           "body": [
             {
-              "p": "Below is a **terminal** — the text-based way to talk to a computer. You type a command, press Enter, and the computer answers. All of this runs safely in your browser; you cannot break anything. Let's learn the three commands you'll use constantly, and see *why* we need Git at all."
+              "p": "This lesson comes with a **terminal** — the text-based way to talk to a computer. You type a command, press Enter, and the computer answers. All of this runs safely in your browser; you cannot break anything — and if an exercise ever gets into a state you cannot see your way out of, **reset** in the bar at the top puts it back exactly as it began. Let's learn the three commands you'll use constantly, and see *why* we need Git at all."
             }
           ],
           "exercise": {
@@ -224,7 +224,7 @@
           "type": "challenge",
           "body": [
             {
-              "p": "Time to prove you can drive the terminal on your own. In the next module you'll put a folder under Git's protection — first, build one."
+              "p": "Time to prove you can drive the terminal on your own. In the next module you'll put a folder under Git's protection — first, give it something to protect."
             }
           ],
           "exercise": {
@@ -356,6 +356,22 @@
             },
             {
               "tip": "Get in the habit now: run `git status` before and after every other Git command until reading it feels boring. Boring is the goal."
+            },
+            {
+              "h": "Before your first real commit"
+            },
+            {
+              "p": "This sandbox arrives ready to use. Git on your own machine needs three lines of `git config`, once, before it will let you commit:"
+            },
+            {
+              "list": [
+                "`git config --global user.name \"Your Name\"`",
+                "`git config --global user.email \"you@example.com\"`",
+                "`git config --global init.defaultBranch main`"
+              ]
+            },
+            {
+              "p": "The first two are how Git signs your commits — without them, real Git stops your very first `git commit` and asks who you are. The third makes `git init` call your first branch `main`, the name this course uses throughout; left to itself, Git on your own machine may still call it `master`. Same thing, different name. None of it is needed here, so there is nothing to type yet."
             }
           ]
         },
@@ -372,7 +388,7 @@
             },
             {
               "list": [
-                "A **snapshot** — the exact contents of every file you staged, as they were at that moment.",
+                "A **snapshot** — the complete project at that moment: every file Git is tracking, including whatever you just staged.",
                 "A **message** — your sentence explaining why the change was made.",
                 "An **author and a timestamp** — who made it, and when.",
                 "A **parent** — the commit that came immediately before this one."
@@ -394,7 +410,7 @@
               "code": "git log --oneline\n# → 3f9a1c2 Add the pancake recipe\n# → 7c1d0b4 Start the notes file"
             },
             {
-              "tip": "You do not have to remember these names or write them down. Git has friendlier ways to say \"the latest commit\" and \"the one before that\", and you will meet them in Module 9. For now, just know that the seven characters are a commit's name."
+              "tip": "You do not have to remember these names or write them down. Git has friendlier ways to say \"the latest commit\" and \"the one before that\", and you will meet them in Module 4. For now, just know that the seven characters are a commit's name."
             },
             {
               "h": "The message is the half a computer cannot write"
@@ -471,7 +487,7 @@
           "type": "guided",
           "body": [
             {
-              "p": "You have a folder with a recipe file in it. Let's put it under version control and take the first snapshot. Watch the panels on the right as you go — you'll see files move between areas, and the graph gain its first dot."
+              "p": "You have a folder with a recipe file in it. Let's put it under version control and take the first snapshot. Two things are worth watching as you go. The **commit graph** is about to gain its first dot. And **Files**, in the bar at the top, opens the file-state panel — the three areas, and which files are in each. Open it whenever a step asks you to watch a file move."
             }
           ],
           "exercise": {
@@ -508,7 +524,7 @@
                 ]
               },
               {
-                "say": "Tell Git to include recipe.txt in the next snapshot. This moves it to the **staging area** — watch the file panel on the right.",
+                "say": "Tell Git to include recipe.txt in the next snapshot. This moves it to the **staging area** — open **Files** and you can see it sitting there.",
                 "cmd": "git add recipe.txt",
                 "hint": "Type: git add recipe.txt",
                 "expect": [
@@ -549,7 +565,7 @@
                 ]
               },
               {
-                "say": "Look at your history. `git log` shows every commit: a unique ID, the author, the date, and your message. There's exactly one entry — your first commit. Welcome to version control.",
+                "say": "Look at your history. `git log` shows every commit: a unique ID, the author, the date, and your message. (The `(HEAD -> main)` after the ID is Git marking where you are standing; Module 5 explains it.) There's exactly one entry — your first commit. Welcome to version control.",
                 "cmd": "git log",
                 "hint": "Type: git log",
                 "expect": [
@@ -558,6 +574,19 @@
                     "command": "git",
                     "sub": "log",
                     "label": "Read the history"
+                  }
+                ]
+              },
+              {
+                "say": "One last look at the compass. `nothing to commit, working tree clean` is the line you want to see at the end of any piece of work: every change is safely inside a commit, with nothing left staged, edited or untracked. From here on, a *clean working tree* means exactly this.",
+                "cmd": "git status",
+                "hint": "Type: git status",
+                "expect": [
+                  {
+                    "kind": "commandRan",
+                    "command": "git",
+                    "sub": "status",
+                    "label": "See the clean state for yourself"
                   }
                 ]
               }
@@ -581,7 +610,7 @@
                 "content": "Day 1: started learning Git."
               }
             ],
-            "goal": "Initialize a repository and make a commit that contains `journal.txt`, with any commit message. End with a clean working tree.",
+            "goal": "Initialize a repository and make a commit that contains `journal.txt`, with any commit message. End with a clean working tree — `git status` reporting nothing left to commit.",
             "hints": [
               "The full sequence is: git init → git add journal.txt → git commit -m \"some message\"",
               "Not sure where you are? git status will tell you exactly what's left to do.",
@@ -604,12 +633,13 @@
               },
               {
                 "kind": "lastCommitMessage",
-                "minLength": 2,
+                "minLength": 1,
                 "label": "Commit has a message"
               },
               {
                 "kind": "cleanWorkingTree",
-                "label": "Working tree is clean"
+                "label": "Working tree is clean",
+                "allowUntracked": false
               },
               {
                 "kind": "headOnBranch",
@@ -681,7 +711,7 @@
               "p": "Because **a commit should tell one story**. Real work is messy: in one sitting you might fix a bug, rename a heading, and start a new feature. If commits were automatic \"save everything\" snapshots, each one would be a junk drawer of unrelated changes — and the history would be useless for answering \"when did we fix that bug?\" or \"can we undo just the heading change?\""
             },
             {
-              "analogy": "Back to the photographer's studio. Your working directory is the whole messy room. The **staging area** is the space in front of the camera. Before pressing the shutter you *choose* what's in frame: this change yes, that change not yet. `git add` places a change in frame. `git commit` clicks the shutter. The photo shows only what you staged."
+              "analogy": "Back to the photographer's studio. Your working directory is the whole messy room. The **staging area** is the space in front of the camera. Before pressing the shutter you *choose* what's in frame: this change yes, that change not yet. `git add` places a change in frame. `git commit` clicks the shutter. The only *changes* in the new photo are the ones you staged; everything else in it looks exactly as it did in the photo before."
             },
             {
               "h": "The three areas, one more time"
@@ -697,6 +727,9 @@
                 "`git add` stages the file's contents **as they are right now**. If you edit the file again afterward, the *new* edits are not staged — the file shows up as both 'staged' and 'modified' at once. Not a bug: the frame holds the version you placed there.",
                 "Changed your mind? `git restore --staged <file>` takes a file back **out** of the frame without touching your actual edits. Nothing is lost — it just won't be in the next photo."
               ]
+            },
+            {
+              "warn": "You will see `git add .` everywhere. The dot means *this whole folder*: it stages every new and changed file in one go. That is handy when everything really does belong together — and it is exactly how two unrelated changes end up in one commit. While you are learning, name the files instead: `git add index.html`, or several at once, `git add index.html style.css`."
             },
             {
               "h": "Seeing what's about to be committed"
@@ -718,7 +751,7 @@
               "p": "Staging is a decision, and decisions get revised. You stage three files, read the list back, and realise the third one belongs in a different commit. Nothing is lost — you just take it back out of the frame."
             },
             {
-              "code": "git restore --staged notes.txt\n# → notes.txt is no longer staged; your edits to it are untouched"
+              "code": "git restore --staged notes.txt\n# (prints nothing — notes.txt is simply no longer staged; your edits to it are untouched)"
             },
             {
               "analogy": "The photographer again. Taking something back out of shot before you press the shutter does not damage it — you are rearranging the frame, not the room. Your file on disk is exactly as you left it."
@@ -733,7 +766,7 @@
               "p": "Here is the situation that confuses everyone the first time. You stage a file, then keep editing it. Now `git status` lists the same file **twice** — once under \"Changes to be committed\" and once under \"Changes not staged for commit\"."
             },
             {
-              "code": "Changes to be committed:\n\trecipe.txt\n\nChanges not staged for commit:\n\trecipe.txt"
+              "code": "Changes to be committed:\n\tmodified:   recipe.txt\n\nChanges not staged for commit:\n\tmodified:   recipe.txt"
             },
             {
               "p": "That is not a bug and not a conflict. `git add` staged the file **as it was when you ran it**. The edits you made afterwards are newer than the snapshot in the frame, so they are simply not in it yet. Run `git add recipe.txt` again and the frame catches up."
@@ -750,7 +783,7 @@
             {
               "list": [
                 "`git restore --staged <file>` — take the file out of the staging area. **Your edits survive.**",
-                "`git restore <file>` — throw away your edits to that file and go back to the last committed version. **Your edits are gone.**"
+                "`git restore <file>` — throw away your edits to that file and put back the version in the staging area, which is the last committed version unless you have staged something newer. **Your edits are gone.**"
               ]
             },
             {
@@ -856,14 +889,18 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "diff",
-                    "label": "Preview the staged change"
+                    "label": "Preview the staged change",
+                    "withArg": [
+                      "--staged",
+                      "--cached"
+                    ]
                   }
                 ]
               },
               {
                 "say": "Commit it. Note the stat line: **1 file changed** — the CSS edit is untouched, still waiting in your working directory.",
                 "cmd": "git commit -m \"Friendlier welcome headline\"",
-                "hint": "git commit -m \"Friendlier welcome headline\"",
+                "hint": "git commit -m \"Friendlier welcome headline\" — and if both files went into this commit, nothing you have learned yet can split it: press **reset** in the bar at the top and take the walkthrough again.",
                 "expect": [
                   {
                     "kind": "commitCount",
@@ -894,7 +931,7 @@
                 ]
               },
               {
-                "say": "...and immediately un-stage it. Your edit is still in the file — check the panels — it's just out of the frame again. This is the safety valve you'll reach for constantly.",
+                "say": "...and immediately un-stage it. Your edit is still in the file — open **Files** and you will find it back under the working directory — it's just out of the frame again. This is the safety valve you'll reach for constantly.",
                 "cmd": "git restore --staged style.css",
                 "hint": "Type: git restore --staged style.css",
                 "expect": [
@@ -985,32 +1022,33 @@
               "git status first. Always. Identify what's modified and what's untracked.",
               "Commit #1: git add app.js → git commit -m \"...\". Don't use 'git add .' — it would grab everything.",
               "Commit #2: git add README.md notes.txt (you can list several files) → git commit -m \"...\"",
-              "Staged the wrong thing? git restore --staged <file> takes it back out."
+              "Staged the wrong thing? git restore --staged <file> takes it back out.",
+              "Made a commit you did not mean to? Nothing in the course so far takes a commit back — that is Module 9 — so press **reset** in the bar at the top and start the exercise again."
             ],
             "expect": [
               {
                 "kind": "commitCount",
-                "min": 3,
-                "label": "Two new commits on top of the initial one"
+                "label": "Exactly two new commits on top of the initial one",
+                "exact": 3
               },
               {
                 "kind": "commitTouched",
-                "ref": "HEAD~1",
                 "paths": [
                   "app.js"
                 ],
                 "exact": true,
-                "label": "First new commit: only app.js"
+                "label": "First new commit: only app.js",
+                "nth": 2
               },
               {
                 "kind": "commitTouched",
-                "ref": "HEAD",
                 "paths": [
                   "README.md",
                   "notes.txt"
                 ],
                 "exact": true,
-                "label": "Second new commit: README.md + notes.txt"
+                "label": "Second new commit: README.md + notes.txt",
+                "nth": 3
               },
               {
                 "kind": "cleanWorkingTree",
@@ -1146,7 +1184,7 @@
               "code": "no changes added to commit (use \"git add\" and/or \"git commit -a\")"
             },
             {
-              "p": "It means: *\"if you ran `git commit` this second, the commit would be empty.\"* **Changed is not the same as staged.** The clothes are all over the bed; the suitcase is empty. That line has confused more beginners than anything else Git prints."
+              "p": "It means: *\"nothing is staged, so a `git commit` right now would have nothing to record\"* — Git would simply refuse. **Changed is not the same as staged.** The clothes are all over the bed; the suitcase is empty. That line has confused more beginners than anything else Git prints."
             },
             {
               "tip": "`git status` changes nothing. Ever. It is the one Git command you can run as often as you breathe, and the fastest way out of \"what state am I in?\""
@@ -1192,7 +1230,7 @@
               "analogy": "Back to the suitcase. `git diff` holds the bed up against the suitcase: *what have I chosen but not packed?* `git diff --staged` holds the suitcase up against the packing list you filed last trip: *what will this trip's list say?* And `git diff HEAD` ignores the suitcase entirely, comparing the whole room against that list."
             },
             {
-              "p": "Each row of the table reads older on the left, newer on the right — the direction `add` and `commit` push your work into history, which is why the last commit sits at the far left:"
+              "p": "Each row of the table reads older on the left, newer on the right: the last commit is the oldest version of your work, the staging area is newer, and your working directory is the newest of all:"
             },
             {
               "code": "git diff            staging area -> working directory\ngit diff --staged   last commit  -> staging area\ngit diff HEAD       last commit  -> working directory\ngit diff <A> <B>    commit A     -> commit B"
@@ -1375,7 +1413,7 @@
                 ]
               },
               {
-                "say": "So where did the change go? One shelf to the left. `git diff --staged` compares the **last commit** with the **staging area** — in other words, it prints exactly what your next commit will contain. Same two hunks, different question.",
+                "say": "So where did the change go? Into the staging area. `git diff --staged` compares the **last commit** with the **staging area** — in other words, it prints exactly what your next commit will contain. Same two hunks, different question.",
                 "cmd": "git diff --staged",
                 "hint": "Type: git diff --staged",
                 "expect": [
@@ -1383,19 +1421,29 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "diff",
-                    "label": "The change reappears, staged"
+                    "label": "The change reappears, staged",
+                    "withArg": [
+                      "--staged",
+                      "--cached"
+                    ]
                   }
                 ]
               },
               {
                 "say": "Now make a second edit on top of the staged one — a new dessert — and look at status straight away. Note the **double** arrow: `>>` adds a line to the end of a file, where the single `>` you have been using replaces the whole thing. `menu.txt` is then listed **twice**: the version you staged, and newer edits sitting on top of it.",
                 "cmd": "echo \"- lemon tart\" >> menu.txt\ngit status",
-                "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status",
+                "hint": "Two commands: echo \"- lemon tart\" >> menu.txt (two arrows, so the line is added rather than replacing the menu) then git status. If a single > has wiped the menu, git restore menu.txt puts back the version you staged — then try again with two arrows.",
                 "expect": [
                   {
                     "kind": "fileChanged",
                     "path": "menu.txt",
                     "label": "menu.txt has a fresh edit on top"
+                  },
+                  {
+                    "kind": "fileExists",
+                    "path": "menu.txt",
+                    "contains": "CORNER CAFE",
+                    "label": "The rest of the menu is still there"
                   },
                   {
                     "kind": "commandRan",
@@ -1414,7 +1462,10 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "diff",
-                    "label": "See everything since the last commit"
+                    "label": "See everything since the last commit",
+                    "withArg": [
+                      "HEAD"
+                    ]
                   }
                 ]
               },
@@ -1586,7 +1637,7 @@
           {
             "list": [
               "`git status` is a report with three shelves: **staged** (in the suitcase), **not staged** (on the bed), **untracked** (still in the wardrobe).",
-              "**no changes added to commit** means \"committing right now would produce an empty commit\". Changed is not staged.",
+              "**no changes added to commit** means \"nothing is staged, so there is nothing to commit yet\". Changed is not staged.",
               "A diff is a list of edit instructions: `-` left, `+` arrived, a leading space is unchanged context, and `@@ -1,4 +1,5 @@` tells you where in the file you are.",
               "`git diff` never has one meaning — always ask *which two endpoints?*",
               "`git show <ref>` opens a single commit; `git diff <A> <B>` measures the gap between two.",
@@ -1900,7 +1951,7 @@
               "h": "When Git refuses to switch"
             },
             {
-              "p": "Git stops you in exactly one situation: when the file you have been editing is one of the files it would have to overwrite. Suppose you're on `main` with an uncommitted edit to `style.css`, and `neon-theme` holds a *different* version of that same file. Switching would mean writing neon's version over the top of yours. Git won't do it:"
+              "p": "Apart from that untracked-file case, Git stops you in exactly one situation: when the file you have been editing is one of the files it would have to overwrite. Suppose you're on `main` with an uncommitted edit to `style.css`, and `neon-theme` holds a *different* version of that same file. Switching would mean writing neon's version over the top of yours. Git won't do it:"
             },
             {
               "code": "git switch neon-theme\nerror: Your local changes to the following files would be overwritten by switch:\n\tstyle.css\nPlease commit your changes or stash them before you switch branches.\nAborting"
@@ -1927,7 +1978,7 @@
               "p": "When a branch has done its job, `git branch -d <name>` peels the sticky note off. It does not delete the commits — you are throwing away a *label*, not the photographs."
             },
             {
-              "warn": "`git branch -d` refuses when the branch holds commits that exist nowhere else, saying the branch \"is not fully merged\". That is a guard rail, not a wall: removing the only name pointing at your work would make it genuinely hard to find again. A capital `-D` overrides the guard. Reach for `-D` only when you have decided, on purpose, to abandon that work."
+              "warn": "`git branch -d` refuses when the branch holds commits that the branch you are standing on does not have, saying the branch \"is not fully merged\". That is a guard rail, not a wall: removing the only name pointing at your work would make it genuinely hard to find again. A capital `-D` overrides the guard. Reach for `-D` only when you have decided, on purpose, to abandon that work."
             },
             {
               "h": "The whole toolkit"
@@ -2025,7 +2076,7 @@
                 ]
               },
               {
-                "say": "That was instant, and — check the file panel — not one file changed. Here's the proof. `--oneline` squeezes each commit onto a single line (short ID, labels in brackets, message) and `--all` shows every branch's history, not only the one you're standing on. Read the labels in brackets carefully.",
+                "say": "That was instant, and not one file changed — open **Files** if you would like to check. Here's the proof. `--oneline` squeezes each commit onto a single line (short ID, labels in brackets, message) and `--all` shows every branch's history, not only the one you're standing on. Read the labels in brackets carefully.",
                 "cmd": "git log --oneline --all",
                 "hint": "Type: git log --oneline --all",
                 "expect": [
@@ -2033,7 +2084,10 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "log",
-                    "label": "See both labels on one commit"
+                    "label": "See both labels on one commit",
+                    "withArg": [
+                      "--all"
+                    ]
                   }
                 ]
               },
@@ -2109,6 +2163,16 @@
                     "kind": "headOnBranch",
                     "name": "main",
                     "label": "Git refused the switch — you're still standing on main"
+                  },
+                  {
+                    "kind": "commandRan",
+                    "command": "git",
+                    "sub": [
+                      "switch",
+                      "checkout"
+                    ],
+                    "failed": true,
+                    "label": "Git refused the switch"
                   }
                 ]
               },
@@ -2135,7 +2199,7 @@
                 ]
               },
               {
-                "say": "Read the brackets: `(HEAD -> main)` and `(neon-theme)` now sit on two *different* commits. The terminal can only print commits one per line, newest first, so it can't show you the shape — look at the **graph panel** for that. Two lines, splitting apart at `Add a tagline`. You built a fork in your project's history: a navy site and a pink one, both saved, each a single `git switch` away. Leave them forked — introducing them is Module 6's job.",
+                "say": "Read the brackets: `(HEAD -> main)` and `(neon-theme)` now sit on two *different* commits. The terminal can only print commits one per line, newest first, so it can't show you the shape — look at the **graph panel** for that. Two lines, splitting apart at `Add a tagline`. You built a fork in your project's history: a navy site and a pink one, both saved, each a single `git switch` away. Leave them forked — bringing branches back together is Module 6's job.",
                 "cmd": "git log --oneline --all",
                 "hint": "Type: git log --oneline --all",
                 "expect": [
@@ -2143,7 +2207,10 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "log",
-                    "label": "Read the two branch labels"
+                    "label": "Read the two branch labels",
+                    "withArg": [
+                      "--all"
+                    ]
                   }
                 ]
               }
@@ -2162,7 +2229,7 @@
               "p": "Nothing here needs merging; that's the next module. Nothing needs undoing either. Run `git branch` and `git status` first, look at what you've been handed, and think about **where the commit is going to land** before you make it."
             },
             {
-              "warn": "The trap: if you commit onto `main`, the checklist can never go green — `main` has to finish exactly where it started. Think first, commit second. If you do slip, the reset button on the terminal panel puts the exercise back to the beginning."
+              "warn": "The trap: if you commit onto `main`, nothing you have learned so far takes that commit back off again — and `main` has to finish exactly where it started. Think first, commit second. If you do slip, **reset** in the bar at the top puts the exercise back to the beginning."
             }
           ],
           "exercise": {
@@ -2252,7 +2319,8 @@
               },
               {
                 "kind": "cleanWorkingTree",
-                "label": "Working tree is clean"
+                "label": "Working tree is clean",
+                "allowUntracked": false
               }
             ]
           }
@@ -2345,7 +2413,7 @@
             }
           },
           {
-            "p": "Next: those two branches are still strangers to each other. Module 6 introduces them — `git merge`, what a merge commit really is, and what to do when both sides have edited the same line."
+            "p": "Next: two branches that have drifted apart are not much use until they can be brought back together. Module 6 is `git merge` — what a merge commit really is, and what to do when both sides have edited the same line."
           }
         ]
       }
@@ -2656,7 +2724,7 @@
               "p": "`git status` is at its most helpful in this state. It names what is stuck, and hands you both exits:"
             },
             {
-              "code": "$ git status\nOn branch main\nYou have unmerged paths.\n  (fix conflicts and run \"git commit\")\n  (use \"git merge --abort\" to abort the merge)\n\nChanges to be committed:\n  (use \"git restore --staged <file>...\" to unstage)\n\tmodified:   hours.txt\n\nUnmerged paths:\n  (use \"git add <file>...\" to mark resolution)\n\tboth modified:   tagline.txt"
+              "code": "$ git status\nOn branch main\nYou have unmerged paths.\n  (fix conflicts and run \"git commit\")\n  (use \"git merge --abort\" to abort the merge)\n\nChanges to be committed:\n\tmodified:   hours.txt\n\nUnmerged paths:\n  (use \"git add <file>...\" to mark resolution)\n\tboth modified:   tagline.txt"
             },
             {
               "p": "Two lists. The top one is work Git already finished for you — `hours.txt` came across cleanly and is staged, ready to go. Only the bottom one is waiting on a human."
@@ -2725,7 +2793,7 @@
           "type": "guided",
           "body": [
             {
-              "p": "You are back on the Luna Cafe site, and two branches are waiting for you. `hours-fix` corrects the opening hours and was started from exactly where `main` stands today. `bold-tagline` was started earlier in the week — before you sat down and rewrote the tagline yourself."
+              "p": "This time you are looking after the Luna Cafe site, and two branches are waiting for you. `hours-fix` corrects the opening hours and was started from exactly where `main` stands today. `bold-tagline` was started earlier in the week — before you sat down and rewrote the tagline yourself."
             },
             {
               "graph": {
@@ -2895,7 +2963,10 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "log",
-                    "label": "You surveyed every branch"
+                    "label": "You surveyed every branch",
+                    "withArg": [
+                      "--all"
+                    ]
                   }
                 ]
               },
@@ -2959,6 +3030,11 @@
                     "kind": "noConflictMarkers",
                     "path": "tagline.txt",
                     "label": "tagline.txt is back to normal"
+                  },
+                  {
+                    "kind": "commitCount",
+                    "exact": 3,
+                    "label": "Nothing was merged — main is back where it stood"
                   }
                 ]
               },
@@ -2976,21 +3052,20 @@
                 ]
               },
               {
-                "say": "Resolve it by writing the line you actually want. Here we borrow from both taglines. On your own machine you could keep either side untouched or invent something else entirely — Git has no opinion. This checklist only asks for a line of your own that still mentions coffee. Writing the whole file in one go also wipes the three marker lines, which is exactly what you need.",
+                "say": "Resolve it by writing the line you actually want. Here we borrow from both taglines; keeping either side exactly as it was, or writing something else entirely, is just as valid — Git has no opinion, and neither does this walkthrough. Writing the whole file in one go also wipes the three marker lines, which is exactly what you need.",
                 "cmd": "echo \"Wake up to good coffee. No fuss.\" > tagline.txt",
-                "hint": "Type: echo \"Wake up to good coffee. No fuss.\" > tagline.txt — or any line of your own that mentions coffee.",
+                "hint": "Type: echo \"Wake up to good coffee. No fuss.\" > tagline.txt — or any line you like, so long as the three marker lines are gone.",
                 "expect": [
                   {
                     "kind": "noConflictMarkers",
                     "path": "tagline.txt",
-                    "label": "The conflict markers are gone"
+                    "label": "The marker lines are gone"
                   },
                   {
                     "kind": "fileExists",
                     "path": "tagline.txt",
-                    "contains": "coffee",
-                    "ci": true,
-                    "label": "tagline.txt now says something about coffee"
+                    "nonEmpty": true,
+                    "label": "tagline.txt says something"
                   }
                 ]
               },
@@ -3000,11 +3075,8 @@
                 "hint": "Type: git add tagline.txt",
                 "expect": [
                   {
-                    "kind": "fileStaged",
+                    "kind": "conflictResolved",
                     "path": "tagline.txt",
-                    "content": true,
-                    "contains": "coffee",
-                    "ci": true,
                     "label": "tagline.txt is marked as resolved"
                   }
                 ]
@@ -3014,10 +3086,6 @@
                 "cmd": "git commit",
                 "hint": "Type: git commit — no -m needed while a merge is in progress. (git commit --no-edit works too.)",
                 "expect": [
-                  {
-                    "kind": "mergeCommitAt",
-                    "label": "main's newest commit is a merge commit with two parents"
-                  },
                   {
                     "kind": "branchesMerged",
                     "from": "bold-tagline",
@@ -3358,7 +3426,7 @@
               "code": "git init                       # only if it isn't a repository yet\ngit add .\ngit commit -m \"First commit\"\ngit remote add origin https://github.com/you/iceland-trip.git\ngit push -u origin main"
             },
             {
-              "p": "Five lines and your project is on the internet. The URL comes from the site; everything else you already know except the last line, which is next."
+              "p": "Five lines and your project is on the internet. The URL comes from the site; everything else you already know except the last line, which is next. (Two things real Git adds on your own machine. If `git init` named your first branch `master` rather than `main`, run `git branch -M main` before that push to rename it. And the first push to a hosting site asks you to sign in — the site's own instructions walk you through that part.)"
             },
             {
               "h": "push: send my commits over there"
@@ -3373,7 +3441,7 @@
               "p": "The `-u` (long form: `--set-upstream`) is a one-time piece of bookkeeping. It records the pairing \"my `main` goes with `origin`'s `main`\" — Git calls that the **upstream**. From then on you can type a bare `git push`, or a bare `git pull`, and Git already knows which remote and which branch you mean."
             },
             {
-              "tip": "Forget the `-u` on your first push and nothing bad happens: Git stops and prints the exact command to type instead. It is a nudge, not a disaster. This is the whole of it:"
+              "tip": "Forget the `-u` on your first push and nothing bad happens: Git stops and prints the exact command to type instead. It is a nudge, not a disaster. This is the part that matters:"
             },
             {
               "code": "git push\n# fatal: The current branch main has no upstream branch.\n# To push the current branch and set the remote as upstream, use\n#\n#     git push --set-upstream origin main"
@@ -3401,7 +3469,7 @@
               "analogy": "`origin/main` is the last photo you have of a friend. It isn't your friend — it is a record of how they looked when you last met. They may have had a haircut this morning; your photo will keep showing the old hair until you see them again. `git fetch` is seeing them again."
             },
             {
-              "tip": "This course draws you a graph panel. The real world does not — so here is how you answer \"where do I stand relative to origin?\" without one. Real `git status` says it in words: *\"Your branch is ahead of 'origin/main' by 1 commit\"*, or *\"Your branch and 'origin/main' have diverged\"*. And `git log --oneline` prints the same `main` and `origin/main` labels you are watching in the panel, next to the commits they point at — that one works in real Git and in this sandbox alike. (This sandbox's `git status` is the quieter of the two and leaves the ahead/behind line out, so lean on `git log --oneline` while you are here.)"
+              "tip": "This course draws you a graph panel. The real world does not — so here is how you answer \"where do I stand relative to origin?\" without one. Real `git status` says it in words: *\"Your branch is ahead of 'origin/main' by 1 commit\"*, or *\"Your branch and 'origin/main' have diverged\"*. And `git log --oneline --all` prints the same `main` and `origin/main` labels you are watching in the panel, next to the commits they point at — that one works in real Git and in this sandbox alike. The `--all` matters: a commit you have fetched but not yet merged is on no branch of yours, only under `origin/main`, and a plain `git log` walks straight past it. (This sandbox's `git status` is the quieter of the two and leaves the ahead/behind line out, so lean on `git log --oneline --all` while you are here.)"
             },
             {
               "p": "Here is your repository the moment after a successful push. Your memory of the remote is accurate, because you were just there:"
@@ -3601,7 +3669,7 @@
               "p": "Read it as it is meant: *the remote has work you do not have; if I let your push through, Sam's commit would be knocked off the end of the branch and nobody would have it.* Git is refusing to lose somebody's work. It is on your side."
             },
             {
-              "p": "Git words this rejection two ways depending on what you already know. If you have not fetched, you get `(fetch first)`, as above. If you have already fetched — so Sam's commit is sitting in your repository, merely not on your branch — you get `! [rejected]  main -> main (non-fast-forward)` instead, and the hint changes to *\"the tip of your current branch is behind its remote counterpart\"*. The two mean the same thing: the remote has commits your branch does not contain. (This sandbox always prints the `(fetch first)` wording.)"
+              "p": "Git words this rejection two ways depending on what you already know. If you have not fetched, you get `(fetch first)`, as above. If you have already fetched — so Sam's commit is sitting in your repository, merely not on your branch — you get `! [rejected]  main -> main (non-fast-forward)` instead, and the hint changes to *\"the tip of your current branch is behind its remote counterpart\"*. The two mean the same thing: the remote has commits your branch does not contain."
             },
             {
               "p": "And notice that either way the fix starts with catching your memory up. That is why the hint says *fetch first*: your record of the remote has to become true before anything you do next can be based on the truth."
@@ -3617,7 +3685,7 @@
               ]
             },
             {
-              "warn": "There is a `git push --force`, which orders the remote to throw its version away and take yours. It has legitimate uses that you do not have yet. It is also exactly how people delete a colleague's afternoon. Never reach for it to make an error message go away."
+              "warn": "There is a `git push --force`, which orders the remote to throw its version away and take yours. It has legitimate uses that you do not have yet. It is also exactly how people delete a colleague's afternoon. Never reach for it to make an error message go away. (This sandbox will not force-push at all: try it and it tells you what would have happened.)"
             }
           ]
         },
@@ -3864,7 +3932,7 @@
             ],
             "goal": "Get your uncommitted work — the new swimsuit line in `packing.md`, and the brand-new file `gear.md` — all the way onto the remote, while keeping both of Sam's commits. Finish with: `origin`'s `main` and your `main` on the same commit; that commit holding Sam's `budget.md` (including his `food 150` line) as well as both of your changes; and a completely clean working tree — nothing modified, nothing untracked.",
             "hints": [
-              "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours.",
+              "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours. `git log --oneline --all` afterwards lists both of Sam's commits, under the `origin/main` label.",
               "In this sandbox `git pull` stops while any tracked file has uncommitted changes, so commit your work first: `git add .` then `git commit -m \"...\"`. (Remember `gear.md` is brand new — `git commit -am` would walk right past it.)",
               "Now try `git push`, and read the rejection carefully. The hint at the bottom of it names the command that fixes this.",
               "The full loop: commit your work, `git pull` to merge Sam's commits into yours, then `git push` to send the combined history back."
@@ -4013,7 +4081,7 @@
               ]
             },
             {
-              "p": "Round and round, several times a week, for years. Eight of those nine steps are commands you can already type. The interesting question isn't *how* — it's *why this shape*."
+              "p": "Round and round, several times a week, for years. Six of those nine steps are commands you can already type; the other three — the pull request, the review and the merge — happen on a website. The interesting question isn't *how* — it's *why this shape*."
             },
             {
               "h": "So what is a pull request?"
@@ -4325,7 +4393,7 @@
                 ]
               },
               {
-                "say": "Here is the step git cannot do. In a browser you would now open the **pull request**: GitHub notices the freshly pushed branch, offers a *Compare & pull request* button, and you write a title and a description. Half of the page it builds is this — the change itself, your branch measured against `main`. This is the diff Priya will read line by line, so read it yourself first; it's the last cheap moment to notice you left something in.",
+                "say": "Here is the step git cannot do. In a browser you would now open the **pull request**: GitHub notices the freshly pushed branch, offers a *Compare & pull request* button, and you write a title and a description. The heart of the page it builds is this — the change itself, your branch measured against `main`. This is the diff Priya will read line by line, so read it yourself first; it's the last cheap moment to notice you left something in.",
                 "cmd": "git diff main add-faq",
                 "hint": "Type: git diff main add-faq — the two-ref comparison from module 4, main on the left, your branch on the right.",
                 "expect": [
@@ -4338,7 +4406,7 @@
                 ]
               },
               {
-                "say": "The other half of the page is the list of commits, and it comes from exactly this: your branch, one commit ahead of `main`. Two pictures of one request — what changed, and the steps you took to get there.",
+                "say": "The page also lists the commits, and that list comes from exactly this: your branch, one commit ahead of `main`. Two pictures of one request — what changed, and the steps you took to get there.",
                 "cmd": "git log --oneline --all",
                 "hint": "Type: git log --oneline --all — the --all shows every branch, not only the one you're standing on.",
                 "expect": [
@@ -4346,7 +4414,10 @@
                     "kind": "commandRan",
                     "command": "git",
                     "sub": "log",
-                    "label": "See what the pull request would show"
+                    "label": "See what the pull request would show",
+                    "withArg": [
+                      "--all"
+                    ]
                   }
                 ]
               },
@@ -4369,7 +4440,7 @@
                 ]
               },
               {
-                "say": "Your machine knows about the merge; the shared copy does not. Push `main`. **This** is the moment the feature actually ships — the moment anyone else who pulls receives your FAQ page. On a real project the merge already happened on the server when the button was clicked, so here you would `git pull` instead of pushing: same end state, and it's what makes the next step's `git branch -d` work.",
+                "say": "Your machine knows about the merge; the shared copy does not. Push `main`. **This** is the moment the feature actually ships — the moment anyone else who pulls receives your FAQ page. On a real project the merge already happened on the server when the button was clicked, so here you would `git pull` instead of pushing: same end state — your `main` holding the merged work.",
                 "cmd": "git push",
                 "hint": "Type: git push — main already tracks origin/main, so no flags are needed.",
                 "expect": [
@@ -4381,7 +4452,7 @@
                 ]
               },
               {
-                "say": "Last step, and the one everybody skips: delete the branch. `-d` is the careful version — it refuses if the branch holds commits `main` doesn't have, so it cannot lose work. The commits live on inside `main`; only the label goes. A short branch list is how a team sees at a glance what is genuinely in flight. Now look at the graph: `origin/add-faq` is still sitting there. `-d` deletes only your local label — the copy on the server is a separate branch, and it's the website's *Delete branch* button, next to the merged pull request, that clears it. That one belongs to the browser half, so there's nothing to run for it here.",
+                "say": "Last step, and the one everybody skips: delete the branch. `-d` is the careful version — it refuses if deleting the name could leave commits stranded, so it cannot lose work. The commits live on inside `main`; only the label goes. A short branch list is how a team sees at a glance what is genuinely in flight. Now look at the graph: `origin/add-faq` is still sitting there. `-d` deletes only your local label — the copy on the server is a separate branch, and it's the website's *Delete branch* button, next to the merged pull request, that clears it. That one belongs to the browser half, so there's nothing to run for it here.",
                 "cmd": "git branch -d add-faq",
                 "hint": "Type: git branch -d add-faq",
                 "expect": [
@@ -4405,7 +4476,7 @@
           "type": "challenge",
           "body": [
             {
-              "p": "Thursday afternoon, same hiking club. You started typing before you thought: there is a `site/trips.html` sitting untracked in your working directory — written while you were standing on `main`, where the work should never have started. Meanwhile Priya has pushed a photo gallery to `origin/main`, so your `main` is behind."
+              "p": "Thursday afternoon, same hiking club. You started typing before you thought: there is a `site/trips.html` sitting untracked in your working directory — written while you were standing on `main`, where the work should never have started. Meanwhile Priya has pushed a photo gallery to origin's `main`, so your `main` is behind."
             },
             {
               "p": "Untangle it and ship the page properly. Nothing here is a command you haven't run; the puzzle is the order. Take one stop around the loop at a time, and lean on `git status` and `git log --oneline --all` whenever you lose your bearings."
@@ -4458,13 +4529,14 @@
                 "content": "<h1>Trip reports</h1>\n<p>Ridge walk, October: windy, worth it.</p>"
               }
             ],
-            "goal": "Ship `site/trips.html` through the whole loop, picking up Priya's work on the way. Get the file off `main` first: the commit that adds `site/trips.html` must be made on a branch called `trip-reports`, not on `main`. Push that branch to origin — on a real project that push is what makes the pull request possible — then land it. The finished state: `main` contains both `site/trips.html` and Priya's `site/gallery.html`, and `origin/main` matches it. The `trip-reports` branch has been pushed, merged and deleted, and you're standing on `main` with nothing left uncommitted.",
+            "goal": "Ship `site/trips.html` through the whole loop, picking up Priya's work on the way. Get the file off `main` first: the commit that adds `site/trips.html` must be made on a branch called `trip-reports`, not on `main`. Push that branch to origin — on a real project that push is what makes the pull request possible — then land it. The finished state: `main` contains both `site/trips.html` and Priya's `site/gallery.html`, and origin's `main` matches it. The `trip-reports` branch has been pushed, merged and deleted, and you're standing on `main` with nothing left uncommitted.",
             "hints": [
-              "That file isn't committed yet. Does it belong to `main` at all? Run `git status` right after you create the branch and see where it went.",
+              "That file isn't committed yet. Does it belong to `main` at all? Run `git status` right after you create the branch and see where it went. It came with you — so stage it and commit it there, while you are standing on `trip-reports`.",
               "Your local main is behind origin — until you fix that, anything you push to main will be rejected. `git switch main`, then `git pull`.",
               "Sync before you would ask for review: back on `trip-reports`, `git merge main` folds Priya's gallery into your branch, so the branch shows your change against today's main.",
               "Landing it, in this order: `git push -u origin trip-reports` **first** — that push is what a pull request is opened against — then on `main` run `git merge trip-reports` and `git push`, and finish with `git branch -d trip-reports`.",
-              "Merged and deleted the branch before ever pushing it? Then origin never got a copy, and the branch is gone locally so you cannot push it now. Re-create it where main stands, push it, and delete it again: `git switch -c trip-reports`, `git push -u origin trip-reports`, `git switch main`, `git branch -d trip-reports`."
+              "Merged and deleted the branch before ever pushing it? Then origin never got a copy, and the branch is gone locally so you cannot push it now. Re-create it where main stands, push it, and delete it again: `git switch -c trip-reports`, `git push -u origin trip-reports`, `git switch main`, `git branch -d trip-reports`.",
+              "Committed the page while standing on `main`? Nothing taught so far moves a commit to another branch, so press **reset** in the bar at the top and go again — branch first, commit second."
             ],
             "expect": [
               {
@@ -4472,6 +4544,13 @@
                 "path": "site/trips.html",
                 "branch": "main",
                 "label": "Your trip reports page is committed on main"
+              },
+              {
+                "kind": "commitOnBranch",
+                "path": "site/trips.html",
+                "branch": "trip-reports",
+                "into": "main",
+                "label": "That commit was made on trip-reports, not on main"
               },
               {
                 "kind": "fileCommitted",
@@ -4488,7 +4567,7 @@
               {
                 "kind": "remoteUpToDate",
                 "branch": "main",
-                "label": "origin/main matches your main — the feature is shipped"
+                "label": "origin's main matches your main — the feature is shipped"
               },
               {
                 "kind": "branchAbsent",
@@ -4502,7 +4581,8 @@
               },
               {
                 "kind": "cleanWorkingTree",
-                "label": "Nothing left uncommitted"
+                "label": "Nothing left uncommitted",
+                "allowUntracked": false
               }
             ]
           }
@@ -4732,7 +4812,7 @@
               "p": "A useful way to hold it: `--soft` touches only the branch pointer, `--mixed` touches the pointer and the staging area, `--hard` touches the pointer, the staging area, *and* your actual files."
             },
             {
-              "warn": "`--hard` is the only genuinely dangerous option in this module. Committed work it removes can nearly always be rescued with `git reflog` (below). Uncommitted work it removes cannot — that was never recorded anywhere. Make `git status` your reflex before typing `--hard`, so you know exactly what you're standing on."
+              "warn": "`--hard` is the only dangerous one of the three. Committed work it removes can nearly always be rescued with `git reflog` (below). Uncommitted work it removes cannot — that was never recorded anywhere. Make `git status` your reflex before typing `--hard`, so you know exactly what you're standing on."
             },
             {
               "h": "What reset does to the picture"
@@ -4948,7 +5028,7 @@
               "h": "The safety net: git reflog"
             },
             {
-              "p": "Now the genuinely reassuring part. Git quietly records **every position `HEAD` has ever held** in your repository — every commit, every amend, every branch switch, every reset. This record is called the *reflog* (reference log). It lives only on your own machine, which is why most people never hear about it until the day it saves them. It isn't infinite, either — entries age out after a few months. The reflog is a rescue for this week's accident, not an archive."
+              "p": "Now the genuinely reassuring part. Git quietly records **every position `HEAD` has ever held** in your repository — every commit, every amend, every branch switch, every reset. This record is called the *reflog* (reference log). It lives only on your own machine, which is why most people never hear about it until the day it saves them. It isn't infinite, either — entries age out, after about a month for a commit nothing points at any more. The reflog is a rescue for this week's accident, not an archive."
             },
             {
               "analogy": "`git log` is the official history — the story your project chooses to tell. `git reflog` is the security-camera footage: every move you actually made, in order, including the ones you'd rather nobody saw."
@@ -5060,7 +5140,7 @@
                 ]
               },
               {
-                "say": "Look at the file panel: chapter2.txt is back to its committed state, and `git status` would report nothing to commit. Nothing was lost. Tip the drawer back out.",
+                "say": "Open **Files**: chapter2.txt is back to its committed state, and `git status` would report nothing to commit. Nothing was lost. Tip the drawer back out.",
                 "cmd": "git stash pop",
                 "hint": "Type: git stash pop",
                 "expect": [
@@ -5098,7 +5178,7 @@
                 ]
               },
               {
-                "say": "Except the sentence still isn't finished — that commit was premature. `--soft` moves the branch back one commit and leaves every change **staged**, exactly as it was a second before you pressed commit. Check the file panel: your work is untouched, it's just no longer part of the history.",
+                "say": "Except the sentence still isn't finished — that commit was premature. `--soft` moves the branch back one commit and leaves every change **staged**, exactly as it was a second before you pressed commit. Open **Files** to check: your work is untouched, it's just no longer part of the history.",
                 "cmd": "git reset --soft HEAD~1",
                 "hint": "Type: git reset --soft HEAD~1 — HEAD~1 means \"one commit before where I am\".",
                 "expect": [
@@ -5257,12 +5337,13 @@
                 "message": "more wip"
               }
             ],
-            "goal": "Clean up both problems and leave a tidy, clean repository. (1) The two junk commits at the top — `wip` and `more wip` — were never pushed, so erase them from your history completely, taking `scratch.txt` with them. (2) The `Add booking details` commit **was** pushed, so its commit must stay in the history untouched — but `booking.txt` must no longer exist in your project. (3) `Add day two` is good work: `itinerary.txt` must still mention Sintra when you're done. Finish with a clean working tree, exactly five commits, and your cleaned-up history pushed — if you picked the right tool for the booking commit, `git push` will be accepted.",
+            "goal": "Clean up both problems and leave a tidy, clean repository. (1) The two junk commits at the top — `wip` and `more wip` — were never pushed, so erase them from your history completely, taking `scratch.txt` with them. (2) The `Add booking details` commit **was** pushed, so its commit must stay in the history untouched — but `booking.txt` must no longer exist in your project. (3) `Add day two` is good work: `itinerary.txt` must still mention Sintra when you're done. Finish with a clean working tree, exactly five commits, and your cleaned-up history pushed — if you picked the right tool for the booking commit, `git push` will be accepted. Push **last**: the moment a commit reaches origin it is newspaper, and the junk commits must never get there.",
             "hints": [
               "Two problems, two tools. One of them lives above the origin/main line and one lives below it — re-read the two questions from the concept lesson and decide which tool each needs.",
-              "Deal with the junk commits first. They're the two newest, so one reset that moves the branch back two commits erases both — and if you pick the flavour that also rewrites your files, scratch.txt goes with them. Any other flavour leaves it sitting on disk for you to delete yourself.",
-              "With those gone, the booking commit is one step behind you. `git revert <commit>` writes a new commit that deletes what that one added — the original commit stays right where it is. Refs like HEAD~1 work here, and so does the ID from git log --oneline.",
-              "Overshot the reset and lost Sintra? That's exactly what git reflog is for: find the line for the 'Add day two' commit, copy its ID, and git reset --hard back onto it."
+              "Deal with the junk commits first. They're the two newest, so one reset that moves the branch back two commits erases both — and if you pick the flavour that also rewrites your files, scratch.txt goes with them. Any other flavour leaves it sitting on disk for you to delete yourself, with the terminal's own delete command: `rm scratch.txt`.",
+              "With those gone, the booking commit is one step behind you. `git revert <commit>` writes a new commit that deletes what that one added — the original commit stays right where it is. Refs like HEAD~1 work here, and so does the ID from git log --oneline. Then `git push` — it is accepted, because nothing origin already had was rewritten.",
+              "Overshot the reset and lost Sintra? That's exactly what git reflog is for: find the line for the 'Add day two' commit, copy its ID, and git reset --hard back onto it.",
+              "Pushed too early, while the junk commits were still on your branch? They are public now, and this exercise wants them erased rather than corrected — so press **reset** in the bar at the top and take it again: junk first, booking second, push last."
             ],
             "expect": [
               {
@@ -5437,7 +5518,7 @@
             },
             {
               "list": [
-                "`secrets.env` — an **exact name**. Matches files called exactly that. (In real Git that means one anywhere in the project, however deeply buried; this sandbox only looks in the top folder.)",
+                "`secrets.env` — an **exact name**. Matches anything called exactly that, anywhere in the project, however deeply buried.",
                 "`*.log` — an **extension**. The `*` means \"anything\", so this matches `debug.log`, `error.log`, and any other file ending in `.log`.",
                 "`node_modules/` — a **folder**. The trailing slash says \"this is a directory\": everything inside it, at any depth, is ignored."
               ]
@@ -5470,7 +5551,7 @@
               "p": "To stop tracking something you've already committed, you have to remove it from the project and commit that removal. From the moment it's gone, it's untracked again, and *now* the ignore rule applies to it — so when the build tool recreates that folder tomorrow, Git says nothing."
             },
             {
-              "warn": "Removing a file from your project deletes it from your folder too. For build output that's harmless — it regenerates. For a real `secrets.env` you actually need, copy it somewhere safe first. (Outside this sandbox, real Git has `git rm --cached <file>`, which unhooks a file from tracking while leaving your copy on disk. This simulator doesn't implement it, so we'll use plain `rm` on files we can afford to lose.)"
+              "warn": "Removing a file from your project deletes it from your folder too. For build output that's harmless — it regenerates. For a real `secrets.env` you actually need, copy it somewhere safe first. (Outside this sandbox, real Git has `git rm --cached <file>`, which unhooks a file from tracking while leaving your copy on disk. This simulator doesn't implement it, so we'll use the terminal's own delete command, `rm <file>`, on files we can afford to lose.)"
             },
             {
               "h": "Adding an ignored file on purpose"
@@ -5494,7 +5575,7 @@
               "p": "Here is the honest, uncomfortable part. You committed `config.env` with a live payment key in it three weeks ago. Today you notice, wipe the key out of the file, add it to `.gitignore`, and commit. Your working folder is clean. Are you safe?"
             },
             {
-              "p": "No. Deleting a file changes the *newest* snapshot. It cannot change the old ones — that permanence is the entire point of a commit, and it doesn't switch off for embarrassing commits."
+              "p": "No. Editing or deleting a file changes the *newest* snapshot. It cannot change the old ones — that permanence is the entire point of a commit, and it doesn't switch off for embarrassing commits."
             },
             {
               "graph": {
@@ -5639,7 +5720,7 @@
             ],
             "steps": [
               {
-                "say": "Start where you always start, and count what Git is showing you: one real edit to `app.js` that you care about, buried under five untracked files you never wrote — two logs, two downloaded libraries and a live API key. This is what a real project looks like without ignore rules.",
+                "say": "Start where you always start, and count what Git is showing you: one real edit to `app.js` that you care about, buried under five untracked files you never wrote — two logs, two downloaded libraries and a live API key. (Real Git would fold the two libraries into a single `node_modules/` line; this sandbox lists what is inside.) This is what a real project looks like without ignore rules.",
                 "cmd": "git status",
                 "hint": "Type: git status",
                 "expect": [
@@ -5679,8 +5760,14 @@
               {
                 "say": "Now the other two shapes. Note the double arrow: `>>` **appends** a line, where the single `>` you used a moment ago *replaces* the whole file — using it here would wipe out the line you just wrote. `*.log` catches every log file, present and future; `node_modules/` catches an entire folder.",
                 "cmd": "echo \"*.log\" >> .gitignore\necho \"node_modules/\" >> .gitignore",
-                "hint": "Two commands: echo \"*.log\" >> .gitignore then echo \"node_modules/\" >> .gitignore",
+                "hint": "Two commands: echo \"*.log\" >> .gitignore then echo \"node_modules/\" >> .gitignore (Used a single > by mistake and lost the first rule? echo \"secrets.env\" >> .gitignore puts it back.)",
                 "expect": [
+                  {
+                    "kind": "fileExists",
+                    "path": ".gitignore",
+                    "contains": "secrets.env",
+                    "label": "The secrets.env rule is still there"
+                  },
                   {
                     "kind": "fileExists",
                     "path": ".gitignore",
@@ -5731,9 +5818,9 @@
                 ]
               },
               {
-                "say": "Commit. Read the stat block: **two files changed**. The rules themselves are now part of the project's history, so anyone who copies this repository inherits them without being told.",
-                "cmd": "git commit -m \"Add .gitignore and update the welcome message\"",
-                "hint": "git commit -m \"Add .gitignore and update the welcome message\"",
+                "say": "`git add .` is convenient and indiscriminate: along with the new `.gitignore` it has staged your `app.js` edit, which is a different piece of work. One story per commit — so take `app.js` back out of the frame and commit the rules on their own. They are now part of the project's history, so anyone who copies this repository inherits them without being told.",
+                "cmd": "git restore --staged app.js\ngit commit -m \"Add a .gitignore\"",
+                "hint": "git restore --staged app.js — then git commit -m \"Add a .gitignore\"",
                 "expect": [
                   {
                     "kind": "commitCount",
@@ -5741,19 +5828,34 @@
                     "label": "A second commit exists"
                   },
                   {
-                    "kind": "fileCommitted",
-                    "path": ".gitignore",
-                    "label": ".gitignore is committed"
+                    "kind": "commitTouched",
+                    "ref": "HEAD",
+                    "paths": [
+                      ".gitignore"
+                    ],
+                    "exact": true,
+                    "label": "It holds the ignore rules and nothing else"
+                  }
+                ]
+              },
+              {
+                "say": "Now the edit you actually came here to make, in a commit of its own.",
+                "cmd": "git add app.js\ngit commit -m \"Announce free delivery\"",
+                "hint": "git add app.js — then git commit -m \"Announce free delivery\"",
+                "expect": [
+                  {
+                    "kind": "commitCount",
+                    "min": 3,
+                    "label": "A third commit exists"
                   },
                   {
                     "kind": "commitTouched",
                     "ref": "HEAD",
                     "paths": [
-                      ".gitignore",
                       "app.js"
                     ],
                     "exact": true,
-                    "label": "The commit contains nothing but .gitignore and app.js"
+                    "label": "It holds the app.js edit and nothing else"
                   }
                 ]
               },
@@ -5784,21 +5886,17 @@
                   {
                     "kind": "fileAbsent",
                     "path": "build/bundle.js",
-                    "label": "build/bundle.js is out of the project"
+                    "label": "The bundle is gone from the project"
                   },
                   {
-                    "kind": "commitTouched",
-                    "ref": "HEAD",
-                    "paths": [
-                      ".gitignore",
-                      "build/bundle.js"
-                    ],
-                    "exact": true,
-                    "label": "The commit records the removal and the new rule"
+                    "kind": "fileCommitted",
+                    "path": ".gitignore",
+                    "contains": "build/",
+                    "label": "The build/ rule is committed"
                   },
                   {
                     "kind": "cleanWorkingTree",
-                    "label": "Working tree is clean"
+                    "label": "The removal is committed too"
                   }
                 ]
               }
@@ -5811,7 +5909,7 @@
           "type": "challenge",
           "body": [
             {
-              "p": "A repository in a genuinely bad state. Somebody committed `deploy.env` — with a live AWS secret key in it — back in the first commit. Since then the app has been run a few times, leaving logs and a `cache/` folder scattered around. There's also `example.env`: a placeholder listing the settings a new teammate has to fill in, with nothing real in it. And you've just improved the README, which is worth keeping."
+              "p": "A repository in a genuinely bad state. Somebody committed `deploy.env` — with a live AWS secret key in it — back in the first commit. Since then the app has been run a few times, leaving logs and a `cache/` folder scattered around. There's also `example.env`: a placeholder listing the settings a new teammate has to fill in, with nothing real in it. And you've just updated the README to say where the credentials come from now — ask a teammate — which belongs with this cleanup."
             },
             {
               "p": "Clean the house. The checklist watches the *state* of the repo, so any route that gets there counts. Two things it will hold you to. The junk has to still be sitting on your disk when you're done — ignoring is not deleting. And `example.env` has to end up committed, even though the rule you're about to write covers it: that file is the deliberate exception, and Git will make you say so out loud."
@@ -5878,7 +5976,7 @@
                 "content": "cached-thumbnails-blob"
               }
             ],
-            "goal": "End with `git status` completely silent — nothing modified, nothing staged, and nothing untracked — while `build.log`, `test.log` and the `cache/` files are all still sitting in your project folder. Your committed `.gitignore` must ignore the `cache/` folder, every `.log` file and every `.env` file. `deploy.env` itself must be gone from the project, so Git stops tracking it — while `example.env` ends up committed anyway, as a deliberate exception to your own rule. Do the whole cleanup in a single new commit on top of the initial one, carrying those changes and your README improvement and nothing else.",
+            "goal": "End with `git status` completely silent — nothing modified, nothing staged, and nothing untracked — while `build.log`, `test.log` and the `cache/` files are all still sitting in your project folder. Your committed `.gitignore` must ignore the `cache/` folder, every `.log` file and every `.env` file. `deploy.env` itself must be gone from the project, so Git stops tracking it — while `example.env` ends up committed anyway, as a deliberate exception to your own rule. Do the whole cleanup in a single new commit on top of the initial one, carrying those changes and the README note that goes with them, and nothing else.",
             "hints": [
               "Three rules, and you only need two of the three shapes: a folder pattern ends with a slash, an extension pattern starts with a star and a dot. One extension rule can cover both `.env` files at once. Build the file up with echo \"...\" > .gitignore and then echo \"...\" >> .gitignore.",
               "Adding an env rule will NOT make Git stop tracking deploy.env — it was in the first commit, so it's already inside. Get it out of the project, and stage that removal like any other change. Leave the logs and the cache exactly where they are: the point is that Git can't see them, not that they're gone.",
@@ -5889,19 +5987,22 @@
               {
                 "kind": "fileCommitted",
                 "path": ".gitignore",
-                "contains": "cache/",
-                "label": "A committed .gitignore hides the cache/ folder"
+                "nonEmpty": true,
+                "label": "A .gitignore is committed, so the whole team gets the rules"
               },
               {
-                "kind": "fileCommitted",
-                "path": ".gitignore",
-                "contains": "*.log",
+                "kind": "pathIgnored",
+                "path": "cache/anything-else",
+                "label": "It hides the cache/ folder"
+              },
+              {
+                "kind": "pathIgnored",
+                "path": "tomorrow.log",
                 "label": "...and every .log file"
               },
               {
-                "kind": "fileCommitted",
-                "path": ".gitignore",
-                "contains": "*.env",
+                "kind": "pathIgnored",
+                "path": "staging.env",
                 "label": "...and every .env file, deploy.env included"
               },
               {
@@ -6067,7 +6168,7 @@
               ]
             },
             {
-              "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch and the login endpoint was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
+              "tip": "How do you actually *type* that blank line? Repeat the flag. `git commit -m \"Add rate limiting\" -m \"Traffic tripled after launch, and login was the first thing to buckle.\"` — Git joins each `-m` with a blank line between them, so the first becomes your subject and the rest become the body. That works here and on your own machine. (Running `git commit` with no `-m` at all is the other way: real Git opens a text editor for you.)"
             },
             {
               "tip": "Small, obvious changes don't need a body at all. `Fix typo in README` is a complete and excellent commit message. Save your words for the changes that will confuse somebody."
@@ -6606,11 +6707,11 @@
                 "content": "# Setup\n1. Download the code.\n2. Open index.html.\n3. Create an account on login.html."
               }
             ],
-            "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, the bug fix in a commit of its own, and both documentation files together in one final commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
+            "goal": "End with exactly four commits and nothing uncommitted: the login commit complete with its stylesheet and its message unchanged, then the bug fix in a commit of its own whose subject line says what it fixed, and last of all both documentation files together in one commit whose subject line is a short sentence saying what changed — not \"docs\" or \"wip\". The order you do the three jobs in is part of the puzzle.",
             "hints": [
               "Think about order first. `git commit --amend` only ever reaches the commit at the very tip of your branch — so which of the three jobs is impossible once you've committed anything on top?",
               "To complete an existing commit: stage the missing file with `git add login.css`, then run `git commit --amend --no-edit`. That rebuilds the tip commit with the extra file and leaves its message alone.",
-              "\"One logical change\" is not \"one file.\" You can stage several at once: `git add README.md docs/setup.md`, then make a single commit. Check yourself before you call it done, with `git log --oneline` and `git status`: four commits, nothing modified, nothing untracked. If a subject line needs the word \"and\", you've merged two commits that should have stayed apart.",
+              "\"One logical change\" is not \"one file.\" You can stage several at once: `git add README.md docs/setup.md`, then make a single commit. Check yourself before you call it done, with `git log --oneline` and `git status`: four commits, nothing modified, nothing untracked. If a subject line needs the word \"and\" to join two different jobs, you've merged two commits that should have stayed apart.",
               "Committed too soon and buried the login commit? You are not stuck. `git reset HEAD~1` from Module 9 lifts the newest commit off the branch and leaves its changes in your working directory, **unstaged** — so your next `git add` picks up only the file you name, and nothing can sneak into the amend. Run it once for each commit you need to lift, then start again from the amend."
             ],
             "expect": [
@@ -6621,7 +6722,7 @@
               },
               {
                 "kind": "commitTouched",
-                "ref": "HEAD~2",
+                "nth": 2,
                 "paths": [
                   "login.html",
                   "login.css"
@@ -6630,28 +6731,43 @@
                 "label": "The login commit now carries both of its files"
               },
               {
+                "kind": "lastCommitMessage",
+                "nth": 2,
+                "equals": "Add a login form",
+                "label": "...and its message is still \"Add a login form\""
+              },
+              {
                 "kind": "commitTouched",
-                "ref": "HEAD~1",
+                "nth": 3,
                 "paths": [
                   "app.js"
                 ],
                 "exact": true,
-                "label": "The bug fix has a commit to itself"
+                "label": "Third commit: the bug fix, with app.js to itself"
+              },
+              {
+                "kind": "lastCommitMessage",
+                "nth": 3,
+                "minLength": 10,
+                "maxLength": 72,
+                "label": "...under a subject line that says what it fixed"
               },
               {
                 "kind": "commitTouched",
-                "ref": "HEAD",
+                "nth": 4,
                 "paths": [
                   "README.md",
                   "docs/setup.md"
                 ],
                 "exact": true,
-                "label": "One documentation commit covering both docs files"
+                "label": "Fourth and last: one documentation commit covering both docs files"
               },
               {
                 "kind": "lastCommitMessage",
+                "nth": 4,
                 "minLength": 10,
-                "label": "The last commit's message is a real subject line, not \"docs\" or \"wip\""
+                "maxLength": 72,
+                "label": "...whose subject is a short real sentence, not \"docs\" or \"wip\""
               },
               {
                 "kind": "cleanWorkingTree",
@@ -6783,14 +6899,14 @@
             ]
           },
           {
-            "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. A pull request is a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
+            "p": "Here's the part worth holding on to: there is no second, harder Git hiding behind this one. Everything you haven't met yet is built out of the same few pieces you already understand. A tag is a name pinned to a commit. Cherry-picking is replaying one commit somewhere else. Rebasing is re-writing a chain of commits onto a different parent. Even the pull request from Module 8 was only a branch, plus a conversation. Every one of those is a way of moving around on the graph you've been watching redraw itself all course."
           },
           {
             "h": "Where to go next"
           },
           {
             "list": [
-              "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons.",
+              "**Use it today, on something real.** Take any folder you care about — notes, a spreadsheet-free budget, a half-finished website — and run `git init`. Ten small commits on a real project will teach you more than another ten lessons. (First time using Git on that machine? The three lines of one-time setup are back in Module 2.)",
               "**Push something to a remote.** Make an account on a hosting service, create an empty repository, and connect it with the `git remote add` and `git push -u` you learned in Module 7. Seeing your own history appear on a web page makes it click.",
               "**Read someone else's log.** Clone a project you admire and run `git log --oneline`. You'll spot the good messages and the bad ones immediately now, which is proof you learned something.",
               "**Let Git teach you the rest.** In real Git on your own machine, `git help <command>` and `git <command> --help` describe every flag of every command, and now you have the vocabulary to read them.",
