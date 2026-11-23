@@ -1091,6 +1091,50 @@ function includes(haystack, needle, name) {
   ok(!moved.run('git merge feature').error, 'once the file is out of the way the merge goes ahead');
 }
 
+/* ---- 30. conflictResolved: settling a conflict counts whichever side wins ---- */
+{
+  // Resolving by keeping your own side leaves the index equal to HEAD, so
+  // `fileStaged` never goes true and a walkthrough step built on it could not
+  // be passed — even after the merge was correctly concluded.
+  const conflict = () => {
+    const e = new GitEngine();
+    e.applySetup([
+      { op: 'init' },
+      { op: 'write', path: 'tagline.txt', content: 'Coffee, probably.' },
+      { op: 'add' }, { op: 'commit', message: 'base' },
+      { op: 'switchCreate', name: 'bold' },
+      { op: 'write', path: 'tagline.txt', content: 'Taste the sunrise.' },
+      { op: 'add' }, { op: 'commit', message: 'theirs' },
+      { op: 'switch', name: 'main' },
+      { op: 'write', path: 'tagline.txt', content: 'Good coffee, no fuss.' },
+      { op: 'add' }, { op: 'commit', message: 'ours' },
+    ]);
+    e.run('git merge bold');
+    return e;
+  };
+  const resolved = (e) => runChecks(e, [{ kind: 'conflictResolved', path: 'tagline.txt' }])[0].passed;
+  const staged = (e) => runChecks(e, [{ kind: 'fileStaged', path: 'tagline.txt' }])[0].passed;
+
+  const ours = conflict();
+  ok(!resolved(ours), 'conflictResolved is false while the file is unmerged');
+  ours.run('echo "Good coffee, no fuss." > tagline.txt');
+  ok(!resolved(ours), 'editing the markers out is not enough — the file is still unmerged');
+  ours.run('git add tagline.txt');
+  ok(resolved(ours), 'git add settles it when you keep your own side');
+  ok(!staged(ours), '...a case fileStaged cannot see, because the index equals HEAD');
+  ours.run('git commit');
+  ok(resolved(ours) && ours.headCommit().parents.length === 2, 'and it stays settled once the merge is concluded');
+
+  const theirs = conflict();
+  theirs.run('echo "Taste the sunrise." > tagline.txt');
+  theirs.run('git add tagline.txt');
+  ok(resolved(theirs) && staged(theirs), 'taking their side settles it too');
+
+  const sloppy = conflict();
+  sloppy.run('git add tagline.txt');
+  ok(!resolved(sloppy), 'marking a file resolved with the markers still in it does not count');
+}
+
 /* ---- report ---- */
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {

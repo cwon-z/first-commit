@@ -83,7 +83,7 @@ first-commit/
 │   └── admin.css         # course statistics
 ├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
-│   ├── engine.test.js              # engine + validators              (306 assertions)
+│   ├── engine.test.js              # engine + validators              (313 assertions)
 │   ├── content.test.js             # course.json valid AND solvable  (2262)
 │   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (137)
 │   ├── server.test.js              # accounts, progress, stats, safety (149)
@@ -321,8 +321,8 @@ Everything lives in `content/course.json`. A lesson is `concept`, `guided`, or
 
 ### The curriculum
 
-All 11 modules ship: 34 lessons (12 concept, 11 guided, 11 challenge) plus 11
-module recaps, 472 content blocks and 32 live commit-graph diagrams.
+All 11 modules ship: 36 lessons (14 concept, 11 guided, 11 challenge) plus 11
+module recaps, 507 content blocks and 33 live commit-graph diagrams.
 
 | # | Module | Teaches |
 |---|--------|---------|

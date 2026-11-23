@@ -538,6 +538,10 @@ body[data-mode='exercise'] #ex-toolbar {
 .lesson-list code,
 .lesson-callout code,
 .step-say code,
+.step-hint code,
+.rail-goal code,
+.check-label code,
+.hint-text code,
 .rail-p code {
   font: var(--fw-regular) 0.88em/1.4 var(--font-mono);
   padding: 1px 5px;

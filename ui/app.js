@@ -821,7 +821,7 @@ function showSuccessBanner() {
 function achievements(entry) {
   const ex = entry && entry.lesson.exercise;
   if (!ex) return [];
-  if (ex.expect) return ex.expect.map((c) => c.label || c.kind).slice(0, 6);
+  if (ex.expect) return ex.expect.map((c) => stripMd(c.label || c.kind)).slice(0, 6);
   if (ex.steps) return ex.steps.map((s) => stripMd(s.say)).slice(0, 6);
   return [];
 }
@@ -1077,7 +1077,9 @@ function renderGuidedPanel(panel, entry) {
     }
     if (step.hint) {
       const hintEl = li.querySelector('.step-hint');
-      hintEl.textContent = step.hint;
+      // Hints are written with the same inline markup as the steps (`code`,
+      // **bold**); printed as plain text they showed the backticks and stars.
+      hintEl.innerHTML = inlineMd(step.hint);
       const hintBtn = document.createElement('button');
       hintBtn.type = 'button';
       hintBtn.className = 'btn btn-sm btn-ghost';
@@ -1125,7 +1127,7 @@ function checkGuided(entry) {
 function revealHint(entry, mode) {
   if (mode === 'guided') {
     const step = entry.lesson.exercise.steps[S.stepIdx];
-    if (step && step.hint) S.terminal.print('hint: ' + step.hint, 'dim');
+    if (step && step.hint) S.terminal.print('hint: ' + stripMd(step.hint), 'dim');
     else S.terminal.print('hint: follow the current step in the panel.', 'dim');
   } else if (mode === 'challenge') {
     const hints = entry.lesson.exercise.hints || [];
@@ -1134,7 +1136,7 @@ function revealHint(entry, mode) {
       refreshHintButtons(entry);
     }
     const shown = hints.slice(0, Math.max(S.revealedHints, 1));
-    S.terminal.print('hint: ' + shown[shown.length - 1], 'dim');
+    S.terminal.print('hint: ' + stripMd(shown[shown.length - 1]), 'dim');
   } else {
     S.terminal.print('hint: this is a free sandbox — nothing to solve. Try `git init`!', 'dim');
   }
@@ -1172,7 +1174,7 @@ function renderChallengePanel(panel, entry) {
     li.dataset.idx = i;
     li.innerHTML = '<span class="check-box" aria-hidden="true"></span>' +
       '<span class="check-label"></span><span class="check-state"></span>';
-    li.querySelector('.check-label').textContent = check.label || check.kind;
+    li.querySelector('.check-label').innerHTML = inlineMd(check.label || check.kind);
     list.appendChild(li);
   });
   checksWrap.appendChild(list);
@@ -1199,7 +1201,7 @@ function refreshHintButtons(entry) {
     d.className = 'hint-revealed';
     d.innerHTML = '<span class="hint-num"></span><span class="hint-text"></span>';
     d.querySelector('.hint-num').textContent = `Hint ${i + 1}`;
-    d.querySelector('.hint-text').textContent = h;
+    d.querySelector('.hint-text').innerHTML = inlineMd(h);
     hintWrap.appendChild(d);
   });
   const btn = document.createElement('button');
@@ -1242,13 +1244,13 @@ function checkChallenge(entry) {
 /* ------------------------------- playground ------------------------------- */
 
 const EXPERIMENTS = [
-  ['Put the folder under Git and take a first snapshot', 'git init'],
+  ['Put the folder under Git', 'git init'],
   ['See what Git currently thinks about your files', 'git status'],
   ['Stage everything in the folder', 'git add .'],
   ['Record a snapshot with a message', 'git commit -m "first"'],
   ['Read the history one line per commit', 'git log --oneline'],
   ['Branch off and keep working somewhere else', 'git switch -c experiment'],
-  ['Bring a branch back into main', 'git merge experiment'],
+  ['Bring that branch\'s work into the one you are standing on', 'git merge experiment'],
   ['Find out where HEAD has been', 'git reflog'],
 ];
 

@@ -108,6 +108,16 @@ export const CHECKS = {
     return !/^(<{7}|={7}|>{7})/m.test(content);
   },
 
+  conflictResolved: (e, c) => {
+    // The path is no longer in dispute: not listed as unmerged, and no marker
+    // lines left in it. Use this — not fileStaged — for "you ran git add on the
+    // conflicted file": keeping your own side is a legitimate resolution, and
+    // then the index equals HEAD, so nothing about the file ever looks staged.
+    if (e.mergeState && e.mergeState.conflicts.has(c.path)) return false;
+    const content = e.fs.get(c.path);
+    return content != null && !/^(<{7}|={7}|>{7})/m.test(content);
+  },
+
   notMerging: (e) => !e.mergeState,
 
   /* --- history shape --- */
