@@ -83,8 +83,8 @@ first-commit/
 │   └── admin.css         # course statistics
 ├── assets/fonts/         # self-hosted latin subsets (Archivo + JetBrains Mono)
 ├── tests/
-│   ├── engine.test.js              # engine + validators              (313 assertions)
-│   ├── content.test.js             # course.json valid AND solvable  (2262)
+│   ├── engine.test.js              # engine + validators              (369 assertions)
+│   ├── content.test.js             # course.json valid AND solvable  (2301)
 │   ├── ui.test.js                  # UI ↔ HTML contract, a11y         (137)
 │   ├── server.test.js              # accounts, progress, stats, safety (149)
 │   ├── progress.test.js            # the browser's progress stores    (37)
@@ -273,8 +273,8 @@ merge state (incl. conflict markers + MERGE_HEAD semantics), simulated remotes
 with per-remote tracking refs and upstreams, a stash, and a reflog.
 
 Supported commands: `init · status · add [-f] · restore [--staged] · commit
-[-m|-a|-am|--amend] · log [--oneline|-n] · diff [--staged|<ref>|<refA> <refB>] ·
-show [<ref>] · branch [-d|-D] · switch [-c|--detach] · checkout [-b|--|<commit>] ·
+[-m|-a|-am|--amend] · log [--oneline|--all|-n|<ref>] · diff [--staged|<ref>|<refA> <refB>] ·
+show [<ref>] · branch [-d|-D|-m|-M|-a|-r] · switch [-c|--detach] · checkout [-b|--|<commit>] ·
 merge [--abort] · reset [--soft|--mixed|--hard] · revert · rebase ·
 stash [push|pop|apply|list|drop|clear] · remote [add|-v] · push [-u] · fetch ·
 pull · reflog`, plus shell basics
@@ -290,8 +290,19 @@ than pretending the command doesn't exist.
 **Sandbox limitations** (deliberate, and worth knowing before you write a lesson):
 the filesystem is flat-ish — paths with `/` work, but there is no `mkdir` or
 `cd`; `rebase` handles linear branches only and aborts on conflict; `stash pop`
-restores its snapshot wholesale rather than three-way merging it; `.gitignore`
-supports `name`, `*.ext` and `dir/` patterns, not negation or globstars.
+restores its snapshot wholesale rather than three-way merging it; a merge
+conflicts on the whole file whenever both sides changed it, even on different
+lines; `.gitignore` matches a name, a `*.ext` or a `dir/` at any depth (with `*`
+and `?` inside one name) but not negation or `**`; and `push --force` is
+refused, with an explanation, rather than performed.
+
+**Where it refuses rather than guesses.** `restore`, `diff` and `log` reject a
+flag they do not know instead of ignoring it. That is not pedantry: `git restore
+--stagd file` used to run the destructive form of the command the lesson had
+just warned about. A commit message with no quotes round it is an error, as in
+Git, rather than a commit recorded under its first word; an empty message
+aborts. `git rm` and `git config` — real Git the course mentions but the sandbox
+does not model — say so, and say what to do here instead.
 
 **Validation is state-based.** Exercises pass when the *resulting repo state*
 matches declarative checks (`fileCommitted`, `commitTouched {exact}`,
@@ -299,6 +310,30 @@ matches declarative checks (`fileCommitted`, `commitTouched {exact}`,
 The one pragmatic exception is `commandRan` (semantic: parsed command + success),
 used only for read-only steps like `git status` in guided walkthroughs. The
 content test enforces that challenges never use it.
+
+Four things about checks that are easy to get wrong, each of which shipped wrong
+once:
+
+- **Name a commit by counting forward, not back.** `commitTouched` and
+  `lastCommitMessage` take `nth` (1 = the first commit on the branch). A box
+  labelled "first new commit: only app.js" should tick the moment that commit
+  exists and stay ticked; with `ref: "HEAD~1"` it points at a different commit
+  after every new one, so nothing ticks until the end and a correct step looks
+  as if it failed. Pair it with `commitCount {exact}`, or extra commits pass.
+- **`fileStaged` is not "they ran `git add`".** Resolve a conflict by keeping
+  your own side and the index equals HEAD, so nothing is staged. Use
+  `conflictResolved` for a settled conflict.
+- **Ask what a rule does, not how it is spelled.** `pathIgnored` asks whether
+  the `.gitignore` in force covers a path — one that need not exist, which is
+  how "every `.log` file" is told apart from two logs listed by name.
+- **The end state cannot show where a commit was made.** A branch created after
+  the fact points at the same commit. `commitOnBranch` reads the branch each
+  commit recorded when it was created.
+
+`commandRan` can also tell variants apart: `withArg` lists flags, any one of
+which must be present (a step about `git diff --staged` should not be passed by
+a plain `git diff`), `sub` may list alternatives, and `failed: true` matches a
+command that is meant to be refused.
 
 ## Authoring content
 
@@ -372,11 +407,11 @@ re-litigated every time the linter prints them:
 
 | It says | The call |
 |---|---|
-| `repo` (81) vs `repository` (50) | **Both, deliberately.** Module 1 introduces it as *A repository ("repo")*, because "repo" is what every real conversation and every tutorial says. Refusing the shorthand would leave a beginner unable to read anything outside this course. |
+| `repo` (83) vs `repository` (50) | **Both, deliberately.** Module 1 introduces it as *A repository ("repo")*, because "repo" is what every real conversation and every tutorial says. Refusing the shorthand would leave a beginner unable to read anything outside this course. |
 | `snapshot` (33) vs `commit` | **Both, deliberately.** "Snapshot" is the metaphor that makes a commit make sense; "commit" is its name. The course teaches the first and then uses the second. |
 | `save point` (2) | Kept. It appears once, introducing the video-game analogy in module 1, and is never used as a bare synonym. |
 | `the stage` (1) | A false positive — it is matching *"the staged file"*. |
-| `working tree` (7) | Kept where it quotes real `git status` output, which says "working tree clean". Changing it would make the course disagree with the terminal. |
+| `working tree` (9) | Kept where it quotes real `git status` output, which says "working tree clean" — changing it would make the course disagree with the terminal — and where module 2 names that state, *a clean working tree*, so that later challenges can ask for one. |
 | `your folder` (4) | Kept only where it is deliberately plain language for a beginner. Where the precise idea was being taught, it now says **working directory**. |
 
 The rule behind all of these: precise terms where the learner needs to recognise

@@ -121,14 +121,49 @@ Reproduced, not yet fixed; details and repro steps in
 
 - [ ] **Sandbox commands that mislead whoever tries them** — `stash pop`
       restores more than was stashed, `git reset <file>`, `switch -c <name>
-      <start>`, `checkout <rev> -- <file>`, `restore .`, whole-file conflicts
-      for edits on different lines, flags silently ignored. **Medium.**
+      <start>`, `checkout <rev> -- <file>`, whole-file conflicts for edits on
+      different lines. **Medium.** (`restore .`, `-m ""`, `branch -m`, and
+      flags silently ignored by `restore` / `diff` / `log` were fixed in the
+      curriculum review below; other commands still ignore flags they do not
+      know.)
 - [ ] **Challenges pass on a detached HEAD** where they lack `headOnBranch`
       (m4l3, m10l3, m11l3). **Small.**
 - [ ] **Graph labels on lower lanes overlap the lane above.** The fix makes
       every multi-lane figure taller, so it needs a design decision. **Small.**
 - [ ] **Smaller interface items** — admin focus after Reset/Delete, the
       non-owner admin message, status lines' "−" mark, two `#/states` plates.
+
+## From the curriculum review
+
+Every exercise was played blind — from the lesson text, the goal and the hints
+alone — and every claim about Git checked against real Git. What that found is
+fixed: checklists that accepted the wrong history or rejected the right one,
+walkthroughs that could not be finished after a legitimate choice, lessons that
+pointed at parts of the interface that are not where they said, and a sandbox
+that quietly did something other than what was typed. These are what is left.
+
+- [ ] **Run the browser sweep before deploying.** The review changed how hints
+      and checklist labels are rendered and what several lessons say about the
+      interface (**Files**, **reset**). That was checked against the markup and
+      stylesheet, not in a browser. `node tools/sweep.mjs --accounts`, then look
+      at one guided lesson and one challenge by eye. **Small.**
+- [ ] **Sandbox output that still differs from Git** — `git diff` during a
+      conflict prints `new file mode` for the conflicted file; `git merge
+      --continue` is not understood; `git status` before the first commit
+      suggests `git restore --staged` where Git says `git rm --cached`;
+      untracked folders are listed file by file where Git prints one
+      `folder/` line (module 10 says so); `git revert` of an already-reverted
+      commit reports a conflict; `git pull` on a branch with no upstream
+      suggests a command that then fails. None blocks an exercise. **Small each.**
+- [ ] **Walkthroughs can still be left behind by going off-script** — for
+      instance committing on `main` in the module 5 walkthrough, or merging the
+      two branches in the other order in module 6. Module 1 now says what
+      **reset** is for, and the steps most likely to strand someone say it
+      again in their hints, but there is no general "this walkthrough cannot
+      continue from here" notice. **Medium, and a design question.**
+- [ ] **A message check can only measure.** Module 11's challenge now checks
+      all three commits' messages, but only for length — "asdf asdf asdf" would
+      pass. Anything stricter starts rejecting good messages.
 
 ## Housekeeping
 

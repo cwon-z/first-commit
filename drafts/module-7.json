@@ -54,7 +54,7 @@
             "code": "git init                       # only if it isn't a repository yet\ngit add .\ngit commit -m \"First commit\"\ngit remote add origin https://github.com/you/iceland-trip.git\ngit push -u origin main"
           },
           {
-            "p": "Five lines and your project is on the internet. The URL comes from the site; everything else you already know except the last line, which is next."
+            "p": "Five lines and your project is on the internet. The URL comes from the site; everything else you already know except the last line, which is next. (Two things real Git adds on your own machine. If `git init` named your first branch `master` rather than `main`, run `git branch -M main` before that push to rename it. And the first push to a hosting site asks you to sign in — the site's own instructions walk you through that part.)"
           },
           {
             "h": "push: send my commits over there"
@@ -69,7 +69,7 @@
             "p": "The `-u` (long form: `--set-upstream`) is a one-time piece of bookkeeping. It records the pairing \"my `main` goes with `origin`'s `main`\" — Git calls that the **upstream**. From then on you can type a bare `git push`, or a bare `git pull`, and Git already knows which remote and which branch you mean."
           },
           {
-            "tip": "Forget the `-u` on your first push and nothing bad happens: Git stops and prints the exact command to type instead. It is a nudge, not a disaster. This is the whole of it:"
+            "tip": "Forget the `-u` on your first push and nothing bad happens: Git stops and prints the exact command to type instead. It is a nudge, not a disaster. This is the part that matters:"
           },
           {
             "code": "git push\n# fatal: The current branch main has no upstream branch.\n# To push the current branch and set the remote as upstream, use\n#\n#     git push --set-upstream origin main"
@@ -97,7 +97,7 @@
             "analogy": "`origin/main` is the last photo you have of a friend. It isn't your friend — it is a record of how they looked when you last met. They may have had a haircut this morning; your photo will keep showing the old hair until you see them again. `git fetch` is seeing them again."
           },
           {
-            "tip": "This course draws you a graph panel. The real world does not — so here is how you answer \"where do I stand relative to origin?\" without one. Real `git status` says it in words: *\"Your branch is ahead of 'origin/main' by 1 commit\"*, or *\"Your branch and 'origin/main' have diverged\"*. And `git log --oneline` prints the same `main` and `origin/main` labels you are watching in the panel, next to the commits they point at — that one works in real Git and in this sandbox alike. (This sandbox's `git status` is the quieter of the two and leaves the ahead/behind line out, so lean on `git log --oneline` while you are here.)"
+            "tip": "This course draws you a graph panel. The real world does not — so here is how you answer \"where do I stand relative to origin?\" without one. Real `git status` says it in words: *\"Your branch is ahead of 'origin/main' by 1 commit\"*, or *\"Your branch and 'origin/main' have diverged\"*. And `git log --oneline --all` prints the same `main` and `origin/main` labels you are watching in the panel, next to the commits they point at — that one works in real Git and in this sandbox alike. The `--all` matters: a commit you have fetched but not yet merged is on no branch of yours, only under `origin/main`, and a plain `git log` walks straight past it. (This sandbox's `git status` is the quieter of the two and leaves the ahead/behind line out, so lean on `git log --oneline --all` while you are here.)"
           },
           {
             "p": "Here is your repository the moment after a successful push. Your memory of the remote is accurate, because you were just there:"
@@ -297,7 +297,7 @@
             "p": "Read it as it is meant: *the remote has work you do not have; if I let your push through, Sam's commit would be knocked off the end of the branch and nobody would have it.* Git is refusing to lose somebody's work. It is on your side."
           },
           {
-            "p": "Git words this rejection two ways depending on what you already know. If you have not fetched, you get `(fetch first)`, as above. If you have already fetched — so Sam's commit is sitting in your repository, merely not on your branch — you get `! [rejected]  main -> main (non-fast-forward)` instead, and the hint changes to *\"the tip of your current branch is behind its remote counterpart\"*. The two mean the same thing: the remote has commits your branch does not contain. (This sandbox always prints the `(fetch first)` wording.)"
+            "p": "Git words this rejection two ways depending on what you already know. If you have not fetched, you get `(fetch first)`, as above. If you have already fetched — so Sam's commit is sitting in your repository, merely not on your branch — you get `! [rejected]  main -> main (non-fast-forward)` instead, and the hint changes to *\"the tip of your current branch is behind its remote counterpart\"*. The two mean the same thing: the remote has commits your branch does not contain."
           },
           {
             "p": "And notice that either way the fix starts with catching your memory up. That is why the hint says *fetch first*: your record of the remote has to become true before anything you do next can be based on the truth."
@@ -313,7 +313,7 @@
             ]
           },
           {
-            "warn": "There is a `git push --force`, which orders the remote to throw its version away and take yours. It has legitimate uses that you do not have yet. It is also exactly how people delete a colleague's afternoon. Never reach for it to make an error message go away."
+            "warn": "There is a `git push --force`, which orders the remote to throw its version away and take yours. It has legitimate uses that you do not have yet. It is also exactly how people delete a colleague's afternoon. Never reach for it to make an error message go away. (This sandbox will not force-push at all: try it and it tells you what would have happened.)"
           }
         ]
       },
@@ -560,7 +560,7 @@
           ],
           "goal": "Get your uncommitted work — the new swimsuit line in `packing.md`, and the brand-new file `gear.md` — all the way onto the remote, while keeping both of Sam's commits. Finish with: `origin`'s `main` and your `main` on the same commit; that commit holding Sam's `budget.md` (including his `food 150` line) as well as both of your changes; and a completely clean working tree — nothing modified, nothing untracked.",
           "hints": [
-            "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours.",
+            "Start with `git status`, then `git fetch`. Fetching is free and it shows you what the remote has been up to without touching a single file of yours. `git log --oneline --all` afterwards lists both of Sam's commits, under the `origin/main` label.",
             "In this sandbox `git pull` stops while any tracked file has uncommitted changes, so commit your work first: `git add .` then `git commit -m \"...\"`. (Remember `gear.md` is brand new — `git commit -am` would walk right past it.)",
             "Now try `git push`, and read the rejection carefully. The hint at the bottom of it names the command that fixes this.",
             "The full loop: commit your work, `git pull` to merge Sam's commits into yours, then `git push` to send the combined history back."
